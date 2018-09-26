@@ -1,0 +1,16 @@
+{
+  "name": "tabla",
+  "version": "0.0.1",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "rimraf lib && tsc && nearleyc src/grammar.ne -o lib/grammar.js",
+    "test": "yarn build && ts-node test/test.ts"
+  },
+  "devDependencies": {
+    "nearley": "^2.15.1",
+    "rimraf": "^2.6.2",
+    "ts-node": "^7.0.1",
+    "typescript": "^3.0.3"
+  }
+}
