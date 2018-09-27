@@ -1,5 +1,5 @@
 const isObject = v => Object.prototype.toString.call(v) === '[object Object]';
-const isIndex = v => /^(0|[1-9]\d*)$/.test(v);
+const toIndex = v => (/^[\d\.]+$/.test(v) ? parseFloat(v) : null);
 
 const diff = (next, prev) => {
   if (next && prev && isObject(next) !== isObject(prev)) {
@@ -72,9 +72,9 @@ const createTable = streams => {
 };
 
 const mapStream = (stream, func) => {
-  const map = ([value, id, count]) => {
-    const [newValue, newId] = func([value, id]);
-    return [newValue, newId, count];
+  const map = data => {
+    const [value, id] = func(data);
+    return [value, id, data[2]];
   };
   return createStream(
     () => map(stream()),
@@ -110,20 +110,15 @@ const createEmitter = (initial = null as any) => {
   };
 };
 
-const createSet = streams => {
-  if (streams.length === 0) return createConstant(null);
-  return createStream(
-    () => {
-      const data = streams.map(stream => stream());
-      const latest = Math.max(...data.map(d => d[2]));
-      return data.reverse().find(d => d[2] === latest);
-    },
-    emit => {
-      const unobservers = streams.map(stream => stream(emit));
-      return () => unobservers.forEach(u => u());
-    },
-  );
-};
+const mergeTable = stream =>
+  mapStream(stream, ([value]) => {
+    const keys = (Object.keys(value)
+      .map(toIndex)
+      .filter(n => n) as number[]).sort((a, b) => b - a);
+    if (keys.length === 0) return [null, undefined, counter++];
+    const latest = Math.max(...keys.map(k => value[k][2]));
+    return value[keys.find(k => value[k][2] === latest)!];
+  });
 
 const wrapStop = (stream, onStop) => listener => {
   if (!listener) return stream();

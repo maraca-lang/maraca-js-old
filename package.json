@@ -8,6 +8,7 @@
     "test": "yarn build && ts-node test/test.ts"
   },
   "devDependencies": {
+    "moo": "^0.4.3",
     "nearley": "^2.15.1",
     "rimraf": "^2.6.2",
     "ts-node": "^7.0.1",
