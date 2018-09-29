@@ -4,8 +4,8 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "build": "rimraf lib && tsc && nearleyc src/grammar.ne -o lib/grammar.js",
-    "test": "yarn build && ts-node test/test.ts"
+    "build": "rimraf lib/* && nearleyc src/grammar.ne -o lib/grammar.js && tsc",
+    "test": "yarn build && ts-node src/test.ts"
   },
   "devDependencies": {
     "moo": "^0.4.3",

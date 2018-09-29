@@ -9,28 +9,43 @@ main ->
   | _ {% () => [] %}
 
 table ->
-    "[" _ body _ "]" {% x => ({ type: "table", value: x[2] }) %}
-  | "[" _ "]" {% () => ({ type: "value", value: null }) %}
+    "[*" _ exp _ "," _ body _ "]"
+      {% x => ({ type: "table", value: { default: x[2], content: x[6] } }) %}
+  | "[*" _ exp _ "]"
+      {% () => ({ type: "value", value: { default: x[2], content: [] } }) %}
+  | "[" _ body _ "]"
+      {% x => ({
+        type: "table",
+        value: { default: { type: "value", value: null }, content: x[2] }
+      }) %}
+  | "[" _ "]"
+      {% () => ({ type: "value", value: null }) %}
 
 body ->
-    body _ ";" _ exp _ ";":? {% x => [...x[0], x[4]] %}
-  | exp _ ";":? {% x => [x[0]] %}
+    body _ "," _ line {% x => [...x[0], x[4]] %}
+  | line {% x => [x[0]] %}
 
-group -> "(" _ exp _ ")" {% x => x[2] %}
+line ->
+    exp {% id %}
+  | _ {% x => ({ type: "blank" }) %}
+
+group ->
+    "(" _ exp _ ")" {% x => x[2] %}
 
 exp ->
     expeq {% id %}
 
 expeq ->
-    expeq _ "=" _ expfunc {% func %}
+    expeq _ "::" _ expfunc {% func %}
   | expfunc {% id %}
 
 expfunc ->
-    expfunc _ "=>" _ expid {% func %}
+    expfunc _ "=>" _ expid
+      {% x => ({ type: "define", value: { input: x[0], output: x[4] } }) %}
   | expid {% id %}
 
 expid ->
-    expid _ ":" _ expor {% func %}
+    expid _ "~" _ expor {% func %}
   | expor {% id %}
 
 expor ->
@@ -42,12 +57,16 @@ expand ->
   | expcomp {% id %}
 
 expcomp ->
-	  expcomp _ "<" _ expsum {% func %}
-	| expcomp _ ">" _ expsum {% func %}
-	| expcomp _ "<=" _ expsum {% func %}
-	| expcomp _ ">=" _ expsum {% func %}
-	| expcomp _ "!=" _ expsum {% func %}
-	| expcomp _ "==" _ expsum {% func %}
+	  expcomp _ "<" _ expconc {% func %}
+	| expcomp _ ">" _ expconc {% func %}
+	| expcomp _ "<=" _ expconc {% func %}
+	| expcomp _ ">=" _ expconc {% func %}
+	| expcomp _ "!=" _ expconc {% func %}
+	| expcomp _ "=" _ expconc {% func %}
+	| expconc {% id %}
+
+expconc ->
+	  expconc _ ".." _ expsum {% func %}
 	| expsum {% id %}
 
 expsum ->
@@ -56,13 +75,14 @@ expsum ->
 	| expprod {% id %}
 
 expprod ->
-	  expprod _ "/" _ expuni {% func %}
+    expprod _ "*" _ expuni {% func %}
+	| expprod _ "/" _ expuni {% func %}
 	| expprod _ "%" _ expuni {% func %}
 	| expuni {% id %}
 
 expuni ->
 	  (expuni | func) __ exppow {% x => [x[0][0], x[2]] %}
-  | exppow _ "." _ (expuni | func) {% x => [x[4][0], x[0]] %}
+  | exppow _ ":" _ (expuni | func) {% x => [x[4][0], x[0]] %}
 	| exppow {% id %}
 
 exppow ->
@@ -70,23 +90,34 @@ exppow ->
   | expcall {% id %}
 
 expcall ->
-  	(expcall | func | minus) atom {% x => [x[0][0], x[1]] %}
-	| atom {% id %}
+  	(expcall | func) atom {% x => [x[0][0], x[1]] %}
+  | atom {% id %}
 
 func ->
-    ("!" | "*") {% x => ({ type: "function", value: x[0][0].value }) %}
+    ("not" | "&" | "@") {% x => ({ type: "function", value: x[0][0].value }) %}
+
+concat ->
+    concat _ value {% x => [x[0], x[2]] %}
+  | value {% id %}
+
+atom ->
+    (table | group | value | string | minus | wildcard | context)
+      {% x => x[0][0] %}
+
+value ->
+    %value {% x => ({ type: "value", value: x[0].value }) %}
+
+string ->
+    %string {% x => ({ type: "value", value: x[0].value }) %}
 
 minus ->
     "-" {% x => ({ type: "value", value: -1 }) %}
 
-atom ->
-    (table | group | value | context) {% x => x[0][0] %}
-
-value ->
-    (%value | %string) {% x => ({ type: "value", value: x[0][0].value }) %}
+wildcard ->
+    "*" {% x => ({ type: "wildcard" }) %}
 
 context ->
-    "@" {% x => ({ type: "context" }) %}
+    "?" {% x => ({ type: "context" }) %}
 
 _ ->
   %_:? {% () => null %}
