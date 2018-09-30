@@ -1,17 +1,21 @@
 import * as moo from 'moo';
 
-const toNull = v => (v === '' || v === 'nil' ? null : v);
+const toData = s =>
+  s && s !== 'nil' ? { type: 'string', value: s } : { type: 'nil' };
 
 export default moo.compile({
   value: {
-    match: /[a-zA-Z0-9_\.]+/,
-    value: s => toNull(s),
+    match: /[\w\.]+/,
+    keywords: {
+      keyword: ['and', 'or', 'not'],
+    },
+    value: s => toData(s),
   },
   string: {
     match: /"(?:\\["\\]|[^\n"\\])*"/,
-    value: s => toNull(s.slice(1, -1)),
+    value: s => toData(s.slice(1, -1)),
   },
-  multi: ['[*', '=>', '<=', '>=', '!=', '::', '..'],
+  multi: ['[*', '*]', '=>', '<=', '>=', '!=', ':=', '..', '>>'],
   brackets: ['[', ']', '(', ')'],
   comparison: ['<', '>', '='],
   arithmetic: ['+', '-', '*', '/', '%', '^'],
