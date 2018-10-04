@@ -1,73 +1,122 @@
-import core, { asFunction } from './core';
-import { table } from './data';
+import { maps } from './core';
 import stream from './stream';
 
-const process = (config, scope) => {
-  if (typeof config === 'function') return config;
+const process = (context, config) => {
   if (Array.isArray(config)) {
-    const [func, value] = config;
-    const func$ = process(func, scope);
-    const value$ = process(value, scope);
-    const { context, current } = scope;
-    scope.context = stream.flatMap(func$, data => {
-      const f = asFunction(data);
-      return f.length === 2 ? f(value$, context) : context;
-    });
-    scope.current = stream.flatMap(func$, data => {
-      const f = asFunction(data);
-      return f.length === 2 ? f(value$, current) : current;
-    });
-    return stream.flatMap(func$, data => {
-      const f = asFunction(data);
-      return f.length === 2 ? stream.constant({ type: 'nil' }) : f(value$);
-    });
+    if (config[0].type === 'any') {
+      return process(context, {
+        type: 'assign',
+        value: config[1],
+        all: true,
+      });
+    }
+    return stream.apply(context, config.map(c => process(context, c)));
   }
-  const { type, value } = config;
-  if (type === 'function') {
-    const { input, output } = value;
-    return stream.constant({
-      type: 'function',
-      value: stream$ =>
-        process(
-          [
-            { type: 'string', value: '-' },
-            {
-              type: 'table',
-              value: [
-                [[{ type: 'function', value: ':=' }, input], stream$],
-                output,
-              ],
-            },
-          ],
-          scope,
-        ),
-    });
+  if (config.type === 'function') {
+    const map = ([scope, input]) => {
+      return {
+        type: 'function',
+        value: (initial, emit) => {
+          const assign = v => maps.assign([scope, input, v]);
+          const { value, update } = run(config.output, assign(initial), emit);
+          return { value, update: v => update(assign(v)) };
+        },
+      };
+    };
+    return stream.create(
+      context,
+      [context.scope[0], process(context, config.input)],
+      (initial, emit) => ({
+        value: map(initial),
+        update: args => emit(map(args.map(a => a.value))),
+      }),
+    );
   }
-  if (type === 'table') return run(value, scope.context);
-  if (type === 'core') {
-    return stream.constant({ type: 'function', value: core[value] });
+  if (config.type === 'table') {
+    const { scope, current } = context;
+    scope.unshift(stream.map(context, 'clearIndices', [scope[0]]));
+    current.unshift(stream.constant(context, { type: 'nil' }));
+    config.values.forEach(v => process(context, v));
+    scope.shift();
+    return current.shift();
   }
-  if (type === 'string' || type === 'nil') {
-    return stream.constant({ type, value });
+  if (config.type === 'assign') {
+    const { scope, current } = context;
+    const value = process(context, config.value);
+    if (config.key) {
+      if (config.key.type === 'any') {
+        const map = config.key.group ? 'fillGroup' : 'fill';
+        current[0] = stream.map(context, map, [current[0], value]);
+      } else {
+        const key = process(context, config.key);
+        scope[0] = stream.map(context, 'assign', [scope[0], key, value]);
+        current[0] = stream.map(context, 'assign', [current[0], key, value]);
+      }
+    } else {
+      const map = config.all ? 'merge' : 'append';
+      scope[0] = stream.map(context, map, [scope[0], value]);
+      current[0] = stream.map(context, map, [current[0], value]);
+    }
+    return stream.constant(context, { type: 'nil' });
   }
-  if (type === 'context') return scope.context;
+  if (config.type === 'map') {
+    return stream.map(
+      context,
+      config.map,
+      config.args.map(a => process(context, a)),
+    );
+  }
+  if (config.type === 'merge') {
+    return stream.merge(context, config.args.map(a => process(context, a)));
+  }
+  if (['count', 'date', 'string', 'nil'].includes(config.type)) {
+    return stream.constant(context, config);
+  }
+  if (config.type === 'any') {
+    return stream.variable(context);
+  }
+  if (config.type === 'context') {
+    return context.scope[0];
+  }
 };
 
-const run = (configArray, context) => {
-  const scope = {
-    context,
-    current: stream.constant({
-      type: 'table',
-      value: table.empty(),
-    }),
+const run = (config, initial, emit) => {
+  let active = { changed: {}, queue: [] } as any;
+  const context = {
+    steps: [],
+    scope: [],
+    current: [],
+    emit: index => {
+      active.changed[index] = true;
+      context.steps[index].listeners.forEach(i => {
+        if (!active.queue.includes(i)) {
+          active.queue.push(i);
+          active.queue.sort((a, b) => a - b);
+        }
+      });
+      if (active.queue.length > 0) {
+        const next = active.queue.shift();
+        context.steps[next].update(
+          context.steps[next].args.map(i => ({
+            value: context.steps[i].value,
+            changed: active.changed[i],
+          })),
+        );
+      } else {
+        active = { changed: {}, queue: [] };
+        if (index === result) emit(context.steps[index].value);
+      }
+    },
+  } as any;
+  context.scope.unshift(stream.constant(context, initial));
+  const result = process(context, config);
+  return {
+    value: context.steps[result].value,
+    update: value => {
+      context.steps[0].value = value;
+      context.emit(0);
+    },
   };
-  configArray.forEach(config => process(config, scope));
-  return stream.map(
-    scope.current,
-    data =>
-      Object.keys(data.value.values).length === 0 ? { type: 'nil' } : data,
-  );
 };
 
-export default config =>
-  run(config, stream.constant({ type: 'table', value: table.empty() }));
+export default (config, emit) => run(config, { type: 'nil' }, emit).value;

@@ -4,10 +4,17 @@ const toData = s =>
   s && s !== 'nil' ? { type: 'string', value: s } : { type: 'nil' };
 
 export default moo.compile({
+  copy: /:=\s*\?/,
+  fill: /\*\*\s*:=/,
+  multi: ['=>', '<=', '>=', '!=', ':='],
+  brackets: ['[', ']', '(', ')'],
+  comparison: ['<', '>', '='],
+  arithmetic: ['+', '-', '*', '/', '%', '^'],
+  misc: [',', '?', ':', '~', '&', '#', '@', '|'],
   value: {
     match: /[\w\.]+/,
     keywords: {
-      keyword: ['and', 'or', 'not'],
+      keyword: ['nil', 'and', 'or', 'not'],
     },
     value: s => toData(s),
   },
@@ -15,10 +22,5 @@ export default moo.compile({
     match: /"(?:\\["\\]|[^\n"\\])*"/,
     value: s => toData(s.slice(1, -1)),
   },
-  multi: ['[*', '*]', '=>', '<=', '>=', '!=', ':=', '..', '>>'],
-  brackets: ['[', ']', '(', ')'],
-  comparison: ['<', '>', '='],
-  arithmetic: ['+', '-', '*', '/', '%', '^'],
-  misc: [',', '?', ':', '~', '&', '@'],
   _: { match: /\s+/, lineBreaks: true },
 });
