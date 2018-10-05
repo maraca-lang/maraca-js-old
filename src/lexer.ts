@@ -1,21 +1,18 @@
 import * as moo from 'moo';
 
 const toData = s =>
-  s && s !== 'nil' ? { type: 'string', value: s } : { type: 'nil' };
+  s && s !== '0' ? { type: 'string', value: s } : { type: 'nil' };
 
 export default moo.compile({
   copy: /:=\s*\?/,
   fill: /\*\*\s*:=/,
   multi: ['=>', '<=', '>=', '!=', ':='],
-  brackets: ['[', ']', '(', ')'],
+  brackets: ['[', ']', '(', ')', '{', '}'],
   comparison: ['<', '>', '='],
   arithmetic: ['+', '-', '*', '/', '%', '^'],
-  misc: [',', '?', ':', '~', '&', '#', '@', '|'],
+  misc: [',', '?', ':', '~', '&', '!', '#', '@', '|'],
   value: {
-    match: /[\w\.]+/,
-    keywords: {
-      keyword: ['nil', 'and', 'or', 'not'],
-    },
+    match: /[a-zA-Z0-9\.]+/,
     value: s => toData(s),
   },
   string: {

@@ -68,3 +68,75 @@ export const toKey = (key, indices) => {
   }
   return null;
 };
+
+export const tableGet = (data, key) => {
+  const k = toKey(key, data.indices);
+  return k === null
+    ? { type: 'nil' }
+    : data.values[k] || data.fill || { type: 'nil' };
+};
+
+export const table = {
+  clearIndices: table => {
+    const result = { ...table, values: { ...table.values } };
+    result.indices.forEach(i => delete result[i]);
+    result.indices = [];
+    return result;
+  },
+  append: (table, value) => {
+    if (value.type === 'nil') return table;
+    const k = (table.indices[table.indices.length - 1] || 0) + 1;
+    return {
+      ...table,
+      values: { ...table.values, [k]: value },
+      indices: [...table.indices, k],
+    };
+  },
+  assign: (table, key, value) => {
+    const k = toKey(key, table.indices);
+    if (k === null) return table;
+    if (value.type === 'nil') {
+      const result = { ...table, values: { ...table.values } };
+      delete result.values[k];
+      if (typeof k === 'number') {
+        const i = result.indices.indexOf(k);
+        if (i !== -1) result.indices = [...result.indices].splice(i, 1);
+      }
+      return result;
+    }
+    return {
+      ...table,
+      values: { ...table.values, [k]: value },
+      ...(typeof k === 'number' && table.indices.indexOf(k) === -1
+        ? { indices: [...table.indices, k].sort((a, b) => a - b) }
+        : {}),
+    };
+  },
+  merge: (table, value) => {
+    if (value.type !== 'table') return table;
+    const result = {
+      ...table,
+      values: { ...table.values },
+      indices: [...table.indices],
+    };
+    const start = table.indices[table.indices.length - 1] || 0;
+    const values = { ...value.value.values };
+    for (const i of value.value.indices) {
+      result.values[start + i] = values[i];
+      result.indices.push(start + i);
+      delete values[i];
+    }
+    result.values = { ...result.values, ...values };
+    return result;
+  },
+  fill: (table, value) => ({
+    values: table.values,
+    indices: table.indices,
+    ...(value.type !== 'nil' ? { fill: value } : {}),
+  }),
+  fillGroup: (table, value) => ({
+    values: table.values,
+    indices: table.indices,
+    ...(value.type !== 'nil' ? { fill: value, group: true } : {}),
+  }),
+};

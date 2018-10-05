@@ -30,15 +30,7 @@ expfunc ->
   | expid {% id %}
 
 expid ->
-    expid _ "~" _ expor {% map %}
-  | expor {% id %}
-
-expor ->
-    expor _ "or" _ expand {% map %}
-  | expand {% id %}
-
-expand ->
-    expand _ "and" _ expcomp {% map %}
+    expid _ "~" _ expcomp {% map %}
   | expcomp {% id %}
 
 expcomp ->
@@ -90,15 +82,23 @@ func ->
   | "@" {% x => ({ type: "date" }) %}
 
 map ->
-    "not" {% x => x[0].value %}
-  | "-" {% x => "-1" %}
+    "!" {% x => x[0].value %}
+  | "-" {% x => "minus" %}
 
-atom ->
-    (table | group | value | any | nil | context) {% x => x[0][0] %}
+atom -> (table | value | any | context) {% x => x[0][0] %}
 
 table ->
-    "[" _ body _ "]"
-      {% x => ({ type: "table", values: x[2] }) %}
+    "[" _ body _ "]" {% x => ({ type: "table", values: x[2] }) %}
+  | "(" _ body _ ")"
+      {% x => [
+        { type: "string", value: x[2].length.toString() },
+        { type: "table", values: x[2] }
+      ] %}
+  | "{" _ body _ "}"
+      {% x => [
+        { type: "string", value: "1" },
+        { type: "table", values: x[2] }
+      ] %}
 
 body ->
     body _ "," _ line
@@ -109,17 +109,11 @@ line ->
     exp {% id %}
   | _ {% x => ({ type: "nil" }) %}
 
-group ->
-    "(" _ exp _ ")" {% x => x[2] %}
-
 value ->
     (%value | %string) {% x => x[0][0].value %}
 
 any ->
     "*" {% x => ({ type: "any" }) %}
-
-nil ->
-    "nil" {% x => ({ type: "nil" }) %}
 
 context ->
     "?" {% x => ({ type: "context" }) %}
