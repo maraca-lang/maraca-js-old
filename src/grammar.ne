@@ -76,9 +76,9 @@ exppow ->
   | expcall {% id %}
 
 expcall ->
-  	expcall atom {% x => [x[0], x[1]] %}
-  | func atom {% x => ({ type: x[0], arg: x[1] }) %}
-  |	map atom {% x => ({ type: "map", map: x[0], args: [x[1]] }) %}
+  	atom expcall {% x => [x[0], x[1]] %}
+  | func expcall {% x => ({ type: x[0], arg: x[1] }) %}
+  |	map expcall {% x => ({ type: "map", map: x[0], args: [x[1]] }) %}
   | atom {% id %}
 
 func ->

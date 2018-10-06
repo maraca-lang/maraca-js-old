@@ -87,16 +87,16 @@ export const table = {
     result.indices = [];
     return result;
   },
-  append: (table, value) => {
-    if (value.type === 'nil') return table;
-    const k = (table.indices[table.indices.length - 1] || 0) + 1;
-    return {
-      ...table,
-      values: { ...table.values, [k]: value },
-      indices: [...table.indices, k],
-    };
-  },
-  assign: (table, key, value) => {
+  assign: (table, value, key) => {
+    if (!key) {
+      if (value.type === 'nil') return table;
+      const k = (table.indices[table.indices.length - 1] || 0) + 1;
+      return {
+        ...table,
+        values: { ...table.values, [k]: value },
+        indices: [...table.indices, k],
+      };
+    }
     const k = toKey(key, table.indices);
     if (k === null) return table;
     if (value.type === 'nil') {
@@ -116,7 +116,7 @@ export const table = {
         : {}),
     };
   },
-  merge: (table, value) => {
+  unpack: (table, value) => {
     if (value.type !== 'table') return table;
     const result = {
       ...table,

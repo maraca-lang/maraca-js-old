@@ -25,9 +25,8 @@ const tableFunc = func => ([data, ...args]) => {
 
 export default {
   clearIndices: tableFunc(table.clearIndices),
-  append: tableFunc(table.append),
   assign: tableFunc(table.assign),
-  merge: tableFunc(table.merge),
+  unpack: tableFunc(table.unpack),
   fill: tableFunc(table.fill),
   fillGroup: tableFunc(table.fillGroup),
   '~': ([a, b]) => ({ ...b, id: a }),

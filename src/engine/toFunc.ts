@@ -1,4 +1,4 @@
-import { stringToValue, tableGet, toData } from './data';
+import { stringToValue, tableGet, toData, toKey } from './data';
 import maps from './maps';
 
 const toFunc = func => {
@@ -61,26 +61,33 @@ const toFunc = func => {
     };
   }
   return ({ initial, output }) => {
-    const map = value => {
-      if (func.type === 'nil' || func.type === 'string') {
-        if (value.type === 'table') {
-          return tableGet(value.value, func);
-        }
-        if (func.type === 'nil' || value.type === 'nil') {
-          return { type: 'nil' };
-        }
-        if (func.type === 'string' && value.type === 'string') {
-          if (func.value === '-') {
-            const v = stringToValue(value.value);
-            if (typeof v === 'string') return { type: 'nil' };
-            return { type: 'string', value: `${-v}` };
-          }
-          return { type: 'string', value: `${func.value} ${value.value}` };
-        }
+    const map = ({ value, changed }) => {
+      if (value.type === 'table') {
+        const k = toKey(func, value.value);
+        return (changed === true || changed[k]) && tableGet(value.value, func);
+      }
+      if (func.type === 'nil' || value.type === 'nil') {
         return { type: 'nil' };
       }
+      if (func.type === 'string' && value.type === 'string') {
+        if (func.value === '-') {
+          const v = stringToValue(value.value);
+          if (typeof v === 'string') return { type: 'nil' };
+          return { type: 'string', value: `${-v}` };
+        }
+        return { type: 'string', value: `${func.value} ${value.value}` };
+      }
+      return { type: 'nil' };
     };
-    return { initial: map(initial), input: v => v && output(map(v)) };
+    return {
+      initial: map({ value: initial, changed: true }),
+      input: v => {
+        if (v) {
+          const result = map(v);
+          if (result) output(result);
+        }
+      },
+    };
   };
 };
 

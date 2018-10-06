@@ -1,4 +1,4 @@
-import { toData, toDateData } from './data';
+import { toData, toDateData, toKey } from './data';
 import maps from './maps';
 import process from './process';
 import toFunc from './toFunc';
@@ -7,6 +7,28 @@ const mapStream = m => ({ initial, output }) => ({
   initial: m(initial),
   update: next => output(m(next.map(a => a.value))),
 });
+
+const getKey = (k, { indices } = { indices: [] }) => {
+  if (!k) return (indices[indices.length - 1] || 0) + 1;
+  return toKey(k, indices);
+};
+
+const assignStream = ({ initial, output }) => {
+  let prevKey = getKey(initial[2], initial[0].value);
+  return {
+    initial: maps.assign(initial),
+    input: ([s, v, k]) => {
+      const nextKey = getKey(k && k.value, s.value.value);
+      const changed = {
+        ...s.changed,
+        [prevKey]: nextKey !== prevKey,
+        [nextKey]: nextKey !== prevKey || v.changed,
+      };
+      prevKey = nextKey;
+      output(maps.assign([s.value, v.value, k && k.value]), changed);
+    },
+  };
+};
 
 const build = (queue, context, config) => {
   if (Array.isArray(config)) {
@@ -32,7 +54,7 @@ const build = (queue, context, config) => {
               }));
               output(initial);
             } else {
-              input(a.value);
+              input(a);
             }
           },
         };
@@ -67,21 +89,20 @@ const build = (queue, context, config) => {
   }
   if (config.type === 'assign') {
     const { scope, current } = context;
-    const value = build(queue, context, config.value);
+    let map: any = assignStream;
+    let fill = false;
+    const args = [build(queue, context, config.value)];
     if (config.key) {
       if (config.key.type === 'any') {
-        const map = maps[config.key.group ? 'fillGroup' : 'fill'];
-        current[0] = queue([current[0], value], mapStream(map));
+        fill = true;
+        map = mapStream(maps[config.key.group ? 'fillGroup' : 'fill']);
       } else {
-        const key = build(queue, context, config.key);
-        scope[0] = queue([scope[0], key, value], mapStream(maps.assign));
-        current[0] = queue([current[0], key, value], mapStream(maps.assign));
+        args.push(build(queue, context, config.key));
       }
-    } else {
-      const map = maps[config.all ? 'merge' : 'append'];
-      scope[0] = queue([scope[0], value], mapStream(map));
-      current[0] = queue([current[0], value], mapStream(map));
     }
+    if (config.all) map = mapStream(maps.unpack);
+    if (!fill) scope[0] = queue([scope[0], ...args], map);
+    current[0] = queue([current[0], ...args], map);
     return queue([], () => ({ initial: { type: 'nil' } }));
   }
   if (config.type === 'map') {
@@ -111,7 +132,7 @@ const build = (queue, context, config) => {
   if (config.type === 'count') {
     return queue([build(queue, context, config.arg)], ({ output }) => {
       let count = 0;
-      return { initial: toData(count), input: () => output(toData(count++)) };
+      return { initial: toData(count), input: () => output(toData(++count)) };
     });
   }
   if (config.type === 'date') {
