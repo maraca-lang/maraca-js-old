@@ -37,7 +37,11 @@ export const toDateData = ({ type, value }) => {
 };
 
 const stringToNatural = s =>
-  (s.match(/([^\.\d]+)|(\.?\d+)|\./g) || []).map(stringToValue);
+  s
+    .split('\uFFFF')
+    .map(x => x.match(/([^\.\d]+)|(\.?\d+)|\./g) || [])
+    .reduce((res, a) => [...res, ...a], [])
+    .map(stringToValue);
 
 export const sortStrings = (s1, s2) => {
   const n1 = stringToNatural(s1);

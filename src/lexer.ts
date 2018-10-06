@@ -10,7 +10,7 @@ export default moo.compile({
   brackets: ['[', ']', '(', ')', '{', '}'],
   comparison: ['<', '>', '='],
   arithmetic: ['+', '-', '*', '/', '%', '^'],
-  misc: [',', '?', ':', '~', '&', '!', '#', '@', '|'],
+  misc: [',', '?', ':', '~', '&', '!', '#', '@', '_', '|'],
   value: {
     match: /[a-zA-Z0-9\.]+/,
     value: s => toData(s),

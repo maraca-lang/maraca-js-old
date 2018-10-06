@@ -1,33 +1,8 @@
-import { stringToValue, tableGet, toData, toDateData } from './data';
+import { stringToValue, tableGet, toData } from './data';
 import maps from './maps';
 
 const toFunc = func => {
   if (func.type === 'function') return func.value;
-  if (func.type === 'count') {
-    return ({ output }) => {
-      let count = 0;
-      return { initial: toData(count), input: () => output(toData(count++)) };
-    };
-  }
-  if (func.type === 'date') {
-    return ({ initial, output }) => {
-      let value = initial;
-      const interval = setInterval(() => {
-        output(toDateData(value));
-      }, 1000);
-      return {
-        initial: toDateData(value),
-        input: v => {
-          if (!v) {
-            clearInterval(interval);
-          } else {
-            value = v;
-            output(toDateData(value));
-          }
-        },
-      };
-    };
-  }
   if (func.type === 'table') {
     return ({ initial, output }) => {
       let result = { type: 'nil' };

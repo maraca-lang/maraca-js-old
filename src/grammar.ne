@@ -43,7 +43,8 @@ expcomp ->
 	| expconc {% id %}
 
 expconc ->
-	  expconc _ "|" _ expsum {% map %}
+	  expconc _ "_" _ expsum {% map %}
+  | expconc _ "|" _ expsum {% map %}
 	| expsum {% id %}
 
 expsum ->
@@ -62,10 +63,12 @@ expmerge ->
 	| expuni {% id %}
 
 expuni ->
-	  (expuni | func) __ exppow {% x => [x[0][0], x[2]] %}
-  | (expuni | func) _ ":" _ exppow {% x => [x[4], x[0][0]] %}
+	  expuni __ exppow {% x => [x[0], x[2]] %}
+  | expuni _ ":" _ exppow {% x => [x[4], x[0]] %}
+	| func __ exppow {% x => ({ type: x[0], arg: x[2] }) %}
+  | exppow _ ":" _ func {% x => ({ type: x[4], arg: x[0] }) %}
 	| map _ exppow {% x => ({ type: "map", map: x[0], args: [x[2]] }) %}
-  | map _ ":" _ exppow {% x => ({ type: "map", map: x[4], args: [x[0]] }) %}
+  | exppow _ ":" _ map {% x => ({ type: "map", map: x[4], args: [x[0]] }) %}
 	| exppow {% id %}
 
 exppow ->
@@ -73,13 +76,14 @@ exppow ->
   | expcall {% id %}
 
 expcall ->
-  	(expcall | func) atom {% x => [x[0][0], x[1]] %}
+  	expcall atom {% x => [x[0], x[1]] %}
+  | func atom {% x => ({ type: x[0], arg: x[1] }) %}
   |	map atom {% x => ({ type: "map", map: x[0], args: [x[1]] }) %}
   | atom {% id %}
 
 func ->
-    "#" {% x => ({ type: "count" }) %}
-  | "@" {% x => ({ type: "date" }) %}
+    "#" {% () => "count" %}
+  | "@" {% () => "date" %}
 
 map ->
     "!" {% x => x[0].value %}

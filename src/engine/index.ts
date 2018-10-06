@@ -1,3 +1,4 @@
+import { toData, toDateData } from './data';
 import maps from './maps';
 import process from './process';
 import toFunc from './toFunc';
@@ -107,11 +108,38 @@ const build = (queue, context, config) => {
       },
     );
   }
-  if (['count', 'date', 'string', 'nil'].includes(config.type)) {
+  if (config.type === 'count') {
+    return queue([build(queue, context, config.arg)], ({ output }) => {
+      let count = 0;
+      return { initial: toData(count), input: () => output(toData(count++)) };
+    });
+  }
+  if (config.type === 'date') {
+    return queue([build(queue, context, config.arg)], ({ initial, output }) => {
+      let value = initial[0];
+      const interval = setInterval(() => {
+        output(toDateData(value));
+      }, 1000);
+      return {
+        initial: toDateData(value),
+        input: v => {
+          if (!v) {
+            clearInterval(interval);
+          } else {
+            value = v[0].value;
+            output(toDateData(value));
+          }
+        },
+      };
+    });
+  }
+  if (['string', 'nil'].includes(config.type)) {
     return queue([], () => ({ initial: config }));
   }
   if (config.type === 'any') {
-    // return stream.variable(context);
+    return queue([], ({ output }) => ({
+      initial: { type: 'nil', set: v => output(toData(v)) },
+    }));
   }
   if (config.type === 'context') {
     return context.scope[0];
