@@ -1,61 +1,54 @@
 export default ({ initial, output }, build) => {
-  const steps = [] as any;
-  let active = { changed: {}, queue: [] } as any;
-  const queueItem = (index, next, changed) => {
-    if (index === result) {
-      output(next);
-      active = { changed: {}, queue: [] };
-    } else {
-      steps[index].current = next;
-      active.changed[index] = changed;
-      steps[index].listeners.forEach(i => {
-        if (!active.queue.includes(i)) {
-          active.queue.push(i);
-          active.queue.sort((a, b) => a - b);
-        }
-      });
-    }
+  const streams: any = [];
+  const actions: any = [];
+  let active: any = { queue: [], changed: [] };
+  const updateStream = (index, value, changed = true) => {
+    const i = result.indexOf(index);
+    if (i !== -1) output(i, value, changed);
+    streams[index].value = value;
+    active.changed[index] = changed;
+    streams[index].listeners.forEach(i => {
+      if (!active.queue.includes(i)) {
+        active.queue.push(i);
+        active.queue.sort((a, b) => a - b);
+      }
+    });
   };
   const runNext = () => {
     if (active.queue.length > 0) {
       const next = active.queue.shift();
-      steps[next].update();
+      actions[next]();
       runNext();
     } else {
       active = { changed: {}, queue: [] };
     }
   };
-  const queueStream = (args, stream) => {
-    const index = steps.length;
-    const { initial, input } = stream({
-      initial: args.map(a => steps[a].current),
-      output: (next, changed = true) => {
+  const queueAction = (args, action) => {
+    args.forEach(i => streams[i].listeners.push(actions.length));
+    const { initial, input } = action({
+      initial: args.map(i => streams[i].value),
+      output: (index, value, changed) => {
         const first = active.queue.length === 0;
-        queueItem(index, next, changed);
+        updateStream(indices[index], value, changed);
         if (first) runNext();
       },
     });
-    steps.push({
-      args,
-      current: initial,
-      update: () =>
-        input(
-          args.map(a => ({
-            value: steps[a].current,
-            changed: active.changed[a],
-          })),
-        ),
-      listeners: [],
+    const indices = initial.map((_, i) => streams.length + i);
+    actions.push(() => {
+      const updates = args
+        .map((index, i) => [i, streams[index].value, active.changed[index]])
+        .filter(u => u[2]);
+      if (updates.length > 0) input(updates);
     });
-    args.forEach(a => steps[a].listeners.push(index));
-    return index;
+    initial.forEach(value => streams.push({ value, listeners: [] }));
+    return indices;
   };
-  queueStream([], () => ({ initial }));
-  const result = build(queueStream);
+  initial.forEach(value => streams.push({ value, listeners: [] }));
+  const result = build(queueAction);
   return {
-    initial: steps[result].current,
-    input: (next, changed = true) => {
-      queueItem(0, next, changed);
+    initial: result.map(i => streams[i].value),
+    input: updates => {
+      updates.forEach(u => (updateStream as any)(...u));
       runNext();
     },
   };

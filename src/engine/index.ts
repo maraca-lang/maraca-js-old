@@ -3,171 +3,226 @@ import maps from './maps';
 import process from './process';
 import toFunc from './toFunc';
 
-const mapStream = m => ({ initial, output }) => ({
-  initial: m(initial),
-  update: next => output(m(next.map(a => a.value))),
-});
+const constant = (queue, value) => queue([], () => ({ initial: [value] }))[0];
 
-const getKey = (k, { indices } = { indices: [] }) => {
-  if (!k) return (indices[indices.length - 1] || 0) + 1;
-  return toKey(k, indices);
+const streamMap = map => ({ initial, output }) => {
+  let values = initial;
+  return {
+    initial: [map(values)],
+    input: updates => {
+      updates.forEach(([index, value]) => {
+        values[index] = value;
+      });
+      output(0, map(values));
+    },
+  };
 };
 
 const assignStream = ({ initial, output }) => {
-  let prevKey = getKey(initial[2], initial[0].value);
+  let values = initial;
+  const getKey = () => {
+    const indices = values[0].value ? values[0].value.indices : [];
+    if (!initial[2]) return (indices[indices.length - 1] || 0) + 1;
+    return toKey(initial[2], indices);
+  };
+  let prevKey = getKey();
   return {
-    initial: maps.assign(initial),
-    input: ([s, v, k]) => {
-      const nextKey = getKey(k && k.value, s.value.value);
+    initial: [maps.assign(initial)],
+    input: updates => {
+      updates.forEach(u => (values[u[0]] = u[1]));
+      const nextKey = getKey();
       const changed = {
-        ...s.changed,
+        ...((updates.find(u => u[0] === 0) || [])[2] || {}),
         [prevKey]: nextKey !== prevKey,
-        [nextKey]: nextKey !== prevKey || v.changed,
+        [nextKey]:
+          nextKey !== prevKey || (updates.find(u => u[0] === 1) || [])[2],
       };
       prevKey = nextKey;
-      output(maps.assign([s.value, v.value, k && k.value]), changed);
+      output(0, maps.assign(values), changed);
+    },
+  };
+};
+
+const valueStream = build => ({ initial: [value, scope, current], output }) => {
+  const { initial, input } = build({
+    initial: value,
+    output: value => output(0, value),
+  });
+  return {
+    initial: [initial, scope, current],
+    input: updates => {
+      updates.forEach(([i, v, c]) => {
+        if (i === 0) input(v, c);
+        else output(i, v, c);
+      });
     },
   };
 };
 
 const build = (queue, context, config) => {
   if (Array.isArray(config)) {
-    if (config[0].type === 'any') {
-      return build(queue, context, {
-        type: 'assign',
-        value: config[1],
-        all: true,
-      });
-    }
-    return queue(
-      config.map(c => build(queue, context, c)),
-      ({ initial: [func, arg], output }) => {
-        let { initial, input } = toFunc(func)({ initial: arg, output });
+    const result = queue(
+      [
+        ...config.map(c => build(queue, context, c)),
+        context.scope[0],
+        context.current[0],
+      ],
+      ({ initial: [func, ...args], output }) => {
+        let { initial, input } = toFunc(func)({ initial: args, output });
+        let currentArgs = args;
         return {
           initial,
-          input: ([f, a]) => {
-            if (f.changed) {
-              input();
-              ({ initial, input } = toFunc(f.value)({
-                initial: a.value,
+          input: updates => {
+            let f = updates.find(u => u[0] === 0);
+            updates.forEach(u => {
+              if (u[0] !== 0) currentArgs[u[0] - 1] = u[1];
+            });
+            if (f) {
+              ({ initial, input } = toFunc(f[1])({
+                initial: currentArgs,
                 output,
               }));
-              output(initial);
+              initial.forEach((v, i) => output(i, v));
             } else {
-              input(a);
+              input(updates.map(([i, v, c]) => [i - 1, v, c]));
             }
           },
         };
       },
     );
+    context.scope[0] = result[1];
+    context.current[0] = result[2];
+    return result[0];
   }
   if (config.type === 'function') {
-    return queue(
-      [context.scope[0], build(queue, context, config.input)],
-      mapStream(([scope, input]) => ({
-        type: 'function',
-        value: ({ initial, output }) => {
-          const assign = v => maps.assign([scope, input, v]);
-          const result = process({ initial: assign(initial), output }, queue =>
-            build(queue, { scope: [0], current: [] }, config.output),
-          );
-          return {
-            initial: result.initial,
-            input: next => result.input(assign(next)),
-          };
-        },
-      })),
-    );
+    if (config.input) {
+      return queue(
+        [context.scope[0], build(queue, context, config.input)],
+        streamMap(([scope, input]) => ({
+          type: 'function',
+          value: valueStream(({ initial, output }) =>
+            process(
+              {
+                initial: [initial, scope, input],
+                output: (_, value, changed) => output(value, changed),
+              },
+              queue => [
+                build(
+                  queue,
+                  {
+                    scope: [queue([1, 0, 2], streamMap(maps.assign))],
+                    current: [constant(queue, { type: 'nil' })],
+                  },
+                  config.output,
+                ),
+              ],
+            ),
+          ),
+        })),
+      )[0];
+    }
+    return constant(queue, {
+      type: 'function',
+      value: ({ initial, output }) =>
+        process({ initial, output }, queue => {
+          const ctx = { arg: 0, scope: [1], current: [2] };
+          const res = build(queue, ctx, config.output);
+          return [res, ctx.scope[0], ctx.current[0]];
+        }),
+    });
   }
   if (config.type === 'table') {
-    const { scope, current } = context;
-    scope.unshift(queue([scope[0]], mapStream(maps.clearIndices)));
-    current.unshift(queue([], () => ({ initial: { type: 'nil' } })));
-    config.values.forEach(v => build(queue, context, v));
-    scope.shift();
-    return current.shift();
+    context.scope.unshift(
+      queue([context.scope[0]], streamMap(maps.clearIndices))[0],
+    );
+    context.current.unshift(constant(queue, { type: 'nil' }));
+    config.values.forEach(c => build(queue, context, c));
+    context.scope.shift();
+    return context.current.shift();
   }
   if (config.type === 'assign') {
-    const { scope, current } = context;
     let map: any = assignStream;
     let fill = false;
     const args = [build(queue, context, config.value)];
     if (config.key) {
       if (config.key.type === 'any') {
         fill = true;
-        map = mapStream(maps[config.key.group ? 'fillGroup' : 'fill']);
+        map = streamMap(maps[config.key.group ? 'fillGroup' : 'fill']);
       } else {
         args.push(build(queue, context, config.key));
       }
     }
-    if (config.all) map = mapStream(maps.unpack);
-    if (!fill) scope[0] = queue([scope[0], ...args], map);
-    current[0] = queue([current[0], ...args], map);
-    return queue([], () => ({ initial: { type: 'nil' } }));
-  }
-  if (config.type === 'map') {
-    return queue(
-      config.args.map(a => build(queue, context, a)),
-      mapStream(maps[config.map]),
-    );
+    if (config.all) map = streamMap(maps.unpack);
+    if (!fill) {
+      context.scope[0] = queue([context.scope[0], ...args], map)[0];
+    }
+    context.current[0] = queue([context.current[0], ...args], map)[0];
+    return constant(queue, { type: 'nil' });
   }
   if (config.type === 'merge') {
     return queue(
-      config.args.map(a => build(queue, context, a)),
+      config.args.map(c => build(queue, context, c)),
       ({ initial, output }) => {
         const pushes = initial.filter(i => i.push);
         return {
-          initial: {
-            ...initial[initial.length - 1],
-            ...(pushes.length === 1 ? { push: pushes[0].push } : {}),
-          },
-          input: next => {
-            const changed = next.filter(v => v.changed);
-            output(changed[changed.length - 1]).value;
-          },
+          initial: [
+            {
+              ...initial[initial.length - 1],
+              ...(pushes.length === 1 ? { push: pushes[0].push } : {}),
+            },
+          ],
+          input: update => output(0, update[update.length - 1][1]),
         };
       },
     );
   }
+  if (config.type === 'map') {
+    return queue(
+      config.args.map(c => build(queue, context, c)),
+      streamMap(maps[config.map]),
+    )[0];
+  }
   if (config.type === 'count') {
     return queue([build(queue, context, config.arg)], ({ output }) => {
       let count = 0;
-      return { initial: toData(count), input: () => output(toData(++count)) };
-    });
+      return {
+        initial: [toData(count)],
+        input: () => output(0, toData(++count)),
+      };
+    })[0];
   }
   if (config.type === 'date') {
     return queue([build(queue, context, config.arg)], ({ initial, output }) => {
       let value = initial[0];
-      const interval = setInterval(() => {
-        output(toDateData(value));
-      }, 1000);
+      const interval = setInterval(() => output(0, toDateData(value)), 1000);
       return {
-        initial: toDateData(value),
-        input: v => {
-          if (!v) {
+        initial: [toDateData(value)],
+        input: updates => {
+          if (!updates) {
             clearInterval(interval);
           } else {
-            value = v[0].value;
-            output(toDateData(value));
+            value = updates[0].value;
+            output(0, toDateData(value));
           }
         },
       };
-    });
+    })[0];
   }
   if (['string', 'nil'].includes(config.type)) {
-    return queue([], () => ({ initial: config }));
+    return constant(queue, config);
   }
   if (config.type === 'any') {
     return queue([], ({ output }) => ({
-      initial: { type: 'nil', set: v => output(toData(v)) },
-    }));
+      initial: [{ type: 'nil', set: v => output(0, toData(v)) }],
+    }))[0];
   }
   if (config.type === 'context') {
-    return context.scope[0];
+    return context.arg === undefined ? context.scope[0] : context.arg;
   }
 };
 
 export default (config, output) =>
-  process({ initial: { type: 'nil' }, output }, queue =>
-    build(queue, { scope: [0], current: [] }, config),
-  ).initial;
+  process(
+    { initial: [{ type: 'nil' }], output: (_, value) => output(value) },
+    queue => [build(queue, { scope: [0], current: [0] }, config)],
+  ).initial[0];

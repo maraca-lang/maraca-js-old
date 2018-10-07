@@ -8,11 +8,12 @@ exp ->
     expset {% id %}
 
 expset ->
-    expeq _ ":=" {% x => ({ type: "assign", key: x[0], value: x[0] }) %}
-  | expeq _ %copy
+    expeq _ "=:?"
       {% x =>
         ({ type: "assign", key: x[0], value: [x[0], { type: "context" }] })
       %}
+  | expeq _ "=:"
+      {% x => ({ type: "assign", key: x[0], value: x[0] }) %}
   | %fill _ expeq
       {% x =>
         ({ type: "assign", key: { type: "any", group: true }, value: x[2] })
@@ -20,13 +21,14 @@ expset ->
   | expeq {% id %}
 
 expeq ->
-    expfunc _ ":=" _ expeq
+    expid _ ":=" _ expeq
       {% x => ({ type: "assign", key: x[0], value: x[4] }) %}
-  | expfunc {% id %}
-
-expfunc ->
-    expfunc _ "=>" _ expid
+  | ":=" _ expeq
+      {% x => ({ type: "assign", value: x[2] }) %}
+  | expid _ "=>" _ expeq
       {% x => ({ type: "function", input: x[0], output: x[4] }) %}
+  | "=>" _ expeq
+      {% x => ({ type: "function", output: x[2] }) %}
   | expid {% id %}
 
 expid ->

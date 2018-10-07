@@ -46,16 +46,19 @@ const stringToNatural = s =>
 export const sortStrings = (s1, s2) => {
   const n1 = stringToNatural(s1);
   const n2 = stringToNatural(s2);
-  return Array.from({ length: Math.max(n1, n2) }).reduce((res, _, i) => {
-    if (res !== 0 || n1[i] === n2[i]) return res;
-    const t1 = typeof n1[i];
-    const t2 = typeof n2[i];
-    if (t1 === t2) {
-      if (t1 === 'string') return n1[i].localeCompare(n2[i]);
-      return n1[i] < n2[i] ? -1 : 1;
-    }
-    return t1 === 'undefined' || t1 === 'number' ? -1 : 1;
-  }, 0);
+  return Array.from({ length: Math.max(n1.length, n2.length) }).reduce(
+    (res, _, i) => {
+      if (res !== 0 || n1[i] === n2[i]) return res;
+      const t1 = typeof n1[i];
+      const t2 = typeof n2[i];
+      if (t1 === t2) {
+        if (t1 === 'string') return n1[i].localeCompare(n2[i]);
+        return n1[i] < n2[i] ? -1 : 1;
+      }
+      return t1 === 'undefined' || t1 === 'number' ? -1 : 1;
+    },
+    0,
+  ) as number;
 };
 
 export const toKey = (key, indices) => {

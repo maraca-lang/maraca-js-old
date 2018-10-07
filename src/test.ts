@@ -39,6 +39,6 @@ const parse = script => {
 };
 
 const log = x => console.log(JSON.stringify(x, null, 2));
-const config = parse(`[x:=@now, y:=x?]`);
+const config = parse(`[[a:=a10], [a:=a2]]:[*:=(=>a? := ?)]:[*:=(=> :=?)]`);
 const result = run(config, log);
 log(result);
