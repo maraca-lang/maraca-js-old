@@ -31,12 +31,16 @@ const assignStream = ({ initial, output }) => {
     input: updates => {
       updates.forEach(u => (values[u[0]] = u[1]));
       const nextKey = getKey();
-      const changed = {
-        ...((updates.find(u => u[0] === 0) || [])[2] || {}),
-        [prevKey]: nextKey !== prevKey,
-        [nextKey]:
-          nextKey !== prevKey || (updates.find(u => u[0] === 1) || [])[2],
-      };
+      const prevChanged = (updates.find(u => u[0] === 0) || [])[2];
+      const changed =
+        prevChanged === true
+          ? true
+          : {
+              ...(prevChanged || {}),
+              [prevKey]: nextKey !== prevKey,
+              [nextKey]:
+                nextKey !== prevKey || (updates.find(u => u[0] === 1) || [])[2],
+            };
       prevKey = nextKey;
       output(0, maps.assign(values), changed);
     },
@@ -212,9 +216,10 @@ const build = (queue, context, config) => {
     return constant(queue, config);
   }
   if (config.type === 'any') {
-    return queue([], ({ output }) => ({
-      initial: [{ type: 'nil', set: v => output(0, toData(v)) }],
-    }))[0];
+    return queue([], ({ output }) => {
+      const set = v => output(0, { ...toData(v), set });
+      return { initial: [{ type: 'nil', set }] };
+    })[0];
   }
   if (config.type === 'context') {
     return context.arg === undefined ? context.scope[0] : context.arg;

@@ -102,7 +102,7 @@ export const table = {
     }
     const k = toKey(key, table.indices);
     if (k === null) return table;
-    if (value.type === 'nil') {
+    if (value.type === 'nil' && (!value.set || typeof k === 'number')) {
       const result = { ...table, values: { ...table.values } };
       delete result.values[k];
       if (typeof k === 'number') {

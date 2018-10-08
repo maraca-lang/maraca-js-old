@@ -1,7 +1,6 @@
 import { Grammar, Parser } from 'nearley';
 
-// @ts-ignore
-import * as grammar from './grammar';
+import * as grammar from '../lib/grammar';
 import lexer from './lang/lexer';
 
 export default script => {

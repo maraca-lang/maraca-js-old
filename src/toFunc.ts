@@ -22,7 +22,7 @@ const valueMap = map =>
     initial: map(initial, true),
     input: (value, changed) => {
       const result = map(value, changed);
-      if (result) output(map(value, changed));
+      if (result) output(result);
     },
   }));
 
