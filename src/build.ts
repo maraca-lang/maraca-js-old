@@ -221,8 +221,4 @@ const build = (queue, context, config) => {
   }
 };
 
-export default (config, output) =>
-  process(
-    { initial: [{ type: 'nil' }], output: (_, value) => output(value) },
-    queue => [build(queue, { scope: [0], current: [0] }, config)],
-  ).initial[0];
+export default build;

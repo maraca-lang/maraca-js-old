@@ -1,8 +1,11 @@
 @{%
-const lexer = require('./lexer').default;
+const lexer = require('./lang/lexer').default;
 const map = x => ({ type: "map", map: x[2].value, args: [x[0], x[4]] });
 %}
 @lexer lexer
+
+main ->
+    _ exp _ {% x => x[1] %}
 
 exp ->
     expset {% id %}

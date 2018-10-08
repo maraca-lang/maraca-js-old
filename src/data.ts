@@ -107,7 +107,12 @@ export const table = {
       delete result.values[k];
       if (typeof k === 'number') {
         const i = result.indices.indexOf(k);
-        if (i !== -1) result.indices = [...result.indices].splice(i, 1);
+        if (i !== -1) {
+          result.indices = [
+            ...result.indices.slice(0, i),
+            ...result.indices.slice(i + 1),
+          ];
+        }
       }
       return result;
     }

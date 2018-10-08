@@ -1,10 +1,10 @@
 import { Grammar, Parser } from 'nearley';
-import * as grammar from '../lib/grammar';
-import run from './engine';
 
-import lexer from './lexer';
+// @ts-ignore
+import * as grammar from './grammar';
+import lexer from './lang/lexer';
 
-const parse = script => {
+export default script => {
   lexer.reset(script);
   let result = '';
   let s = '';
@@ -30,15 +30,9 @@ const parse = script => {
     space = token.type === '_';
   }
   if (s) result += `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-  console.log(result);
   const parser = new Parser(Grammar.fromCompiled(grammar));
   parser.feed(result);
-  if (parser.results.length > 1) console.log('AMBIGUOUS!');
-  console.log(JSON.stringify(parser.results, null, 2));
+  // if (parser.results.length > 1) console.log('AMBIGUOUS!');
+  // console.log(JSON.stringify(parser.results, null, 2));
   return parser.results[0];
 };
-
-const log = x => console.log(JSON.stringify(x, null, 2));
-const config = parse(`[[a:=a10], [a:=a2]]:[*:=(=>a? := ?)]:[*:=(=> :=?)]`);
-const result = run(config, log);
-log(result);
