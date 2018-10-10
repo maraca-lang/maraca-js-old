@@ -1,8 +1,10 @@
 export default ({ initial, output }, build) => {
   const streams: any = [];
   const actions: any = [];
-  let active: any = { queue: [], changed: [] };
+  let active: any = null;
   const updateStream = (index, value, changed = true) => {
+    let first = !active;
+    if (first) active = { queue: [], changed: [] };
     const i = result.indexOf(index);
     if (i !== -1) output(i, value, changed);
     streams[index].value = value;
@@ -13,6 +15,7 @@ export default ({ initial, output }, build) => {
         active.queue.sort((a, b) => a - b);
       }
     });
+    if (first) runNext();
   };
   const runNext = () => {
     if (active.queue.length > 0) {
@@ -20,7 +23,7 @@ export default ({ initial, output }, build) => {
       actions[next]();
       runNext();
     } else {
-      active = { changed: {}, queue: [] };
+      active = null;
     }
   };
   const queueAction = (args, action) => {
@@ -28,9 +31,7 @@ export default ({ initial, output }, build) => {
     const { initial, input } = action({
       initial: args.map(i => streams[i].value),
       output: (index, value, changed) => {
-        const first = active.queue.length === 0;
         updateStream(indices[index], value, changed);
-        if (first) runNext();
       },
     });
     const indices = initial.map((_, i) => streams.length + i);
@@ -48,8 +49,9 @@ export default ({ initial, output }, build) => {
   return {
     initial: result.map(i => streams[i].value),
     input: updates => {
-      updates.forEach(u => (updateStream as any)(...u));
-      runNext();
+      if (updates) {
+        updates.forEach(u => (updateStream as any)(...u));
+      }
     },
   };
 };

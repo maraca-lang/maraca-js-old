@@ -1,6 +1,7 @@
 @{%
 const lexer = require('./lang/lexer').default;
-const map = x => ({ type: "map", map: x[2].value, args: [x[0], x[4]] });
+const binary = x =>
+  ({ type: "binary", func: x[2][0].value, args: [x[0], x[4]] });
 %}
 @lexer lexer
 
@@ -11,88 +12,68 @@ exp ->
     expset {% id %}
 
 expset ->
-    expeq _ "=:?"
+    expset _ "=:?"
       {% x =>
-        ({ type: "assign", key: x[0], value: [x[0], { type: "context" }] })
+        ({ type: "set", key: x[0], value: [x[0], { type: "context" }] })
       %}
-  | expeq _ "=:"
-      {% x => ({ type: "assign", key: x[0], value: x[0] }) %}
-  | %fill _ expeq
-      {% x =>
-        ({ type: "assign", key: { type: "any", group: true }, value: x[2] })
-      %}
-  | expeq {% id %}
-
-expeq ->
-    expid _ ":=" _ expeq
-      {% x => ({ type: "assign", key: x[0], value: x[4] }) %}
-  | ":=" _ expeq
-      {% x => ({ type: "assign", value: x[2] }) %}
-  | expid _ "=>" _ expeq
-      {% x => ({ type: "function", input: x[0], output: x[4] }) %}
-  | "=>" _ expeq
-      {% x => ({ type: "function", output: x[2] }) %}
+  | expset _ "=:"
+      {% x => ({ type: "set", key: x[0], value: x[0] }) %}
+  | expid _ ":=" _ expset
+      {% x => ({ type: "set", key: x[0], value: x[4] }) %}
+  | ":=" _ expset
+      {% x => ({ type: "set", value: x[2] }) %}
+  | ".." _ expset
+      {% x => ({ type: "set", key: true, value: x[4] }) %}
+  | expid _ "=>" _ expid _ "=>" _ expset
+      {% x => ({ type: "other", key: x[0], value: x[4], output: x[8] }) %}
+  | expid _ "=>>" _ expset
+      {% x => ({ type: "other", value: x[0], output: x[4] }) %}
+  | expid _ "=>" _ expset
+      {% x => ({ type: "other", key: x[0], output: x[4] }) %}
+  | "=>>" _ expset
+      {% x => ({ type: "other", value: true, output: x[2] }) %}
+  | "=>" _ expset
+      {% x => ({ type: "other", key: true, output: x[2] }) %}
   | expid {% id %}
 
 expid ->
-    expid _ "~" _ expcomp {% map %}
+    expid _ ("~") _ expcomp {% binary %}
   | expcomp {% id %}
 
 expcomp ->
-	  expcomp _ "<" _ expconc {% map %}
-	| expcomp _ ">" _ expconc {% map %}
-	| expcomp _ "<=" _ expconc {% map %}
-	| expcomp _ ">=" _ expconc {% map %}
-	| expcomp _ "!=" _ expconc {% map %}
-	| expcomp _ "=" _ expconc {% map %}
+	  expcomp _ ("<" | ">" | "<=" | ">=" | "!=" | "=") _ expconc {% binary %}
 	| expconc {% id %}
 
 expconc ->
-	  expconc _ "_" _ expsum {% map %}
-  | expconc _ "|" _ expsum {% map %}
+	  expconc _ ("_" | "&") _ expsum {% binary %}
 	| expsum {% id %}
 
 expsum ->
-	  expsum _ "+" _ expprod {% map %}
-	| expsum _ "-" _ expprod {% map %}
+	  expsum _ ("+" | "-") _ expprod {% binary %}
 	| expprod {% id %}
 
 expprod ->
-    expprod _ "*" _ expmerge {% map %}
-	| expprod _ "/" _ expmerge {% map %}
-	| expprod _ "%" _ expmerge {% map %}
+    expprod _ ("*" | "/" | "%") _ expmerge {% binary %}
 	| expmerge {% id %}
 
 expmerge ->
-	  expmerge _ "&" _ expuni {% x => ({ type: "merge", args: [x[0], x[4]] }) %}
-	| expuni {% id %}
+	  expmerge _ "|" _ expdo2 {% x => ({ type: "merge", args: [x[0], x[4]] }) %}
+	| expdo2 {% id %}
 
-expuni ->
-	  expuni __ exppow {% x => [x[0], x[2]] %}
-  | expuni _ ":" _ exppow {% x => [x[4], x[0]] %}
-	| func __ exppow {% x => ({ type: x[0], arg: x[2] }) %}
-  | exppow _ ":" _ func {% x => ({ type: x[4], arg: x[0] }) %}
-	| map _ exppow {% x => ({ type: "map", map: x[0], args: [x[2]] }) %}
-  | exppow _ ":" _ map {% x => ({ type: "map", map: x[4], args: [x[0]] }) %}
+expdo2 ->
+	  expdo2 __ exppow {% x => [x[0], x[2]] %}
+  | expdo2 _ ":" _ exppow {% x => [x[0], x[4]] %}
 	| exppow {% id %}
 
 exppow ->
-    exppow _ "^" _ expcall {% map %}
-  | expcall {% id %}
+    exppow _ ("^") _ expdo1 {% binary %}
+  | expdo1 {% id %}
 
-expcall ->
-  	atom expcall {% x => [x[0], x[1]] %}
-  | func expcall {% x => ({ type: x[0], arg: x[1] }) %}
-  |	map expcall {% x => ({ type: "map", map: x[0], args: [x[1]] }) %}
+expdo1 ->
+  	expdo1 atom {% x => [x[0], x[1]] %}
+  | ("#" | "@" | "!" | "-") _ expdo1
+      {% x => ({ type: "unary", func: x[0][0].value, arg: x[2] }) %}
   | atom {% id %}
-
-func ->
-    "#" {% () => "count" %}
-  | "@" {% () => "date" %}
-
-map ->
-    "!" {% x => x[0].value %}
-  | "-" {% x => "minus" %}
 
 atom -> (table | value | any | context) {% x => x[0][0] %}
 
@@ -111,8 +92,8 @@ table ->
 
 body ->
     body _ "," _ line
-      {% x => [...x[0], { type: 'assign', value: x[4] }] %}
-  | line {% x => [{ type: 'assign', value: x[0] }] %}
+      {% x => [...x[0], { type: 'set', value: x[4] }] %}
+  | line {% x => [{ type: 'set', value: x[0] }] %}
 
 line ->
     exp {% id %}

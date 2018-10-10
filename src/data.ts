@@ -28,18 +28,14 @@ export const toString = ({ type, value }) => {
 
 export const toDateData = ({ type, value }) => {
   if (type !== 'string') return { type: 'nil' };
-  return {
-    type: 'string',
-    value: chrono
-      .parseDate(value, new Date(), { forwardDate: true })
-      .toISOString(),
-  };
+  const date = chrono.parseDate(value, new Date(), { forwardDate: true });
+  return date ? { type: 'string', value: date.toISOString() } : { type: 'nil' };
 };
 
 const stringToNatural = s =>
   s
     .split('\uFFFF')
-    .map(x => x.match(/([^\.\d]+)|(\.?\d+)|\./g) || [])
+    .map(x => x.match(/\-?([^\.\d]+)|(\.?\d+)|\./g) || [])
     .reduce((res, a) => [...res, ...a], [])
     .map(stringToValue);
 
@@ -49,38 +45,32 @@ export const sortStrings = (s1, s2) => {
   return Array.from({ length: Math.max(n1.length, n2.length) }).reduce(
     (res, _, i) => {
       if (res !== 0 || n1[i] === n2[i]) return res;
-      const t1 = typeof n1[i];
-      const t2 = typeof n2[i];
+      const m1 = n1[i][0] === '-';
+      const m2 = n2[i][0] === '-';
+      const v1 = m1 ? n1[i].slice(1) : n1[i];
+      const v2 = m2 ? n2[i].slice(1) : n2[i];
+      if (m1 !== m2) return m1 ? -1 : 1;
+      const dir = m1 ? -1 : 1;
+      const t1 = typeof v1;
+      const t2 = typeof v2;
       if (t1 === t2) {
-        if (t1 === 'string') return n1[i].localeCompare(n2[i]);
-        return n1[i] < n2[i] ? -1 : 1;
+        if (t1 === 'string') return dir * v1.localeCompare(v2);
+        return dir * (v1 < v2 ? -1 : 1);
       }
-      return t1 === 'undefined' || t1 === 'number' ? -1 : 1;
+      return dir * (t1 === 'undefined' || t1 === 'number' ? -1 : 1);
     },
     0,
   ) as number;
 };
 
-export const toKey = (key, indices) => {
+export const toKey = key => {
   if (key.type === 'nil') return '';
   if (key.type === 'string') {
     const value = stringToValue(key.value);
-    if (typeof value === 'number' && Math.floor(value) === value) {
-      if (value < 0) {
-        return Math.max(0, indices[indices.length - 1] + value + 1) || null;
-      }
-      return value;
-    }
+    if (typeof value === 'number' && Math.floor(value) === value) return value;
     return key.value;
   }
   return null;
-};
-
-export const tableGet = (data, key) => {
-  const k = toKey(key, data.indices);
-  return k === null
-    ? { type: 'nil' }
-    : data.values[k] || data.fill || { type: 'nil' };
 };
 
 export const table = {
@@ -100,7 +90,7 @@ export const table = {
         indices: [...table.indices, k],
       };
     }
-    const k = toKey(key, table.indices);
+    const k = toKey(key);
     if (k === null) return table;
     if (value.type === 'nil' && (!value.set || typeof k === 'number')) {
       const result = { ...table, values: { ...table.values } };
@@ -141,14 +131,10 @@ export const table = {
     result.values = { ...result.values, ...values };
     return result;
   },
-  fill: (table, value) => ({
+  other: (table, value, type) => ({
     values: table.values,
     indices: table.indices,
-    ...(value.type !== 'nil' ? { fill: value } : {}),
-  }),
-  fillGroup: (table, value) => ({
-    values: table.values,
-    indices: table.indices,
-    ...(value.type !== 'nil' ? { fill: value, group: true } : {}),
+    other: value,
+    otherType: type,
   }),
 };
