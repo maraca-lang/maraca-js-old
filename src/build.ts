@@ -57,7 +57,7 @@ const build = (queue, context, config) => {
     if (
       !config.key &&
       !Array.isArray(config.value) &&
-      config.value.type === 'set'
+      (config.value.type === 'set' || config.value.type === 'other')
     ) {
       return build(queue, context, config.value);
     }

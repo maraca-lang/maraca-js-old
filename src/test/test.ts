@@ -1,97 +1,53 @@
-// import run from '../index';
-
-// const script = `
-// {
-//   x:= *,
-//   [
-//     [input:=1, value:=x?],
-//     x?,
-//   ]
-// }
-// `;
-
-// const createTable = input => {
-//   const div = document.createElement(input ? 'input' : 'div');
-//   div.style.border = `1px solid ${input ? 'blue' : 'red'}`;
-//   div.style.margin = '5px 0px';
-//   div.style.padding = '5px 10px';
-//   div.style.display = 'block';
-//   div.style.fontSize = '20px';
-//   div.style.fontFamily = 'Arial';
-//   return div;
-// };
-
-// const createText = text => {
-//   const p = document.createElement('p');
-//   p.innerText = text;
-//   p.style.padding = '5px 0px';
-//   p.style.fontSize = '20px';
-//   p.style.fontFamily = 'Arial';
-//   return p;
-// };
-
-// const unpack = data => {
-//   const values: any = {};
-//   const children: any[] = [];
-//   for (const { key, value } of data) {
-//     if (typeof key === 'string') values[key] = value;
-//     else children.push({ index: key - 1, value });
-//   }
-//   return { values, children };
-// };
-
-// const unpackValue = value => {
-//   if (value === Object(value)) return value;
-//   return { value };
-// };
-
-// const updateChild = (node, index, next) => {
-//   const prev = node.childNodes[index];
-//   if (!next) {
-//     node.removeChild(prev);
-//   } else if (!Array.isArray(next)) {
-//     const textNode = createText(unpackValue(next).value);
-//     if (!prev) node.appendChild(textNode);
-//     else node.replaceChild(textNode, prev);
-//   } else {
-//     const { values: nextValues, children: nextChildren } = unpack(next);
-//     let child = prev;
-//     if (!child) {
-//       child = createTable(nextValues.input);
-//       node.appendChild(child);
-//     } else if (nextValues.input !== undefined) {
-//       child = createTable(nextValues.input);
-//       node.replaceChild(child, prev);
-//     }
-//     Object.keys(nextValues).forEach(k => {
-//       const { value, set } = unpackValue(nextValues[k]);
-//       if (k !== 'input') {
-//         if (set && k === 'value') {
-//           child.oninput = e => set(e.target.value);
-//         }
-//         child.setAttribute(k, value || '');
-//       }
-//     });
-//     nextChildren.forEach(({ index, value }) =>
-//       updateChild(child, index, value),
-//     );
-//   }
-// };
-
-// const root = document.createElement('div');
-// root.style.padding = '5px 10px';
-// document.body.appendChild(root);
-
-// run(script, data => {
-//   updateChild(root, 0, data);
-// });
+import * as faker from 'faker';
 
 import run from '../index';
 
+import convert from './convert';
+import render from './render';
+
+const data = Array.from({ length: 10 }).map(() => ({
+  'First name': faker.name.firstName(),
+  'Last name': faker.name.lastName(),
+  DOB: faker.date.past(30),
+}));
+
 const script = `
+{
+  fields: [First name, Last name, DOB],
 
-[=>> ? + 1] [x:= 3]
-
+  [class: container "mt-5",
+    [:table, class: table,
+      [:thead,
+        [:tr,
+          [:th, scope: col, "#"],
+          ..
+          fields?
+          [=>> [:th, scope: col, ?]],
+        ]
+      ],
+      [:tbody,
+        ..
+        data?
+        [k=> v=>
+          [:tr,
+            [:th, scope: row, k?],
+            ..
+            fields?
+            [f=>> [:td, f? (v?)]],
+          ]
+        ]
+      ]
+    ]
+  ]
+}
 `;
 
-run(script, data => console.log(JSON.stringify(data, null, 2)));
+const root = document.createElement('div');
+root.id = 'root';
+document.body.appendChild(root);
+
+run(script, convert({ data }), data => render(root, 0, data));
+
+// run(script, convert({ data }), data =>
+//   console.log(JSON.stringify(data, null, 2)),
+// );

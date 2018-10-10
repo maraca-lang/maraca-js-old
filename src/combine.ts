@@ -61,7 +61,9 @@ const run: any = (type, { initial, output }) => {
     return {
       initial: result.initial,
       input: changes => {
-        result.input(changes.map(c => [c[0] - 1, c[1], c[2]]));
+        if (changes) {
+          result.input(changes.map(c => [c[0] - 1, c[1], c[2]]));
+        }
       },
     };
   }

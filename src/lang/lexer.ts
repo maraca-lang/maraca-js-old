@@ -4,7 +4,7 @@ const toData = s =>
   s && s !== '0' ? { type: 'string', value: s } : { type: 'nil' };
 
 export default moo.compile({
-  multi: ['=>>', '=>', '<=', '>=', '!=', ':=', '=:?', '=:', '..'],
+  multi: ['=>>', '=>', '<=', '>=', '!=', ':=?', ':=', '::', '..'],
   brackets: ['[', ']', '(', ')', '{', '}'],
   comparison: ['<', '>', '='],
   arithmetic: ['+', '-', '*', '/', '%', '^'],

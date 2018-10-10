@@ -29,7 +29,7 @@ module.exports = {
           <head>
             <meta charset="UTF-8">
             <title>tabla</title>
-            <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/meyer-reset/2.0/reset.css">
+            <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous"></link>
           </head>
           <body>
           </body>
@@ -38,3 +38,9 @@ module.exports = {
     }),
   ],
 };
+
+// <link
+//   rel="stylesheet"
+//   type="text/css"
+//   href="https://unpkg.com/normalize.css@8.0.0/normalize.css"
+// />;

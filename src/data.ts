@@ -45,8 +45,8 @@ export const sortStrings = (s1, s2) => {
   return Array.from({ length: Math.max(n1.length, n2.length) }).reduce(
     (res, _, i) => {
       if (res !== 0 || n1[i] === n2[i]) return res;
-      const m1 = n1[i][0] === '-';
-      const m2 = n2[i][0] === '-';
+      const m1 = (n1[i] && n1[i][0]) === '-';
+      const m2 = (n2[i] && n2[i][0]) === '-';
       const v1 = m1 ? n1[i].slice(1) : n1[i];
       const v2 = m2 ? n2[i].slice(1) : n2[i];
       if (m1 !== m2) return m1 ? -1 : 1;
@@ -62,6 +62,8 @@ export const sortStrings = (s1, s2) => {
     0,
   ) as number;
 };
+
+console.log(sortStrings('', '2'));
 
 export const toKey = key => {
   if (key.type === 'nil') return '';

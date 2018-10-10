@@ -19,9 +19,10 @@ const diff = (prev, next) => {
   }
   if (next.type !== 'table') {
     if (next.value === prev.value && next.set === prev.set) return undefined;
-    return next.set
-      ? { value: next.value || null, set: next.set }
-      : next.value || null;
+    return {
+      value: next.value || null,
+      ...(next.set ? { set: next.set } : {}),
+    };
   }
   const p = prev.type === 'table' ? prev.value.values : {};
   const n = next.value.values;
@@ -32,7 +33,9 @@ const diff = (prev, next) => {
     .map(key => {
       if (n[key] === undefined) return { key };
       const prevKey = pKeys.find(k => (p[k].id || k) === (n[key].id || key));
-      const prevValue = (p && prevKey && p[prevKey]) || { type: 'nil' };
+      const prevValue = (p && prevKey !== undefined && p[prevKey]) || {
+        type: 'nil',
+      };
       const d = diff(prevValue, n[key]);
       if (prevValue.type === 'nil' || key === prevKey) {
         return d === undefined ? undefined : { key, value: d };
@@ -43,10 +46,10 @@ const diff = (prev, next) => {
   return result.length === 0 ? undefined : result;
 };
 
-export default (script, output) => {
+export default (script, initial, output) => {
   let prev = process(
     {
-      initial: [{ type: 'nil' }],
+      initial: [initial],
       output: (_, next) => {
         output(diff(prev, next));
         prev = next;
