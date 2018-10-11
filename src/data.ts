@@ -63,8 +63,6 @@ export const sortStrings = (s1, s2) => {
   ) as number;
 };
 
-console.log(sortStrings('', '2'));
-
 export const toKey = key => {
   if (key.type === 'nil') return '';
   if (key.type === 'string') {

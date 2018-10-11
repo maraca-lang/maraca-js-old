@@ -9,8 +9,8 @@ const unpack = data => {
   return { values, children };
 };
 
-const updateChild = (parent, index, next) => {
-  const prev = parent.childNodes[index];
+const updateChild = (parent, prev, next) => {
+  // const prev = parent.childNodes[index];
   if (!next) {
     if (prev) parent.removeChild(prev);
   } else if (!Array.isArray(next)) {
@@ -47,7 +47,10 @@ const updateChild = (parent, index, next) => {
         child[k] = values[k].value || '';
       }
     });
-    children.forEach(({ index, value }) => updateChild(child, index, value));
+    const childrenNodes = children.map(c => child.childNodes[c.index]);
+    children.forEach(({ value }, i) =>
+      updateChild(child, childrenNodes[i], value),
+    );
   }
 };
 

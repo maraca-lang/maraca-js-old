@@ -8,14 +8,14 @@ const sortTypes = ([v1, v2]: any) => {
   if (v1.type === 'string') return [v2, v1];
   if (!v2.value.other) return [v1, v2];
   if (!v1.value.other) return [v2, v1];
-  if (v2.value.otherType !== 'key') return [v1, v2];
-  if (v1.value.otherType !== 'key') return [v2, v1];
+  if (!['=>', 'k=>'].includes(v2.value.otherType)) return [v1, v2];
+  if (!['=>', 'k=>'].includes(v1.value.otherType)) return [v2, v1];
   return [v1, v2];
 };
 
-const combineInfo = ([v1, v2, a1, a2]: any) => {
+const combineInfo = ([v1, v2]: any) => {
   const [big, small] = sortTypes([v1, v2]);
-  const base = { reverse: big !== v1, values: [big, small, a1, a2] };
+  const base = { reverse: big !== v1, values: [big, small] };
   if (small.type === 'table') return { type: 'multi', ...base };
   if (big.type === 'table') return { type: 'get', ...base };
   if (small.type === 'string') return { type: 'join', ...base };
@@ -32,7 +32,7 @@ const tableGet = (data, key) => {
 
 const run: any = (type, { initial, output }) => {
   if (type === 'identity') {
-    return { initial: [toData(initial[0].value), initial[2], initial[3]] };
+    return { initial: [toData(initial[0].value)] };
   }
   if (type === 'join') {
     return {
@@ -41,21 +41,19 @@ const run: any = (type, { initial, output }) => {
           type: 'string',
           value: `${initial[0].value} ${initial[1].value}`,
         },
-        initial[2],
-        initial[3],
       ],
     };
   }
   if (type === 'get') {
     const value = tableGet(initial[0].value, initial[1]);
     if (typeof value !== 'function') {
-      return { initial: [value, initial[2], initial[3]] };
+      return { initial: [value] };
     }
-    if (initial[0].value.otherType !== 'key') {
-      return { initial: [{ type: 'nil' }, initial[2], initial[3]] };
+    if (!['=>', 'k=>'].includes(initial[0].value.otherType)) {
+      return { initial: [{ type: 'nil' }] };
     }
     const result = value({
-      initial: [initial[1], initial[2], initial[3]],
+      initial: [initial[1]],
       output,
     });
     return {
@@ -78,25 +76,32 @@ const run: any = (type, { initial, output }) => {
     for (const key of keys) {
       const k = toData(key);
       const big = tableGet(initial[0].value, k);
-      const args = [
-        initial[0].value.otherType === 'key'
-          ? initial[1]
-          : tableGet(initial[1].value, k),
-        result,
-        result,
-      ];
-      if (initial[0].value.otherType === 'keyValue') args.unshift(k);
-      const res =
-        typeof big === 'function'
-          ? big({ initial: args })
-          : combine({ initial: [big, ...args] } as any);
-      res.input();
-      result = res.initial[2];
-      if (res.initial[0].type !== 'nil') {
+      if (typeof big === 'function') {
+        const args = [result];
+        if (initial[0].value.otherType === 'k=>v=>') {
+          args.push(k, tableGet(initial[1].value, k));
+        }
+        if (initial[0].value.otherType === 'v=>>') {
+          args.push(tableGet(initial[1].value, k));
+        }
+        if (initial[0].value.otherType === 'k=>') {
+          args.push(initial[1]);
+        }
+        const res = big({ initial: args });
+        res.input();
+        result = res.initial[0];
+        if (res.initial[1].type !== 'nil') {
+          result = binary.assign([result, res.initial[1], k]);
+        }
+      } else {
+        const res = combine({
+          initial: [big, tableGet(initial[1].value, k)],
+        } as any);
+        res.input();
         result = binary.assign([result, res.initial[0], k]);
       }
     }
-    return { initial: [result, initial[2], initial[3]] };
+    return { initial: [result] };
   }
 };
 
@@ -137,7 +142,7 @@ const combine = ({ initial: first, output }) => {
             initial: next.values,
             output,
           }));
-          initial.forEach((v, i) => output(i, v));
+          output(0, initial[0]);
           prev = next;
         }
       }

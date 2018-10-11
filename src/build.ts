@@ -1,6 +1,7 @@
 import combine from './combine';
 import { binary, unary } from './core';
 import { toData } from './data';
+import parse from './parse';
 import process from './process';
 
 const constant = (queue, value) => queue([], () => ({ initial: [value] }))[0];
@@ -19,39 +20,9 @@ const streamMap = (queue, args, map) =>
     };
   })[0];
 
-const valueStream = build => ({ initial: first, output }) => {
-  const ctx = [...first];
-  const values = ctx.splice(0, ctx.length - 2);
-  const { initial, input } = build({
-    initial: values,
-    output: (index, value) => output(index, value),
-  });
-  return {
-    initial: [initial[0], ...ctx],
-    input: updates => {
-      if (updates) {
-        updates.forEach(u => {
-          if (u[0] < 2) input([u]);
-          else output(u[0] - values.length + 1, u[1], u[2]);
-        });
-      }
-    },
-  };
-};
-
 const build = (queue, context, config) => {
   if (Array.isArray(config)) {
-    const result = queue(
-      [
-        ...config.map(c => build(queue, context, c)),
-        context.scope[0],
-        context.current[0],
-      ],
-      combine,
-    );
-    context.scope[0] = result[1];
-    context.current[0] = result[2];
-    return result[0];
+    return queue(config.map(c => build(queue, context, c)), combine)[0];
   }
   if (config.type === 'set') {
     if (
@@ -79,75 +50,72 @@ const build = (queue, context, config) => {
       context.current[0] = streamMap(
         queue,
         [
-          context.scope[0],
           context.current[0],
+          context.scope[0],
           build(queue, context, config.key),
           build(queue, context, config.value),
         ],
-        ([scope, current, key, value]) =>
+        ([current, scope, k, v]) =>
           binary.other([
             current,
-            valueStream(({ initial, output }) =>
+            ({ initial: [result, key, value], output }) =>
               process(
-                { initial: [...initial, scope, key, value], output },
-                queue => [
-                  build(
-                    queue,
-                    {
-                      scope: [
-                        streamMap(
-                          queue,
-                          [streamMap(queue, [2, 0, 3], binary.assign), 1, 4],
-                          binary.assign,
-                        ),
-                      ],
-                      current: [constant(queue, { type: 'nil' })],
-                    },
-                    config.output,
-                  ),
-                ],
+                { initial: [result, scope, key, k, value, v], output },
+                queue => {
+                  const ctx = {
+                    scope: [
+                      streamMap(
+                        queue,
+                        [streamMap(queue, [1, 2, 3], binary.assign), 4, 5],
+                        binary.assign,
+                      ),
+                    ],
+                    current: [0],
+                  };
+                  const result = build(queue, ctx, config.output);
+                  return [ctx.current[0], result];
+                },
               ),
-            ),
-            'keyValue',
+            'k=>v=>',
           ]),
       );
     } else if (config.key === true || config.value === true) {
-      context.current[0] = streamMap(queue, [context.current[0]], ([current]) =>
-        binary.other([
-          current,
-          ({ initial, output }) =>
-            process({ initial, output }, queue => {
-              const ctx = { arg: 0, scope: [1], current: [2] };
-              const res = build(queue, ctx, config.output);
-              return [res, ctx.scope[0], ctx.current[0]];
-            }),
-          config.key ? 'key' : 'value',
-        ]),
+      context.current[0] = streamMap(
+        queue,
+        [context.current[0], context.scope[0]],
+        ([current, scope]) =>
+          binary.other([
+            current,
+            ({ initial: [result], output }) =>
+              process({ initial: [result, scope], output }, queue => {
+                const ctx = { scope: [1], current: [0] };
+                const result = build(queue, ctx, config.output);
+                return [ctx.current[0], result];
+              }),
+            config.key ? '=>' : '=>>',
+          ]),
       );
     } else {
       context.current[0] = streamMap(
         queue,
         [
-          context.scope[0],
           context.current[0],
+          context.scope[0],
           build(queue, context, config.key || config.value),
         ],
-        ([scope, current, key]) =>
+        ([current, scope, v]) =>
           binary.other([
             current,
-            valueStream(({ initial, output }) =>
-              process({ initial: [...initial, scope, key], output }, queue => [
-                build(
-                  queue,
-                  {
-                    scope: [streamMap(queue, [1, 0, 2], binary.assign)],
-                    current: [constant(queue, { type: 'nil' })],
-                  },
-                  config.output,
-                ),
-              ]),
-            ),
-            config.key ? 'key' : 'value',
+            ({ initial: [result, value], output }) =>
+              process({ initial: [result, scope, value, v], output }, queue => {
+                const ctx = {
+                  scope: [streamMap(queue, [1, 2, 3], binary.assign)],
+                  current: [0],
+                };
+                const result = build(queue, ctx, config.output);
+                return [ctx.current[0], result];
+              }),
+            config.key ? 'k=>' : 'v=>>',
           ]),
       );
     }
@@ -179,6 +147,93 @@ const build = (queue, context, config) => {
   }
   if (config.type === 'unary') {
     return queue([build(queue, context, config.arg)], unary[config.func])[0];
+  }
+  if (config.type === 'eval') {
+    if (config.scope) {
+      return queue(
+        [
+          build(queue, context, config.value),
+          build(queue, context, config.scope),
+        ],
+        ({ initial, output }) => {
+          let values = initial;
+          let current;
+          const runEval = () => {
+            current = process({ initial: [initial[1]], output }, queue => [
+              build(
+                queue,
+                { scope: [0], current: [0] },
+                parse(initial[0].type === 'string' ? initial[0].value : ''),
+              ),
+            ]);
+          };
+          runEval();
+          return {
+            initial: current.initial,
+            input: updates => {
+              if (updates) {
+                updates.forEach(u => (values[u[0]] = u[1]));
+                if (updates.some(u => u[0] === 0)) {
+                  current.input();
+                  runEval();
+                  current.initial.forEach((v, i) => output(i, v));
+                } else {
+                  current.input(updates.map(u => [u[0] - 1, u[1], u[2]]));
+                }
+              } else {
+                current.input();
+              }
+            },
+          };
+        },
+      )[0];
+    }
+    const result = queue(
+      [
+        context.scope[0],
+        context.current[0],
+        build(queue, context, config.value),
+      ],
+      ({ initial, output }) => {
+        let values = initial;
+        let current;
+        const runEval = () => {
+          current = process(
+            { initial: [values[0], values[1]], output },
+            queue => {
+              const ctx = { scope: [0], current: [1] };
+              const result = build(
+                queue,
+                ctx,
+                parse(values[2].type === 'string' ? values[2].value : ''),
+              );
+              return [result, ctx.scope[0], ctx.current[0]];
+            },
+          );
+        };
+        runEval();
+        return {
+          initial: current.initial,
+          input: updates => {
+            if (updates) {
+              updates.forEach(u => (values[u[0]] = u[1]));
+              if (updates.some(u => u[0] === 2)) {
+                current.input();
+                runEval();
+                current.initial.forEach((v, i) => output(i, v));
+              } else {
+                current.input(updates);
+              }
+            } else {
+              current.input();
+            }
+          },
+        };
+      },
+    );
+    context.scope[0] = result[1];
+    context.current[0] = result[2];
+    return result[0];
   }
   if (config.type === 'table') {
     context.scope.unshift(

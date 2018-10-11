@@ -48,7 +48,7 @@ export default ({ initial, output }, build) => {
   const result = build(queueAction);
   return {
     initial: result.map(i => streams[i].value),
-    input: updates => {
+    input: (updates?) => {
       if (updates) {
         updates.forEach(u => (updateStream as any)(...u));
       }

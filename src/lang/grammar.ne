@@ -66,8 +66,11 @@ expmerge ->
 	| expcomb {% id %}
 
 expcomb ->
-	  expcomb _ exppow {% x => [x[0], x[2]] %}
-  | ("#" | "@" | "!" | "-") _ expcomb
+	  expcomb _ expuni {% x => [x[0], x[2]] %}
+	| expuni {% id %}
+
+expuni ->
+    ("#" | "@" | "!" | "-") _ exppow
       {% x => ({ type: "unary", func: x[0][0].value, arg: x[2] }) %}
 	| exppow {% id %}
 
@@ -75,7 +78,12 @@ exppow ->
     exppow _ ("^") _ atom {% binary %}
   | atom {% id %}
 
-atom -> (table | value | any | context) {% x => x[0][0] %}
+atom -> (eval | table | value | any | context) {% x => x[0][0] %}
+
+eval ->
+    "`" _ exp _ "," _ exp _ "`"
+      {% x => ({ type: "eval", value: x[2], scope: x[6] }) %}
+  | "`" _ exp _ "`" {% x => ({ type: "eval", value: x[2] }) %}
 
 table ->
     "[" body "]" {% x => ({ type: "table", values: x[1] }) %}

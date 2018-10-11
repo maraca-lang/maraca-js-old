@@ -85,12 +85,14 @@ export const binary = {
   '~': ([a, b]) => ({ ...b, id: a }),
   '=': ([a, b]) => toData(a.type === b.type && a.value === b.value),
   '!=': ([a, b]) => toData(a.type !== b.type || a.value !== b.value),
-  '<': typeFunc(toString, (a, b) => sortStrings(a, b) === 1),
-  '>': typeFunc(toString, (a, b) => sortStrings(a, b) === -1),
+  '<': typeFunc(toString, (a, b) => sortStrings(a, b) === -1),
+  '>': typeFunc(toString, (a, b) => sortStrings(a, b) === 1),
   '<=': typeFunc(toString, (a, b) => sortStrings(a, b) !== 1),
   '>=': typeFunc(toString, (a, b) => sortStrings(a, b) !== -1),
   _: typeFunc(toString, (a, b) => a + b),
-  '&': typeFunc(toString, (a, b) => a + '\uFFFF' + b),
+  '&': typeFunc(toString, (a, b) => {
+    return a + '\uFFFF' + b;
+  }),
   '+': typeFunc(toNumber, (a, b) => a + b),
   '-': typeFunc(toNumber, (a, b) => a - b),
   '*': typeFunc(toNumber, (a, b) => a * b),
