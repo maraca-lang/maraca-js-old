@@ -5,6 +5,8 @@ import run from '../index';
 import convert from './convert';
 import render from './render';
 
+faker.seed(1);
+
 const data = Array.from({ length: 30 }).map(() => ({
   'First name': faker.name.firstName(),
   'Last name': faker.name.lastName(),
@@ -18,22 +20,28 @@ const script = `
   fields: [First name, Last name, DOB, Score 1, Score 2],
   filter: *,
   sort: *,
+  limit: *,
   formula: *,
 
   [class: container "mt-4",
     [:table, class: table,
       [:thead,
         [:tr,
-          [:th, scope: col, colSpan: 100,
+          [:th, scope: col, colSpan: {{x.length}} (fields?) + 1,
             [:input,
-              class: "form-control",
+              class: "form-control" "form-control-sm",
               placeholder: Enter filter,
               value: filter?,
             ],
             [:input,
-              class: "form-control" "mt-2",
+              class: "form-control" "form-control-sm" "mt-2",
               placeholder: Enter sort,
               value: sort?,
+            ],
+            [:input,
+              class: "form-control" "form-control-sm" "mt-2",
+              placeholder: Enter limit,
+              value: limit?,
             ],
           ],
         ],
@@ -44,7 +52,7 @@ const script = `
           [f=>> [:th, scope: col, f?]],
           [:th, scope: col,
             [:input,
-              class: "form-control",
+              class: "form-control" "form-control-sm",
               placeholder: Enter formula,
               value: formula?,
             ],
@@ -54,15 +62,18 @@ const script = `
       [:tbody,
         ..
         data?
-        [v=>> (\` {filter?, 1}, v? \`, v?)]
-        [k=> v=> { \` sort?, v? \`, k?}: v?]
+        [v=>> (\` filter? [:1, k=> "(" _ k? _ ")"], v? \`, v?)]
+        [k=> v=> \` sort?, v? \` & k?: v?]
+        [v=>> :: v?]
+        [k=> v=> [index: k?, ..v?]]
+        [k=> v=> (\` {limit?, 1}, k? \`, v?)]
         [v=>> :: v?]
         [k=> v=>
           [:tr,
-            [:th, scope: row, k?],
+            [:th, scope: row, index (v?)],
             ..
             fields?
-            [f=>> [:td, f? (v?)]],
+            [f=>> [:td, f? [DOB: {{date(x)}}(f? (v?)), => f? (v?)]]],
             [:td, \` formula?, v? \`],
           ]
         ]
@@ -75,7 +86,7 @@ const script = `
 // const script = `
 
 // data?
-// [k=> v=> \` {"First name? &", k?}, v? \`: v?]
+// [k=> v=> (\` "(? < 3)", k? \`, v?)]
 
 // `;
 

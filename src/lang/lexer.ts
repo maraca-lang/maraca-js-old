@@ -4,6 +4,10 @@ const toData = s =>
   s && s !== '0' ? { type: 'string', value: s } : { type: 'nil' };
 
 export default moo.compile({
+  js: {
+    match: /\{\{.*?\}\}/,
+    value: s => s.slice(2, -2),
+  },
   multi: ['=>>', '=>', '<=', '>=', '!=', ':=?', ':=', '::', '..'],
   brackets: ['[', ']', '(', ')', '{', '}'],
   comparison: ['<', '>', '='],

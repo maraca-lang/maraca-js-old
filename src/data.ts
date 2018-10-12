@@ -11,6 +11,20 @@ export const toData = value => {
 export const stringToValue = s =>
   !isNaN(s) && !isNaN(parseFloat(s)) ? parseFloat(s) : s;
 
+export const toJs = data => {
+  if (data.type === 'nil') return null;
+  if (data.type === 'string') return stringToValue(data.value);
+  const keys = Object.keys(data.value.values);
+  const result = keys.every(k => {
+    const n = stringToValue(k);
+    return typeof n === 'number' && Math.floor(n) === n;
+  })
+    ? []
+    : {};
+  keys.forEach(k => (result[k] = toJs(data.value.values[k])));
+  return result;
+};
+
 export const toNumber = ({ type, value }) => {
   if (type === 'nil') return 0;
   if (type === 'string') {
@@ -57,7 +71,7 @@ export const sortStrings = (s1, s2) => {
         if (t1 === 'string') return dir * v1.localeCompare(v2);
         return dir * (v1 < v2 ? -1 : 1);
       }
-      return dir * (t1 === 'undefined' || t1 === 'number' ? -1 : 1);
+      return dir * (t1 === 'undefined' || t2 === 'string' ? -1 : 1);
     },
     0,
   ) as number;

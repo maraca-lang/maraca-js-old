@@ -30,6 +30,12 @@ module.exports = {
             <meta charset="UTF-8">
             <title>tabla</title>
             <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous"></link>
+            <style>
+            body {
+              font-family: "Courier New", Courier, monospace;
+              font-size: 14px;
+            }
+            </style>
           </head>
           <body>
           </body>
@@ -38,9 +44,3 @@ module.exports = {
     }),
   ],
 };
-
-// <link
-//   rel="stylesheet"
-//   type="text/css"
-//   href="https://unpkg.com/normalize.css@8.0.0/normalize.css"
-// />;

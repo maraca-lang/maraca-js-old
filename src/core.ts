@@ -69,7 +69,7 @@ const typeFunc = (toType, func) => ([a, b]) => {
 };
 
 const tableFunc = func => ([data, ...args]) => {
-  if (data.type !== 'nil' && data.type !== 'table') return { type: 'nil' };
+  if (data.type !== 'nil' && data.type !== 'table') return data;
   const result = func(data.value || { values: {}, indices: [] }, ...args);
   if (Object.keys(result.values).length === 0 && !result.other) {
     return { type: 'nil' };

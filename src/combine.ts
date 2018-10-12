@@ -19,7 +19,7 @@ const combineInfo = ([v1, v2]: any) => {
   if (small.type === 'table') return { type: 'multi', ...base };
   if (big.type === 'table') return { type: 'get', ...base };
   if (small.type === 'string') return { type: 'join', ...base };
-  return { type: 'identity', ...base };
+  return { type: 'nil', ...base };
 };
 
 const tableGet = (data, key) => {
@@ -31,8 +31,8 @@ const tableGet = (data, key) => {
 };
 
 const run: any = (type, { initial, output }) => {
-  if (type === 'identity') {
-    return { initial: [toData(initial[0].value)] };
+  if (type === 'nil') {
+    return { initial: [{ type: 'nil' }] };
   }
   if (type === 'join') {
     return {
@@ -52,17 +52,16 @@ const run: any = (type, { initial, output }) => {
     if (!['=>', 'k=>'].includes(initial[0].value.otherType)) {
       return { initial: [{ type: 'nil' }] };
     }
-    const result = value({
-      initial: [initial[1]],
-      output,
-    });
+    const args = [{ type: 'nil' }];
+    if (initial[0].value.otherType === 'k=>') args.push(initial[1]);
+    const result = value({ initial: args, output });
     return {
-      initial: result.initial,
-      input: changes => {
-        if (changes) {
-          result.input(changes.map(c => [c[0] - 1, c[1], c[2]]));
-        }
-      },
+      initial: [result.initial[1]],
+      // input: changes => {
+      //   if (changes) {
+      //     result.input(changes.map(c => [c[0] - 1, c[1], c[2]]));
+      //   }
+      // },
     };
   }
   if (type === 'multi') {

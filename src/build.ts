@@ -1,6 +1,6 @@
 import combine from './combine';
 import { binary, unary } from './core';
-import { toData } from './data';
+import { toData, toJs } from './data';
 import parse from './parse';
 import process from './process';
 
@@ -19,6 +19,16 @@ const streamMap = (queue, args, map) =>
       },
     };
   })[0];
+
+// @ts-ignore
+const date = x => {
+  const d = new Date(x);
+  return [
+    `${d.getDate()}`.padStart(2, '0'),
+    `${d.getMonth() + 1}`.padStart(2, '0'),
+    `${d.getFullYear()}`.slice(2),
+  ].join('/');
+};
 
 const build = (queue, context, config) => {
   if (Array.isArray(config)) {
@@ -148,6 +158,12 @@ const build = (queue, context, config) => {
   if (config.type === 'unary') {
     return queue([build(queue, context, config.arg)], unary[config.func])[0];
   }
+  if (config.type === 'js') {
+    const map = eval(`x => ${config.map}`);
+    return streamMap(queue, [build(queue, context, config.arg)], ([value]) =>
+      toData(map(toJs(value))),
+    );
+  }
   if (config.type === 'eval') {
     if (config.scope) {
       return queue(
@@ -254,7 +270,7 @@ const build = (queue, context, config) => {
     })[0];
   }
   if (config.type === 'context') {
-    return context.arg === undefined ? context.scope[0] : context.arg;
+    return context.scope[0];
   }
 };
 

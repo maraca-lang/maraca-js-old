@@ -72,6 +72,8 @@ expcomb ->
 expuni ->
     ("#" | "@" | "!" | "-") _ exppow
       {% x => ({ type: "unary", func: x[0][0].value, arg: x[2] }) %}
+  | %js _ exppow 
+      {% x => ({ type: "js", map: x[0].value, arg: x[2] }) %}
 	| exppow {% id %}
 
 exppow ->
