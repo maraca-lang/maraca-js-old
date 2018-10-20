@@ -16,13 +16,13 @@ const sortTypes = ([v1, v2]: any) => {
 const combineInfo = ([v1, v2]: any) => {
   const [big, small] = sortTypes([v1, v2]);
   const base = { reverse: big !== v1, values: [big, small] };
-  if (small.type === 'table') return { type: 'multi', ...base };
-  if (big.type === 'table') return { type: 'get', ...base };
+  if (small.type === 'list') return { type: 'multi', ...base };
+  if (big.type === 'list') return { type: 'get', ...base };
   if (small.type === 'string') return { type: 'join', ...base };
   return { type: 'nil', ...base };
 };
 
-const tableGet = (data, key) => {
+const listGet = (data, key) => {
   const k = toKey(key);
   if (k === null) return { type: 'nil' };
   if (data.values[k]) return data.values[k];
@@ -45,7 +45,7 @@ const run: any = (type, { initial, output }) => {
     };
   }
   if (type === 'get') {
-    const value = tableGet(initial[0].value, initial[1]);
+    const value = listGet(initial[0].value, initial[1]);
     if (typeof value !== 'function') {
       return { initial: [value] };
     }
@@ -74,14 +74,14 @@ const run: any = (type, { initial, output }) => {
     let result = { type: 'nil' };
     for (const key of keys) {
       const k = toData(key);
-      const big = tableGet(initial[0].value, k);
+      const big = listGet(initial[0].value, k);
       if (typeof big === 'function') {
         const args = [result];
         if (initial[0].value.otherType === 'k=>v=>') {
-          args.push(k, tableGet(initial[1].value, k));
+          args.push(k, listGet(initial[1].value, k));
         }
         if (initial[0].value.otherType === 'v=>>') {
-          args.push(tableGet(initial[1].value, k));
+          args.push(listGet(initial[1].value, k));
         }
         if (initial[0].value.otherType === 'k=>') {
           args.push(initial[1]);
@@ -94,7 +94,7 @@ const run: any = (type, { initial, output }) => {
         }
       } else {
         const res = combine({
-          initial: [big, tableGet(initial[1].value, k)],
+          initial: [big, listGet(initial[1].value, k)],
         } as any);
         res.input();
         result = binary.assign([result, res.initial[0], k]);
@@ -109,7 +109,7 @@ const canContinue = (next, prev, changes) => {
     if (
       next.type === 'get' &&
       !changes.some(c => c[0] === 0) &&
-      typeof tableGet(next.values[0].value, next.values[1]) === 'function'
+      typeof listGet(next.values[0].value, next.values[1]) === 'function'
     ) {
       return true;
     }

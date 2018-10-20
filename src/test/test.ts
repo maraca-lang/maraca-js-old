@@ -27,7 +27,7 @@ const script = `
     [:table, class: table,
       [:thead,
         [:tr,
-          [:th, scope: col, colSpan: {{x.length}} (fields?) + 1,
+          [:th, scope: col, colSpan: #"x => x.length" fields? + 1,
             [:input,
               class: "form-control" "form-control-sm",
               placeholder: Enter filter,
@@ -47,7 +47,7 @@ const script = `
         ],
         [:tr,
           [:th, scope: col, "#"],
-          ..
+          ...
           fields?
           [f=>> [:th, scope: col, f?]],
           [:th, scope: col,
@@ -60,21 +60,21 @@ const script = `
         ]
       ],
       [:tbody,
-        ..
+        ...
         data?
-        [v=>> (\` filter? [:1, k=> "(" _ k? _ ")"], v? \`, v?)]
-        [k=> v=> \` sort?, v? \` & k?: v?]
+        [v=>> ({{ filter? [:1, x=> "(" .. x? .. ")"], v? }}, v?)]
+        [k=> v=> {{ sort?, v? }} | k?: v?]
         [v=>> :: v?]
-        [k=> v=> [index: k?, ..v?]]
-        [k=> v=> (\` {limit?, 1}, k? \`, v?)]
+        [k=> v=> [index: k?, ...v?]]
+        [k=> v=> ({{ limit? [:1, x=> "(" .. x? .. ")"], k? }}, v?)]
         [v=>> :: v?]
         [k=> v=>
           [:tr,
-            [:th, scope: row, index (v?)],
-            ..
+            [:th, scope: row, v? index],
+            ...
             fields?
-            [f=>> [:td, f? [DOB: {{date(x)}}(f? (v?)), => f? (v?)]]],
-            [:td, \` formula?, v? \`],
+            [f=>> [:td, f? [DOB: #date f? (v?), => f? (v?)]]],
+            [:td, {{ formula?, v? }}],
           ]
         ]
       ]
@@ -86,7 +86,7 @@ const script = `
 // const script = `
 
 // data?
-// [k=> v=> (\` "(? < 3)", k? \`, v?)]
+// [k=> v=> {{ sort?, v? }} .i (k?): v?]
 
 // `;
 

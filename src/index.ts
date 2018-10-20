@@ -13,18 +13,18 @@ const numericIfIndex = k => {
 const diff = (prev, next) => {
   if (
     prev.type !== 'nil' &&
-    (prev.type === 'table') !== (next.type === 'table')
+    (prev.type === 'list') !== (next.type === 'list')
   ) {
     return diff({ type: 'nil' }, next);
   }
-  if (next.type !== 'table') {
+  if (next.type !== 'list') {
     if (next.value === prev.value && next.set === prev.set) return undefined;
     return {
       value: next.value || null,
       ...(next.set ? { set: next.set } : {}),
     };
   }
-  const p = prev.type === 'table' ? prev.value.values : {};
+  const p = prev.type === 'list' ? prev.value.values : {};
   const n = next.value.values;
   const pKeys = Object.keys(p).map(numericIfIndex);
   const nKeys = Object.keys(n).map(numericIfIndex);

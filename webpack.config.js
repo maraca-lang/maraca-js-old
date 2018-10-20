@@ -18,7 +18,7 @@ module.exports = {
     extensions: ['.tsx', '.ts', '.js'],
   },
   output: {
-    filename: 'main.js',
+    filename: 'maraca.js',
     path: path.resolve(__dirname, 'dist'),
   },
   plugins: [
@@ -28,7 +28,7 @@ module.exports = {
         <html>
           <head>
             <meta charset="UTF-8">
-            <title>tabla</title>
+            <title>Maraca</title>
             <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous"></link>
             <style>
             body {

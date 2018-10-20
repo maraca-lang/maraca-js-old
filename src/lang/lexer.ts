@@ -1,25 +1,29 @@
 import * as moo from 'moo';
+import * as dedent from 'dedent';
 
-const toData = s =>
-  s && s !== '0' ? { type: 'string', value: s } : { type: 'nil' };
+const toData = s => (s ? { type: 'string', value: s } : { type: 'nil' });
 
 export default moo.compile({
-  js: {
-    match: /\{\{.*?\}\}/,
-    value: s => s.slice(2, -2),
-  },
-  multi: ['=>>', '=>', '<=', '>=', '!=', ':=?', ':=', '::', '..'],
+  multi: ['=>>', '=>', '<=', '>=', ':=?', ':=', '::', '...', '..', '{{', '}}'],
   brackets: ['[', ']', '(', ')', '{', '}'],
   comparison: ['<', '>', '='],
   arithmetic: ['+', '-', '*', '/', '%', '^'],
-  misc: [',', '?', ':', '~', '&', '!', '#', '@', '_', '|', '`'],
+  misc: [',', '?', ':', '~', '&', '!', '#', '@', '|'],
   value: {
-    match: /[a-zA-Z0-9\.]+/,
+    match: /(?:[a-zA-Z0-9]+)|(?:\d*\.?\d+)/,
     value: s => toData(s),
   },
   string: {
-    match: /"(?:\\["\\]|[^\n"\\])*"/,
-    value: s => toData(s.slice(1, -1)),
+    match: /"(?:\\["\\]|[^"\\])*"/,
+    value: s =>
+      toData(
+        dedent(
+          s
+            .slice(1, -1)
+            .replace(/\\\\/g, '\\')
+            .replace(/\\"/g, '"'),
+        ),
+      ),
   },
   _: { match: /\s+/, lineBreaks: true },
 });

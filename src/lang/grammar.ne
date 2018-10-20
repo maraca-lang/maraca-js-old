@@ -37,20 +37,25 @@ expset ->
       {% x => ({ type: "set", value: x[2] }) %}
   | ":" _ expset
       {% x => ({ type: "set", key: { type: "nil" }, value: x[2] }) %}
-  | ".." _ expset
+  | "..." _ expset
       {% x => ({ type: "set", key: true, value: x[2] }) %}
   | expid {% id %}
 
 expid ->
-    expid _ ("~") _ expcomp {% binary %}
-  | expcomp {% id %}
+    expid _ ("~") _ expnot {% binary %}
+  | expnot {% id %}
+
+expnot ->
+    "!" _ expcomp
+      {% x => ({ type: "unary", func: x[0].value, arg: x[2] }) %}
+	| expcomp {% id %}
 
 expcomp ->
-	  expcomp _ ("<" | ">" | "<=" | ">=" | "!=" | "=") _ expconc {% binary %}
+	  expcomp _ ("<" | ">" | "<=" | ">=" | "!" | "=") _ expconc {% binary %}
 	| expconc {% id %}
 
 expconc ->
-	  expconc _ ("_" | "&") _ expsum {% binary %}
+	  expconc _ ("|" | "..") _ expsum {% binary %}
 	| expsum {% id %}
 
 expsum ->
@@ -62,42 +67,42 @@ expprod ->
 	| expmerge {% id %}
 
 expmerge ->
-	  expmerge _ "|" _ expcomb {% x => ({ type: "merge", args: [x[0], x[4]] }) %}
-	| expcomb {% id %}
-
-expcomb ->
-	  expcomb _ expuni {% x => [x[0], x[2]] %}
-	| expuni {% id %}
-
-expuni ->
-    ("#" | "@" | "!" | "-") _ exppow
-      {% x => ({ type: "unary", func: x[0][0].value, arg: x[2] }) %}
-  | %js _ exppow 
-      {% x => ({ type: "js", map: x[0].value, arg: x[2] }) %}
+	  expmerge _ "&" _ exppow {% x => ({ type: "merge", args: [x[0], x[4]] }) %}
 	| exppow {% id %}
 
 exppow ->
-    exppow _ ("^") _ atom {% binary %}
-  | atom {% id %}
+    exppow _ ("^") _ expuni {% binary %}
+  | expuni {% id %}
 
-atom -> (eval | table | value | any | context) {% x => x[0][0] %}
+expuni ->
+    ("@" | "-") _ expcomb
+      {% x => ({ type: "unary", func: x[0][0].value, arg: x[2] }) %}
+  | "#" _ atom _ expcomb 
+      {% x => ({ type: "js", map: x[2], arg: x[4] }) %}
+	| expcomb {% id %}
+
+expcomb ->
+	  expcomb _ atom {% x => [x[0], x[2]] %}
+	| atom {% id %}
+
+atom -> (eval | list | value | any | context) {% x => x[0][0] %}
 
 eval ->
-    "`" _ exp _ "," _ exp _ "`"
+    "{{" _ exp _ "," _ exp _ "}}"
       {% x => ({ type: "eval", value: x[2], scope: x[6] }) %}
-  | "`" _ exp _ "`" {% x => ({ type: "eval", value: x[2] }) %}
+  | "{{" _ exp _ "}}" {% x => ({ type: "eval", value: x[2] }) %}
 
-table ->
-    "[" body "]" {% x => ({ type: "table", values: x[1] }) %}
+list ->
+    "[" body "]" {% x => ({ type: "list", values: x[1] }) %}
   | "(" body ")"
       {% x => [
         { type: "string", value: x[1].length.toString() },
-        { type: "table", values: x[1] }
+        { type: "list", values: x[1] }
       ] %}
   | "{" body "}"
       {% x => [
         { type: "string", value: "1" },
-        { type: "table", values: x[1] }
+        { type: "list", values: x[1] }
       ] %}
 
 body ->
@@ -120,5 +125,3 @@ context ->
 
 _ ->
   %_:? {% () => null %}
-__ ->
-  %_ {% () => null %}

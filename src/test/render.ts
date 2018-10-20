@@ -1,3 +1,5 @@
+import * as debounce from 'lodash.debounce';
+
 const unpack = data => {
   if (!Array.isArray(data)) return { values: data, children: [] };
   const values: any = {};
@@ -10,7 +12,6 @@ const unpack = data => {
 };
 
 const updateChild = (parent, prev, next) => {
-  // const prev = parent.childNodes[index];
   if (!next) {
     if (prev) parent.removeChild(prev);
   } else if (!Array.isArray(next)) {
@@ -35,11 +36,11 @@ const updateChild = (parent, prev, next) => {
     }
     Object.keys(values).forEach(k => {
       if (k === 'value' && values[k].set) {
-        child.oninput = e => values[k].set(e.target.value);
+        child.oninput = debounce(e => values[k].set(e.target.value), 1000);
       }
       if (k === 'style') {
-        Object.keys(values[k].value).forEach(p => {
-          child.style[p] = values[k].value[p].value || '';
+        Object.keys(values[k]).forEach(p => {
+          child.style[p] = values[k][p].value || '';
         });
       } else if (k === 'class') {
         child.className = values[k].value || '';

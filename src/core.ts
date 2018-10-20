@@ -1,6 +1,6 @@
 import {
   sortStrings,
-  table,
+  list,
   toData,
   toDateData,
   toNumber,
@@ -21,13 +21,6 @@ const streamMap = map => ({ initial, output }) => {
 };
 
 export const unary = {
-  '#': ({ output }) => {
-    let count = 0;
-    return {
-      initial: [toData(count)],
-      input: () => output(0, toData(++count)),
-    };
-  },
   '@': ({ initial, output }) => {
     let value = initial[0];
     let prev = toDateData(value);
@@ -68,31 +61,29 @@ const typeFunc = (toType, func) => ([a, b]) => {
   return toData(func(v1, v2));
 };
 
-const tableFunc = func => ([data, ...args]) => {
-  if (data.type !== 'nil' && data.type !== 'table') return data;
+const listFunc = func => ([data, ...args]) => {
+  if (data.type !== 'nil' && data.type !== 'list') return data;
   const result = func(data.value || { values: {}, indices: [] }, ...args);
   if (Object.keys(result.values).length === 0 && !result.other) {
     return { type: 'nil' };
   }
-  return { type: 'table', value: result };
+  return { type: 'list', value: result };
 };
 
 export const binary = {
-  clearIndices: tableFunc(table.clearIndices),
-  assign: tableFunc(table.assign),
-  unpack: tableFunc(table.unpack),
-  other: tableFunc(table.other),
+  clearIndices: listFunc(list.clearIndices),
+  assign: listFunc(list.assign),
+  unpack: listFunc(list.unpack),
+  other: listFunc(list.other),
   '~': ([a, b]) => ({ ...b, id: a }),
   '=': ([a, b]) => toData(a.type === b.type && a.value === b.value),
-  '!=': ([a, b]) => toData(a.type !== b.type || a.value !== b.value),
+  '!': ([a, b]) => toData(a.type !== b.type || a.value !== b.value),
   '<': typeFunc(toString, (a, b) => sortStrings(a, b) === -1),
   '>': typeFunc(toString, (a, b) => sortStrings(a, b) === 1),
   '<=': typeFunc(toString, (a, b) => sortStrings(a, b) !== 1),
   '>=': typeFunc(toString, (a, b) => sortStrings(a, b) !== -1),
-  _: typeFunc(toString, (a, b) => a + b),
-  '&': typeFunc(toString, (a, b) => {
-    return a + '\uFFFF' + b;
-  }),
+  '|': typeFunc(toString, (a, b) => a + '|' + b),
+  '..': typeFunc(toString, (a, b) => a + b),
   '+': typeFunc(toNumber, (a, b) => a + b),
   '-': typeFunc(toNumber, (a, b) => a - b),
   '*': typeFunc(toNumber, (a, b) => a * b),

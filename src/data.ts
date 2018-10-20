@@ -5,7 +5,7 @@ export const toData = value => {
   if (value === true) return { type: 'string', value: '1' };
   if (typeof value === 'number') return { type: 'string', value: `${value}` };
   if (typeof value === 'string') return { type: 'string', value };
-  return { type: 'table', value };
+  return { type: 'list', value };
 };
 
 export const stringToValue = s =>
@@ -34,6 +34,11 @@ export const toNumber = ({ type, value }) => {
   return null;
 };
 
+export const toInteger = data => {
+  const n = toNumber(data);
+  return n && Math.floor(n) === n ? n : null;
+};
+
 export const toString = ({ type, value }) => {
   if (type === 'nil') return '';
   if (type === 'string') return value;
@@ -48,34 +53,45 @@ export const toDateData = ({ type, value }) => {
 
 const stringToNatural = s =>
   s
-    .split('\uFFFF')
-    .map(x => x.match(/\-?([^\.\d]+)|(\.?\d+)|\./g) || [])
-    .reduce((res, a) => [...res, ...a], [])
+    .split(/(\-?\d*\.?\d+)/)
+    .filter(x => x)
     .map(stringToValue);
 
-export const sortStrings = (s1, s2) => {
-  const n1 = stringToNatural(s1);
-  const n2 = stringToNatural(s2);
-  return Array.from({ length: Math.max(n1.length, n2.length) }).reduce(
+const getMinus = v => {
+  if (!v) return { minus: false, v };
+  const minus = typeof v === 'number' ? v < 0 : v[0] === '-';
+  if (!minus) return { minus, value: v };
+  return { minus, value: typeof v === 'number' ? -v : v.slice(1) };
+};
+
+const sortMultiple = (items1, items2, sortItems) =>
+  Array.from({ length: Math.max(items1.length, items2.length) }).reduce(
     (res, _, i) => {
-      if (res !== 0 || n1[i] === n2[i]) return res;
-      const m1 = (n1[i] && n1[i][0]) === '-';
-      const m2 = (n2[i] && n2[i][0]) === '-';
-      const v1 = m1 ? n1[i].slice(1) : n1[i];
-      const v2 = m2 ? n2[i].slice(1) : n2[i];
-      if (m1 !== m2) return m1 ? -1 : 1;
-      const dir = m1 ? -1 : 1;
-      const t1 = typeof v1;
-      const t2 = typeof v2;
-      if (t1 === t2) {
-        if (t1 === 'string') return dir * v1.localeCompare(v2);
-        return dir * (v1 < v2 ? -1 : 1);
-      }
-      return dir * (t1 === 'undefined' || t2 === 'string' ? -1 : 1);
+      if (res !== 0) return res;
+      if (items1[i] === undefined) return -1;
+      if (items2[i] === undefined) return 1;
+      return sortItems(items1[i], items2[i]);
     },
     0,
-  ) as number;
-};
+  ) as -1 | 0 | 1;
+
+export const sortStrings = (s1, s2) =>
+  sortMultiple(s1.split('|'), s2.split('|'), (v1, v2) =>
+    sortMultiple(stringToNatural(v1), stringToNatural(v2), (n1, n2) => {
+      if (n1 === n2) return 0;
+      const m1 = getMinus(n1);
+      const m2 = getMinus(n2);
+      if (m1.minus !== m2.minus) return m1.minus ? -1 : 1;
+      const dir = m1.minus ? -1 : 1;
+      const t1 = typeof m1.value;
+      const t2 = typeof m2.value;
+      if (t1 === t2) {
+        if (t1 === 'string') return dir * m1.value.localeCompare(m2.value);
+        return dir * (m1.value < m2.value ? -1 : 1);
+      }
+      return dir * (t1 === 'number' ? -1 : 1);
+    }),
+  );
 
 export const toKey = key => {
   if (key.type === 'nil') return '';
@@ -87,27 +103,27 @@ export const toKey = key => {
   return null;
 };
 
-export const table = {
-  clearIndices: table => {
-    const result = { ...table, values: { ...table.values } };
+export const list = {
+  clearIndices: list => {
+    const result = { ...list, values: { ...list.values } };
     result.indices.forEach(i => delete result[i]);
     result.indices = [];
     return result;
   },
-  assign: (table, value, key) => {
+  assign: (list, value, key) => {
     if (!key) {
-      if (value.type === 'nil') return table;
-      const k = (table.indices[table.indices.length - 1] || 0) + 1;
+      if (value.type === 'nil') return list;
+      const k = (list.indices[list.indices.length - 1] || 0) + 1;
       return {
-        ...table,
-        values: { ...table.values, [k]: value },
-        indices: [...table.indices, k],
+        ...list,
+        values: { ...list.values, [k]: value },
+        indices: [...list.indices, k],
       };
     }
     const k = toKey(key);
-    if (k === null) return table;
+    if (k === null) return list;
     if (value.type === 'nil' && (!value.set || typeof k === 'number')) {
-      const result = { ...table, values: { ...table.values } };
+      const result = { ...list, values: { ...list.values } };
       delete result.values[k];
       if (typeof k === 'number') {
         const i = result.indices.indexOf(k);
@@ -121,21 +137,21 @@ export const table = {
       return result;
     }
     return {
-      ...table,
-      values: { ...table.values, [k]: value },
-      ...(typeof k === 'number' && table.indices.indexOf(k) === -1
-        ? { indices: [...table.indices, k].sort((a, b) => a - b) }
+      ...list,
+      values: { ...list.values, [k]: value },
+      ...(typeof k === 'number' && list.indices.indexOf(k) === -1
+        ? { indices: [...list.indices, k].sort((a, b) => a - b) }
         : {}),
     };
   },
-  unpack: (table, value) => {
-    if (value.type !== 'table') return table;
+  unpack: (list, value) => {
+    if (value.type !== 'list') return list;
     const result = {
-      ...table,
-      values: { ...table.values },
-      indices: [...table.indices],
+      ...list,
+      values: { ...list.values },
+      indices: [...list.indices],
     };
-    const start = table.indices[table.indices.length - 1] || 0;
+    const start = list.indices[list.indices.length - 1] || 0;
     const values = { ...value.value.values };
     for (const i of value.value.indices) {
       result.values[start + i] = values[i];
@@ -145,9 +161,9 @@ export const table = {
     result.values = { ...result.values, ...values };
     return result;
   },
-  other: (table, value, type) => ({
-    values: table.values,
-    indices: table.indices,
+  other: (list, value, type) => ({
+    values: list.values,
+    indices: list.indices,
     other: value,
     otherType: type,
   }),

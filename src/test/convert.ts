@@ -14,7 +14,7 @@ const convert = x => {
       value.values[i + 1] = convert(v);
       value.indices.push(i + 1);
     });
-    return { type: 'table', value };
+    return { type: 'list', value };
   }
   if (typeof x === 'object') {
     const value = { values: {}, indices: [] } as any;
@@ -24,7 +24,7 @@ const convert = x => {
       value.values[k] = convert(x[k]);
     });
     value.indices.sort((a, b) => a - b);
-    return { type: 'table', value };
+    return { type: 'list', value };
   }
   return { type: 'string', value: `${x}` };
 };

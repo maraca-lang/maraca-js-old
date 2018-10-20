@@ -20,15 +20,21 @@ const streamMap = (queue, args, map) =>
     };
   })[0];
 
-// @ts-ignore
-const date = x => {
-  const d = new Date(x);
-  return [
-    `${d.getDate()}`.padStart(2, '0'),
-    `${d.getMonth() + 1}`.padStart(2, '0'),
-    `${d.getFullYear()}`.slice(2),
-  ].join('/');
+const evalContext = {
+  date: x => {
+    const d = new Date(x);
+    return [
+      `${d.getDate()}`.padStart(2, '0'),
+      `${d.getMonth() + 1}`.padStart(2, '0'),
+      `${d.getFullYear()}`.slice(2),
+    ].join('/');
+  },
 };
+
+const evalInContext = code =>
+  new Function(...Object.keys(evalContext), `return ${code}`)(
+    ...Object.values(evalContext),
+  );
 
 const build = (queue, context, config) => {
   if (Array.isArray(config)) {
@@ -135,12 +141,12 @@ const build = (queue, context, config) => {
     return queue(
       config.args.map(c => build(queue, context, c)),
       ({ initial, output }) => {
-        const pushes = initial.filter(i => i.push);
+        const setters = initial.filter(i => i.set);
         return {
           initial: [
             {
               ...initial[initial.length - 1],
-              ...(pushes.length === 1 ? { push: pushes[0].push } : {}),
+              ...(setters.length === 1 ? { set: setters[0].set } : {}),
             },
           ],
           input: update => output(0, update[update.length - 1][1]),
@@ -159,7 +165,8 @@ const build = (queue, context, config) => {
     return queue([build(queue, context, config.arg)], unary[config.func])[0];
   }
   if (config.type === 'js') {
-    const map = eval(`x => ${config.map}`);
+    const map =
+      config.map.type === 'string' ? evalInContext(config.map.value) : x => x;
     return streamMap(queue, [build(queue, context, config.arg)], ([value]) =>
       toData(map(toJs(value))),
     );
@@ -251,7 +258,7 @@ const build = (queue, context, config) => {
     context.current[0] = result[2];
     return result[0];
   }
-  if (config.type === 'table') {
+  if (config.type === 'list') {
     context.scope.unshift(
       streamMap(queue, [context.scope[0]], binary.clearIndices),
     );
