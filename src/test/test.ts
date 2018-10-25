@@ -2,8 +2,7 @@ import * as faker from 'faker';
 
 import { toData } from '../data';
 import run from '../index';
-
-import render from './render';
+import render from '../render';
 
 // @ts-ignore
 const textJson = require('./text.json');
@@ -92,8 +91,16 @@ const script = `
 `;
 
 // const script = `
-// data?
-// [k=> v=> [...##("[" .. "First name?" .. "]") v?, k?]: v?]
+// [:chart,
+//   type: bar,
+//   labels: [January, February, March, April, May, June, July],
+//   [
+//     label: My first chart,
+//     backgroundColor: "rgb(255, 99, 132)",
+//     borderColor: "rgb(255, 99, 132)",
+//     0, 10, 5, 2, 20, 30, 45,
+//   ],
+// ]
 // `;
 
 // run(script, toData({ data }), data =>
@@ -104,4 +111,4 @@ const root = document.createElement('div');
 root.id = 'root';
 document.body.appendChild(root);
 
-run(script, toData({ data }), data => render(root, root.childNodes[0], data));
+run(script, toData({ data }), data => render(root, data));
