@@ -51,6 +51,21 @@ export const toDateData = ({ type, value }) => {
   return date ? { type: 'string', value: date.toISOString() } : { type: 'nil' };
 };
 
+const regexs = {
+  time: /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
+  location: /{"lat":[0-9\.-]+,"lng":[0-9\.-]+}/,
+};
+export const toTypedValue = s => {
+  if (regexs.time.test(s)) {
+    return { type: 'time', value: new Date(s) };
+  }
+  if (regexs.location.test(s)) {
+    return { type: 'location', value: JSON.parse(s) };
+  }
+  const v = stringToValue(s);
+  return { type: typeof v, value: v };
+};
+
 const stringToNatural = s =>
   s
     .split(/(\-?\d*\.?\d+)/)
@@ -76,8 +91,10 @@ const sortMultiple = (items1, items2, sortItems) =>
   ) as -1 | 0 | 1;
 
 export const sortStrings = (s1, s2) =>
-  sortMultiple(s1.split('|'), s2.split('|'), (v1, v2) =>
-    sortMultiple(stringToNatural(v1), stringToNatural(v2), (n1, n2) => {
+  sortMultiple(s1.split('|'), s2.split('|'), (v1, v2) => {
+    if (v1 === v2) return 0;
+    if (!v1 || !v2) return !v1 ? 1 : -1;
+    return sortMultiple(stringToNatural(v1), stringToNatural(v2), (n1, n2) => {
       if (n1 === n2) return 0;
       const m1 = getMinus(n1);
       const m2 = getMinus(n2);
@@ -90,8 +107,8 @@ export const sortStrings = (s1, s2) =>
         return dir * (m1.value < m2.value ? -1 : 1);
       }
       return dir * (t1 === 'number' ? -1 : 1);
-    }),
-  );
+    });
+  });
 
 export const toKey = key => {
   if (key.type === 'nil') return '';

@@ -21,7 +21,7 @@ const streamMap = (queue, args, map) =>
   })[0];
 
 const evalContext = {
-  date: x => {
+  time: x => {
     const d = new Date(x);
     return [
       `${d.getDate()}`.padStart(2, '0'),
@@ -164,75 +164,20 @@ const build = (queue, context, config) => {
   if (config.type === 'unary') {
     return queue([build(queue, context, config.arg)], unary[config.func])[0];
   }
-  if (config.type === 'js') {
-    const map =
-      config.map.type === 'string' ? evalInContext(config.map.value) : x => x;
-    return streamMap(queue, [build(queue, context, config.arg)], ([value]) =>
-      toData(map(toJs(value))),
-    );
-  }
   if (config.type === 'eval') {
-    if (config.scope) {
-      return queue(
-        [
-          build(queue, context, config.value),
-          build(queue, context, config.scope),
-        ],
-        ({ initial, output }) => {
-          let values = initial;
-          let current;
-          const runEval = () => {
-            current = process({ initial: [initial[1]], output }, queue => [
-              build(
-                queue,
-                { scope: [0], current: [0] },
-                parse(initial[0].type === 'string' ? initial[0].value : ''),
-              ),
-            ]);
-          };
-          runEval();
-          return {
-            initial: current.initial,
-            input: updates => {
-              if (updates) {
-                updates.forEach(u => (values[u[0]] = u[1]));
-                if (updates.some(u => u[0] === 0)) {
-                  current.input();
-                  runEval();
-                  current.initial.forEach((v, i) => output(i, v));
-                } else {
-                  current.input(updates.map(u => [u[0] - 1, u[1], u[2]]));
-                }
-              } else {
-                current.input();
-              }
-            },
-          };
-        },
-      )[0];
-    }
-    const result = queue(
-      [
-        context.scope[0],
-        context.current[0],
-        build(queue, context, config.value),
-      ],
+    return queue(
+      [build(queue, context, config.code), build(queue, context, config.arg)],
       ({ initial, output }) => {
         let values = initial;
         let current;
         const runEval = () => {
-          current = process(
-            { initial: [values[0], values[1]], output },
-            queue => {
-              const ctx = { scope: [0], current: [1] };
-              const result = build(
-                queue,
-                ctx,
-                parse(values[2].type === 'string' ? values[2].value : ''),
-              );
-              return [result, ctx.scope[0], ctx.current[0]];
-            },
-          );
+          current = process({ initial: [initial[1]], output }, queue => [
+            build(
+              queue,
+              { scope: [0], current: [0] },
+              parse(initial[0].type === 'string' ? initial[0].value : ''),
+            ),
+          ]);
         };
         runEval();
         return {
@@ -240,12 +185,12 @@ const build = (queue, context, config) => {
           input: updates => {
             if (updates) {
               updates.forEach(u => (values[u[0]] = u[1]));
-              if (updates.some(u => u[0] === 2)) {
+              if (updates.some(u => u[0] === 0)) {
                 current.input();
                 runEval();
                 current.initial.forEach((v, i) => output(i, v));
               } else {
-                current.input(updates);
+                current.input(updates.map(u => [u[0] - 1, u[1], u[2]]));
               }
             } else {
               current.input();
@@ -253,10 +198,14 @@ const build = (queue, context, config) => {
           },
         };
       },
+    )[0];
+  }
+  if (config.type === 'js') {
+    const map =
+      config.code.type === 'string' ? evalInContext(config.code.value) : x => x;
+    return streamMap(queue, [build(queue, context, config.arg)], ([value]) =>
+      toData(map(toJs(value))),
     );
-    context.scope[0] = result[1];
-    context.current[0] = result[2];
-    return result[0];
   }
   if (config.type === 'list') {
     context.scope.unshift(

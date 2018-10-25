@@ -5,7 +5,9 @@ import {
   toDateData,
   toNumber,
   toString,
+  toTypedValue,
 } from './data';
+import fuzzy from './fuzzy';
 
 const streamMap = map => ({ initial, output }) => {
   let values = initial;
@@ -20,7 +22,50 @@ const streamMap = map => ({ initial, output }) => {
   };
 };
 
+const geocodeCache = {};
+const geocodeListeners = {};
+
 export const unary = {
+  '@@': ({ initial, output }) => {
+    let unlisten;
+    const doLookup = ({ type, value }) => {
+      if (unlisten) unlisten();
+      if (type === 'string') {
+        if (!geocodeCache[value]) {
+          if (!geocodeListeners[value]) {
+            geocodeListeners[value] = [];
+            (async () => {
+              const result = await (await fetch(
+                `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+                  value,
+                )}&key=AIzaSyCQ8P7-0kTGz2_tkcHjOo0IUiMB_z9Bbp4`,
+              )).json();
+              geocodeCache[value] = toData(
+                JSON.stringify(result.results[0].geometry.location),
+              );
+              geocodeListeners[value].forEach(l => l());
+              geocodeListeners[value] = null;
+            })();
+          }
+          const listener = () => output(0, geocodeCache[value]);
+          geocodeListeners[value].push(listener);
+          unlisten = () =>
+            geocodeListeners[value].splice(
+              geocodeListeners[value].indexOf(listener),
+              1,
+            );
+          return { type: 'nil' };
+        }
+        return geocodeCache[value];
+      }
+    };
+    return {
+      initial: [doLookup(initial[0])],
+      input: updates => {
+        if (updates) output(0, doLookup(updates[0][1]));
+      },
+    };
+  },
   '@': ({ initial, output }) => {
     let value = initial[0];
     let prev = toDateData(value);
@@ -36,7 +81,7 @@ export const unary = {
         if (!updates) {
           clearInterval(interval);
         } else {
-          value = updates[0].value;
+          value = updates[0][1];
           tryOutput();
         }
       },
@@ -76,7 +121,11 @@ export const binary = {
   unpack: listFunc(list.unpack),
   other: listFunc(list.other),
   '~': ([a, b]) => ({ ...b, id: a }),
-  '=': ([a, b]) => toData(a.type === b.type && a.value === b.value),
+  '==': ([a, b]) => toData(a.type === b.type && a.value === b.value),
+  '=': typeFunc(toString, (a, b) => {
+    const res = fuzzy(a, b);
+    return !res ? 0 : 1 - res;
+  }),
   '!': ([a, b]) => toData(a.type !== b.type || a.value !== b.value),
   '<': typeFunc(toString, (a, b) => sortStrings(a, b) === -1),
   '>': typeFunc(toString, (a, b) => sortStrings(a, b) === 1),
@@ -85,7 +134,30 @@ export const binary = {
   '|': typeFunc(toString, (a, b) => a + '|' + b),
   '..': typeFunc(toString, (a, b) => a + b),
   '+': typeFunc(toNumber, (a, b) => a + b),
-  '-': typeFunc(toNumber, (a, b) => a - b),
+  '-': typeFunc(toString, (a, b) => {
+    const v1 = toTypedValue(a);
+    const v2 = toTypedValue(b);
+    if (v1.type !== v2.type) return null;
+    if (v1.type === 'number') return v1.value - v2.value;
+    if (v1.type === 'time') return v1.value.getTime() - v2.value.getTime();
+    if (v1.type === 'location') {
+      const p = 0.017453292519943295;
+      return (
+        12742 *
+        Math.asin(
+          Math.sqrt(
+            0.5 -
+              Math.cos((v2.value.lat - v1.value.lat) * p) / 2 +
+              (Math.cos(v1.value.lat * p) *
+                Math.cos(v2.value.lat * p) *
+                (1 - Math.cos((v2.value.lng - v1.value.lng) * p))) /
+                2,
+          ),
+        )
+      );
+    }
+    return null;
+  }),
   '*': typeFunc(toNumber, (a, b) => a * b),
   '/': typeFunc(toNumber, (a, b) => a / b),
   '%': typeFunc(toNumber, (a, b) => ((a % b) + b) % b),

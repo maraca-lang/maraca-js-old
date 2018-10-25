@@ -5,14 +5,22 @@ import run from '../index';
 import convert from './convert';
 import render from './render';
 
+// @ts-ignore
+const textJson = require('./text.json');
+
 faker.seed(1);
 
-const data = Array.from({ length: 30 }).map(() => ({
+const data = Array.from({ length: 30 }).map((_, i) => ({
   'First name': faker.name.firstName(),
   'Last name': faker.name.lastName(),
   DOB: faker.date.past(30),
   'Score 1': faker.random.number(),
   'Score 2': faker.random.number(),
+  Movie: textJson[i] && textJson[i].overview,
+  Address: JSON.stringify({
+    lat: parseFloat(faker.address.latitude()),
+    lng: parseFloat(faker.address.longitude()),
+  }),
 }));
 
 const script = `
@@ -24,7 +32,7 @@ const script = `
   formula: *,
 
   [class: container "mt-4",
-    [:table, class: table,
+    [:table, class: table, style: [tableDisplay: fixed],
       [:thead,
         [:tr,
           [:th, scope: col, colSpan: #"x => x.length" fields? + 1,
@@ -50,7 +58,7 @@ const script = `
           ...
           fields?
           [f=>> [:th, scope: col, f?]],
-          [:th, scope: col,
+          [:th, scope: col, style: [width: 300px],
             [:input,
               class: "form-control" "form-control-sm",
               placeholder: Enter formula,
@@ -62,19 +70,19 @@ const script = `
       [:tbody,
         ...
         data?
-        [v=>> ({{ filter? [:1, x=> "(" .. x? .. ")"], v? }}, v?)]
-        [k=> v=> {{ sort?, v? }} | k?: v?]
+        [v=>> (##(filter? [:1, x=> "(" .. x? .. ")"]) v?, v?)]
+        [k=> v=> ##(sort?) v? | k?: v?]
         [v=>> :: v?]
         [k=> v=> [index: k?, ...v?]]
-        [k=> v=> ({{ limit? [:1, x=> "(" .. x? .. ")"], k? }}, v?)]
+        [k=> v=> (##(limit? [:1, x=> "(" .. x? .. ")"]) k?, v?)]
         [v=>> :: v?]
         [k=> v=>
           [:tr,
             [:th, scope: row, v? index],
             ...
             fields?
-            [f=>> [:td, f? [DOB: #date f? (v?), => f? (v?)]]],
-            [:td, {{ formula?, v? }}],
+            [f=>> [:td, f? [DOB: #time f? (v?), => f? (v?)]]],
+            [:td, ##(formula?) v?],
           ]
         ]
       ]
@@ -84,9 +92,22 @@ const script = `
 `;
 
 // const script = `
+// {
+//   formula: *,
+//   [class: container "mt-4",
+//     [:input,
+//       class: "form-control" "form-control-sm",
+//       placeholder: Enter formula,
+//       value: formula?,
+//     ],
+//     [:p, ##(formula?) [A, B]]
+//   ]
+// }
+// `;
 
-// data?
-// [k=> v=> {{ sort?, v? }} .i (k?): v?]
+// const script = `
+
+// [a] [@now]
 
 // `;
 

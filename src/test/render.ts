@@ -12,7 +12,7 @@ const unpack = data => {
 };
 
 const updateChild = (parent, prev, next) => {
-  if (!next) {
+  if (next.value === null) {
     if (prev) parent.removeChild(prev);
   } else if (!Array.isArray(next)) {
     const textNode = document.createTextNode(next.value);

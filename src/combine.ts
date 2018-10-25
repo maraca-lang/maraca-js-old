@@ -16,7 +16,12 @@ const sortTypes = ([v1, v2]: any) => {
 const combineInfo = ([v1, v2]: any) => {
   const [big, small] = sortTypes([v1, v2]);
   const base = { reverse: big !== v1, values: [big, small] };
-  if (small.type === 'list') return { type: 'multi', ...base };
+  if (small.type === 'list') {
+    return {
+      type: ['=>', 'k=>'].includes(big.value.otherType) ? 'get' : 'multi',
+      ...base,
+    };
+  }
   if (big.type === 'list') return { type: 'get', ...base };
   if (small.type === 'string') return { type: 'join', ...base };
   return { type: 'nil', ...base };
@@ -54,7 +59,12 @@ const run: any = (type, { initial, output }) => {
     }
     const args = [{ type: 'nil' }];
     if (initial[0].value.otherType === 'k=>') args.push(initial[1]);
-    const result = value({ initial: args, output });
+    const result = value({
+      initial: args,
+      output: (i, v) => {
+        if (i === 1) output(0, v);
+      },
+    });
     return {
       initial: [result.initial[1]],
       // input: changes => {
@@ -71,36 +81,69 @@ const run: any = (type, { initial, output }) => {
         ...Object.keys(initial[1].value.values),
       ]),
     ).sort(sortStrings);
-    let result = { type: 'nil' };
-    for (const key of keys) {
-      const k = toData(key);
-      const big = listGet(initial[0].value, k);
-      if (typeof big === 'function') {
-        const args = [result];
-        if (initial[0].value.otherType === 'k=>v=>') {
-          args.push(k, listGet(initial[1].value, k));
+
+    const inputs = [] as any;
+    const values = [] as any;
+    const runMulti = first => {
+      for (let i = first; i < keys.length; i++) {
+        if (inputs[i]) {
+          inputs[i]();
+          inputs[i] = null;
         }
-        if (initial[0].value.otherType === 'v=>>') {
-          args.push(listGet(initial[1].value, k));
+        const prev = values[i - 1] ? values[i - 1].combined : { type: 'nil' };
+        const k = toData(keys[i]);
+        const big = listGet(initial[0].value, k);
+        const small = listGet(initial[1].value, k);
+        if (typeof big === 'function') {
+          const args = [prev];
+          if (initial[0].value.otherType === 'k=>v=>') args.push(k, small);
+          if (initial[0].value.otherType === 'v=>>') args.push(small);
+          if (initial[0].value.otherType === 'k=>') args.push(initial[1]);
+          const res = big({
+            initial: args,
+            output: (index, value) => {
+              if (index === 0) values[i].result = value;
+              else values[i].value = value;
+              values[i].combined =
+                values[i].value.type === 'nil'
+                  ? values[i].result
+                  : binary.assign([values[i].result, values[i].value, k]);
+              output(0, runMulti(i + 1));
+            },
+          });
+          inputs[i] = res.input;
+          values[i] = {
+            result: res.initial[0],
+            value: res.initial[1],
+            combined:
+              res.initial[1].type === 'nil'
+                ? res.initial[0]
+                : binary.assign([res.initial[0], res.initial[1], k]),
+          };
+        } else {
+          const res = combine({
+            initial: [big, small],
+            output: (_, value) => {
+              values[i].value = value;
+              values[i].combined = binary.assign([
+                values[i].result,
+                values[i].value,
+                k,
+              ]);
+              output(0, runMulti(i + 1));
+            },
+          } as any);
+          inputs[i] = res.input;
+          values[i] = {
+            result: prev,
+            value: res.initial[0],
+            combined: binary.assign([prev, res.initial[0], k]),
+          };
         }
-        if (initial[0].value.otherType === 'k=>') {
-          args.push(initial[1]);
-        }
-        const res = big({ initial: args });
-        res.input();
-        result = res.initial[0];
-        if (res.initial[1].type !== 'nil') {
-          result = binary.assign([result, res.initial[1], k]);
-        }
-      } else {
-        const res = combine({
-          initial: [big, listGet(initial[1].value, k)],
-        } as any);
-        res.input();
-        result = binary.assign([result, res.initial[0], k]);
       }
-    }
-    return { initial: [result] };
+      return values[keys.length - 1].combined;
+    };
+    return { initial: [runMulti(0)] };
   }
 };
 

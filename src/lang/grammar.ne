@@ -51,7 +51,8 @@ expnot ->
 	| expcomp {% id %}
 
 expcomp ->
-	  expcomp _ ("<" | ">" | "<=" | ">=" | "!" | "=") _ expconc {% binary %}
+	  expcomp _ ("<" | ">" | "<=" | ">=" | "!" | "==" | "=") _ expconc
+      {% binary %}
 	| expconc {% id %}
 
 expconc ->
@@ -75,22 +76,19 @@ exppow ->
   | expuni {% id %}
 
 expuni ->
-    ("@" | "-") _ expcomb
+    ("@@" | "@" | "-") _ expcomb
       {% x => ({ type: "unary", func: x[0][0].value, arg: x[2] }) %}
+  | "##" _ atom _ expcomb 
+      {% x => ({ type: "eval", code: x[2], arg: x[4] }) %}
   | "#" _ atom _ expcomb 
-      {% x => ({ type: "js", map: x[2], arg: x[4] }) %}
+      {% x => ({ type: "js", code: x[2], arg: x[4] }) %}
 	| expcomb {% id %}
 
 expcomb ->
 	  expcomb _ atom {% x => [x[0], x[2]] %}
 	| atom {% id %}
 
-atom -> (eval | list | value | any | context) {% x => x[0][0] %}
-
-eval ->
-    "{{" _ exp _ "," _ exp _ "}}"
-      {% x => ({ type: "eval", value: x[2], scope: x[6] }) %}
-  | "{{" _ exp _ "}}" {% x => ({ type: "eval", value: x[2] }) %}
+atom -> (list | value | any | context) {% x => x[0][0] %}
 
 list ->
     "[" body "]" {% x => ({ type: "list", values: x[1] }) %}

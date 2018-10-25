@@ -31,7 +31,7 @@ const diff = (prev, next) => {
   const result = Array.from(new Set([...pKeys, ...nKeys]))
     .sort((a, b) => sortStrings(`${a}`, `${b}`))
     .map(key => {
-      if (n[key] === undefined) return { key };
+      if (n[key] === undefined) return { key, value: { value: null } };
       const prevKey = pKeys.find(k => (p[k].id || k) === (n[key].id || key));
       const prevValue = (p && prevKey !== undefined && p[prevKey]) || {
         type: 'nil',
@@ -51,7 +51,8 @@ export default (script, initial, output) => {
     {
       initial: [initial],
       output: (_, next) => {
-        output(diff(prev, next));
+        const d = diff(prev, next);
+        if (d) output(d);
         prev = next;
       },
     },
