@@ -2,13 +2,7 @@ import build from './build';
 import parse from './parse';
 import process from './process';
 
-import { sortStrings, stringToValue } from './data';
-
-const numericIfIndex = k => {
-  const v = stringToValue(k);
-  if (typeof v === 'number' && Math.floor(v) === v) return v;
-  return k;
-};
+import { compare, toJs } from './data';
 
 const diff = (prev, next) => {
   if (
@@ -19,28 +13,31 @@ const diff = (prev, next) => {
   }
   if (next.type !== 'list') {
     if (next.value === prev.value && next.set === prev.set) return undefined;
-    return {
-      value: next.value || null,
-      ...(next.set ? { set: next.set } : {}),
-    };
+    return { value: toJs(next), ...(next.set ? { set: next.set } : {}) };
   }
-  const p = prev.type === 'list' ? prev.value.values : {};
+  const p = prev.type === 'list' ? prev.value.values : [];
   const n = next.value.values;
-  const pKeys = Object.keys(p).map(numericIfIndex);
-  const nKeys = Object.keys(n).map(numericIfIndex);
-  const result = Array.from(new Set([...pKeys, ...nKeys]))
-    .sort((a, b) => sortStrings(`${a}`, `${b}`))
+  const result = [
+    ...p.map(x => x.key),
+    ...n.map(x => x.key).filter(k => !p.find(x => compare(k, x.key) === 0)),
+  ]
+    .sort(compare)
     .map(key => {
-      if (n[key] === undefined) return { key, value: { value: null } };
-      const prevKey = pKeys.find(k => (p[k].id || k) === (n[key].id || key));
-      const prevValue = (p && prevKey !== undefined && p[prevKey]) || {
-        type: 'nil',
-      };
-      const d = diff(prevValue, n[key]);
-      if (prevValue.type === 'nil' || key === prevKey) {
-        return d === undefined ? undefined : { key, value: d };
+      const nValue = n.find(x => compare(key, x.key) === 0);
+      if (!nValue) return { key: toJs(key), value: null };
+      const pValue = p.find(
+        x => compare(x.id || x.key, nValue.id || key) === 0,
+      );
+      const d = diff(pValue ? pValue.value : { type: 'nil' }, nValue.value);
+      const res = { key: toJs(key) } as any;
+      if (Array.isArray(d)) res.value = d;
+      else if (d) Object.assign(res, d);
+      if (!pValue || compare(pValue.key, key) === 0) {
+        if (res.value === undefined) return undefined;
+      } else {
+        if (pValue) res.prev = pValue.value;
       }
-      return { key, value: d, ...(prevKey ? { prev: prevKey } : {}) };
+      return res;
     })
     .filter(x => x) as any[];
   return result.length === 0 ? undefined : result;

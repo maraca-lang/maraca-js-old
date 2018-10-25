@@ -1,5 +1,5 @@
 import { binary } from './core';
-import { sortStrings, toData, toKey } from './data';
+import { compare } from './data';
 
 const sortTypes = ([v1, v2]: any) => {
   if (v2.type === 'nil') return [v1, v2];
@@ -28,9 +28,8 @@ const combineInfo = ([v1, v2]: any) => {
 };
 
 const listGet = (data, key) => {
-  const k = toKey(key);
-  if (k === null) return { type: 'nil' };
-  if (data.values[k]) return data.values[k];
+  const v = data.values.find(x => compare(x.key, key) === 0);
+  if (v) return v.value;
   if (data.other) return data.other;
   return { type: 'nil' };
 };
@@ -67,20 +66,17 @@ const run: any = (type, { initial, output }) => {
     });
     return {
       initial: [result.initial[1]],
-      // input: changes => {
-      //   if (changes) {
-      //     result.input(changes.map(c => [c[0] - 1, c[1], c[2]]));
-      //   }
-      // },
     };
   }
   if (type === 'multi') {
-    const keys = Array.from(
-      new Set([
-        ...Object.keys(initial[0].value.values),
-        ...Object.keys(initial[1].value.values),
-      ]),
-    ).sort(sortStrings);
+    const values1 = initial[0].value.values;
+    const values2 = initial[1].value.values;
+    const keys = [
+      ...values1.map(x => x.key),
+      ...values2
+        .map(x => x.key)
+        .filter(k => !values1.find(x => compare(k, x.key) === 0)),
+    ].sort(compare);
 
     const inputs = [] as any;
     const values = [] as any;
@@ -91,12 +87,13 @@ const run: any = (type, { initial, output }) => {
           inputs[i] = null;
         }
         const prev = values[i - 1] ? values[i - 1].combined : { type: 'nil' };
-        const k = toData(keys[i]);
-        const big = listGet(initial[0].value, k);
-        const small = listGet(initial[1].value, k);
+        const big = listGet(initial[0].value, keys[i]);
+        const small = listGet(initial[1].value, keys[i]);
         if (typeof big === 'function') {
           const args = [prev];
-          if (initial[0].value.otherType === 'k=>v=>') args.push(k, small);
+          if (initial[0].value.otherType === 'k=>v=>') {
+            args.push(keys[i], small);
+          }
           if (initial[0].value.otherType === 'v=>>') args.push(small);
           if (initial[0].value.otherType === 'k=>') args.push(initial[1]);
           const res = big({
@@ -107,7 +104,7 @@ const run: any = (type, { initial, output }) => {
               values[i].combined =
                 values[i].value.type === 'nil'
                   ? values[i].result
-                  : binary.assign([values[i].result, values[i].value, k]);
+                  : binary.assign([values[i].result, values[i].value, keys[i]]);
               output(0, runMulti(i + 1));
             },
           });
@@ -118,7 +115,7 @@ const run: any = (type, { initial, output }) => {
             combined:
               res.initial[1].type === 'nil'
                 ? res.initial[0]
-                : binary.assign([res.initial[0], res.initial[1], k]),
+                : binary.assign([res.initial[0], res.initial[1], keys[i]]),
           };
         } else {
           const res = combine({
@@ -128,7 +125,7 @@ const run: any = (type, { initial, output }) => {
               values[i].combined = binary.assign([
                 values[i].result,
                 values[i].value,
-                k,
+                keys[i],
               ]);
               output(0, runMulti(i + 1));
             },
@@ -137,7 +134,7 @@ const run: any = (type, { initial, output }) => {
           values[i] = {
             result: prev,
             value: res.initial[0],
-            combined: binary.assign([prev, res.initial[0], k]),
+            combined: binary.assign([prev, res.initial[0], keys[i]]),
           };
         }
       }

@@ -22,11 +22,11 @@ const streamMap = (queue, args, map) =>
 
 const evalContext = {
   time: x => {
-    const d = new Date(x);
+    if (Object.prototype.toString.call(x) !== '[object Date]') return null;
     return [
-      `${d.getDate()}`.padStart(2, '0'),
-      `${d.getMonth() + 1}`.padStart(2, '0'),
-      `${d.getFullYear()}`.slice(2),
+      `${x.getDate()}`.padStart(2, '0'),
+      `${x.getMonth() + 1}`.padStart(2, '0'),
+      `${x.getFullYear()}`.slice(2),
     ].join('/');
   },
 };

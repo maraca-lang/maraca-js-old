@@ -1,12 +1,6 @@
-import {
-  sortStrings,
-  list,
-  toData,
-  toDateData,
-  toNumber,
-  toString,
-  toTypedValue,
-} from './data';
+import * as chrono from 'chrono-node';
+
+import { compare, list, toData, toTypedValue } from './data';
 import fuzzy from './fuzzy';
 
 const streamMap = map => ({ initial, output }) => {
@@ -24,6 +18,12 @@ const streamMap = map => ({ initial, output }) => {
 
 const geocodeCache = {};
 const geocodeListeners = {};
+
+const toDateData = ({ type, value }) => {
+  if (type !== 'string') return { type: 'nil' };
+  const date = chrono.parseDate(value, new Date(), { forwardDate: true });
+  return date ? { type: 'string', value: date.toISOString() } : { type: 'nil' };
+};
 
 export const unary = {
   '@@': ({ initial, output }) => {
@@ -99,16 +99,21 @@ export const unary = {
   }),
 };
 
-const typeFunc = (toType, func) => ([a, b]) => {
-  const v1 = toType(a);
-  const v2 = toType(b);
-  if (v1 === null || v2 === null) return { type: 'nil' };
-  return toData(func(v1, v2));
-};
+const dataFunc = func => ([a, b]) => toData(func(a, b));
+
+const numericFunc = func =>
+  dataFunc((a, b) => {
+    const x = toTypedValue(a);
+    const y = toTypedValue(b);
+    if (typeof x.value !== 'number' || typeof y.value !== 'number') {
+      return null;
+    }
+    return func(x.value, y.value);
+  });
 
 const listFunc = func => ([data, ...args]) => {
   if (data.type !== 'nil' && data.type !== 'list') return data;
-  const result = func(data.value || { values: {}, indices: [] }, ...args);
+  const result = func(data.value || { values: [], indices: [] }, ...args);
   if (Object.keys(result.values).length === 0 && !result.other) {
     return { type: 'nil' };
   }
@@ -122,19 +127,22 @@ export const binary = {
   other: listFunc(list.other),
   '~': ([a, b]) => ({ ...b, id: a }),
   '==': ([a, b]) => toData(a.type === b.type && a.value === b.value),
-  '=': typeFunc(toString, (a, b) => {
-    const res = fuzzy(a, b);
-    return !res ? 0 : 1 - res;
+  '=': dataFunc((a, b) => {
+    if (a.type !== 'string' || b.type !== 'string') return null;
+    const res = fuzzy(a.value, b.value);
+    return res < 0.3 ? null : 2 - res;
   }),
-  '!': ([a, b]) => toData(a.type !== b.type || a.value !== b.value),
-  '<': typeFunc(toString, (a, b) => sortStrings(a, b) === -1),
-  '>': typeFunc(toString, (a, b) => sortStrings(a, b) === 1),
-  '<=': typeFunc(toString, (a, b) => sortStrings(a, b) !== 1),
-  '>=': typeFunc(toString, (a, b) => sortStrings(a, b) !== -1),
-  '|': typeFunc(toString, (a, b) => a + '|' + b),
-  '..': typeFunc(toString, (a, b) => a + b),
-  '+': typeFunc(toNumber, (a, b) => a + b),
-  '-': typeFunc(toString, (a, b) => {
+  '!': dataFunc((a, b) => a.type !== b.type || a.value !== b.value),
+  '<': dataFunc((a, b) => compare(a, b) === -1),
+  '>': dataFunc((a, b) => compare(a, b) === 1),
+  '<=': dataFunc((a, b) => compare(a, b) !== 1),
+  '>=': dataFunc((a, b) => compare(a, b) !== -1),
+  '..': dataFunc((a, b) => {
+    if (a.type !== 'string' || b.type !== 'string') return null;
+    return a.value + b.value;
+  }),
+  '+': numericFunc((a, b) => a + b),
+  '-': dataFunc((a, b) => {
     const v1 = toTypedValue(a);
     const v2 = toTypedValue(b);
     if (v1.type !== v2.type) return null;
@@ -158,8 +166,8 @@ export const binary = {
     }
     return null;
   }),
-  '*': typeFunc(toNumber, (a, b) => a * b),
-  '/': typeFunc(toNumber, (a, b) => a / b),
-  '%': typeFunc(toNumber, (a, b) => ((a % b) + b) % b),
-  '^': typeFunc(toNumber, (a, b) => a ** b),
+  '*': numericFunc((a, b) => a * b),
+  '/': numericFunc((a, b) => a / b),
+  '%': numericFunc((a, b) => ((a % b) + b) % b),
+  '^': numericFunc((a, b) => a ** b),
 };

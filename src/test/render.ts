@@ -1,21 +1,49 @@
 import * as debounce from 'lodash.debounce';
 
+const valueToString = value => {
+  if (value === null) return '';
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    return value.toISOString();
+  }
+  if (Object.prototype.toString.call(value) === '[object Object]') {
+    return JSON.stringify(value);
+  }
+  return `${value}`;
+};
+
+const unpackValue = ({ value, set }) => {
+  if (!Array.isArray(value)) return { value, set };
+  return {
+    value: value.reduce(
+      (res, { key, value, set }) => ({
+        ...res,
+        [key]: unpackValue({ value, set }),
+      }),
+      {},
+    ),
+    set,
+  };
+};
+
 const unpack = data => {
   if (!Array.isArray(data)) return { values: data, children: [] };
   const values: any = {};
   const children: any[] = [];
-  for (const { key, value } of data) {
-    if (typeof key === 'string') values[key] = unpack(value).values;
-    else children.push({ index: key - 1, value });
+  for (const { key, value, set } of data) {
+    if (typeof key === 'number' || Math.floor(key) === key) {
+      children.push({ index: key - 1, value });
+    } else {
+      values[key || ''] = unpackValue({ value, set });
+    }
   }
   return { values, children };
 };
 
 const updateChild = (parent, prev, next) => {
-  if (next.value === null) {
+  if (next === null) {
     if (prev) parent.removeChild(prev);
   } else if (!Array.isArray(next)) {
-    const textNode = document.createTextNode(next.value);
+    const textNode = document.createTextNode(valueToString(next));
     if (!prev) parent.appendChild(textNode);
     else parent.replaceChild(textNode, prev);
   } else {
@@ -39,8 +67,8 @@ const updateChild = (parent, prev, next) => {
         child.oninput = debounce(e => values[k].set(e.target.value), 1000);
       }
       if (k === 'style') {
-        Object.keys(values[k]).forEach(p => {
-          child.style[p] = values[k][p].value || '';
+        Object.keys(values[k].value).forEach(p => {
+          child.style[p] = values[k].value[p].value || '';
         });
       } else if (k === 'class') {
         child.className = values[k].value || '';

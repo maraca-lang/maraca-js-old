@@ -56,7 +56,7 @@ expcomp ->
 	| expconc {% id %}
 
 expconc ->
-	  expconc _ ("|" | "..") _ expsum {% binary %}
+	  expconc _ ("..") _ expsum {% binary %}
 	| expsum {% id %}
 
 expsum ->

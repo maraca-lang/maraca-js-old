@@ -1,3 +1,4 @@
+import dist from './dist';
 import metaphone from './metaphone';
 import stem from './stem';
 import stopwords from './stopwords';
@@ -17,33 +18,17 @@ const occurrences = (string, subString) => {
   return n;
 };
 
-const tokenize = text =>
-  text
-    .toLowerCase()
-    .trim()
-    .split(/[^a-zа-яё0-9\-']+/i)
-    .filter(word => word);
+const tokenize = text => text.split(/[^a-zа-яё0-9\-']+/i).filter(word => word);
 
-const letterPairs = s =>
+const pairs = s =>
   Array.from({ length: s.length - 1 }).map((_, i) => s.substring(i, i + 2));
 
-const matchPairs = (a, b) => {
-  const pairs1 = [].concat(...a.map(letterPairs));
-  const pairs2 = [].concat(...b.map(letterPairs));
-  const total = pairs1.length + pairs2.length;
-  const matches = pairs1.filter(p => {
-    const match = pairs2.indexOf(p);
-    if (match > -1) {
-      pairs2.splice(match, 1);
-      return true;
-    }
-  }).length;
-  return (2 * matches) / total;
-};
-
 const fuzzy = (doc, search) => {
-  const docTokens = tokenize(doc);
-  const searchTokens = tokenize(search);
+  const docClean = doc.toLowerCase().trim();
+  const searchClean = search.toLowerCase().trim();
+
+  const docTokens = tokenize(docClean);
+  const searchTokens = tokenize(searchClean);
 
   if (docTokens.length > 10) {
     const searchStems = searchTokens.filter(s => !stopwords[s]).map(stem);
@@ -57,22 +42,25 @@ const fuzzy = (doc, search) => {
     );
   }
 
-  let phonScore = 0;
-  for (const a of docTokens.map(metaphone)) {
-    for (const b of searchTokens.map(metaphone)) {
-      if (a[0].includes(b[0])) phonScore += (b[0].length / a[0].length) * 0.25;
-      if (a[0].includes(b[1])) phonScore += (b[1].length / a[0].length) * 0.25;
-      if (a[1].includes(b[0])) phonScore += (b[0].length / a[1].length) * 0.25;
-      if (a[1].includes(b[1])) phonScore += (b[1].length / a[1].length) * 0.25;
-    }
-  }
-  phonScore /= docTokens.length * searchTokens.length;
+  const plainDist = dist(docClean.split(''), searchClean.split(''));
 
-  const pairScore = matchPairs(docTokens, searchTokens);
+  const pairDist =
+    docClean.length === 1 || searchClean.length === 1
+      ? plainDist
+      : dist(pairs(docClean), pairs(searchClean));
 
-  console.log(doc, search, phonScore, pairScore);
+  const phonDist = dist(
+    docTokens
+      .map(metaphone)
+      .join(' ')
+      .split(''),
+    searchTokens
+      .map(metaphone)
+      .join(' ')
+      .split(''),
+  );
 
-  return (phonScore + pairScore) / 2;
+  return plainDist * 0.3 + pairDist * 0.5 + phonDist * 0.2;
 };
 
 export default fuzzy;
