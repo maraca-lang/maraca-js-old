@@ -51,14 +51,6 @@ export const toTypedValue = ({ type, value }) => {
   return { type: 'string', value };
 };
 
-export const toJs = data => {
-  if (data.type !== 'list') return toTypedValue(data).value || null;
-  return data.value.values.map(x => ({
-    key: toJs(x.key),
-    value: toJs(x.value),
-  }));
-};
-
 const stringToNatural = s =>
   s
     .split(/(\-?\d*\.?\d+)/)
@@ -146,32 +138,29 @@ export const list = {
     }
     const typed = toTypedValue(key);
     const n = typed.type === 'integer' && typed.value;
-    if (value.type === 'nil' && !value.set) {
-      const result = {
-        ...list,
-        values: list.values.filter(v => compare(v.key, key) !== 0),
-        indices: list.indices,
-      };
-      if (n) {
-        const i = result.indices.indexOf(n);
-        if (i !== -1) {
-          result.indices = [
-            ...result.indices.slice(0, i),
-            ...result.indices.slice(i + 1),
-          ];
-        }
-      }
-      return result;
-    }
-    return {
+    const result = {
       ...list,
-      values: [...list.values, { key, value }].sort((a, b) =>
-        compare(a.key, b.key),
-      ),
-      ...(n && list.indices.indexOf(n) === -1
-        ? { indices: [...list.indices, n].sort((a, b) => a - b) }
-        : {}),
+      values: list.values.filter(v => compare(v.key, key) !== 0),
+      indices: list.indices,
     };
+    if (n) {
+      const i = result.indices.indexOf(n);
+      if (i !== -1) {
+        result.indices = [
+          ...result.indices.slice(0, i),
+          ...result.indices.slice(i + 1),
+        ];
+      }
+    }
+    if (value.type !== 'nil' || value.set) {
+      result.values = [...result.values, { key, value }].sort((a, b) =>
+        compare(a.key, b.key),
+      );
+      if (n) {
+        result.indices = [...result.indices, n].sort((a, b) => a - b);
+      }
+    }
+    return result;
   },
   unpack: (list, value) => {
     if (value.type !== 'list') return list;

@@ -147,7 +147,9 @@ export const binary = {
     const v2 = toTypedValue(b);
     if (v1.type !== v2.type) return null;
     if (v1.type === 'number') return v1.value - v2.value;
-    if (v1.type === 'time') return v1.value.getTime() - v2.value.getTime();
+    if (v1.type === 'time') {
+      return (v1.value.getTime() - v2.value.getTime()) / 60000;
+    }
     if (v1.type === 'location') {
       const p = 0.017453292519943295;
       return (

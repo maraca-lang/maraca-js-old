@@ -1,6 +1,6 @@
 import combine from './combine';
 import { binary, unary } from './core';
-import { toData, toJs } from './data';
+import { toData, toTypedValue } from './data';
 import parse from './parse';
 import process from './process';
 
@@ -22,13 +22,15 @@ const streamMap = (queue, args, map) =>
 
 const evalContext = {
   time: x => {
-    if (Object.prototype.toString.call(x) !== '[object Date]') return null;
+    const v = toTypedValue(x);
+    if (v.type !== 'time') return null;
     return [
-      `${x.getDate()}`.padStart(2, '0'),
-      `${x.getMonth() + 1}`.padStart(2, '0'),
-      `${x.getFullYear()}`.slice(2),
+      `${v.value.getDate()}`.padStart(2, '0'),
+      `${v.value.getMonth() + 1}`.padStart(2, '0'),
+      `${v.value.getFullYear()}`.slice(2),
     ].join('/');
   },
+  size: x => (x.type === 'list' ? x.value.values.length : '0'),
 };
 
 const evalInContext = code =>
@@ -204,7 +206,7 @@ const build = (queue, context, config) => {
     const map =
       config.code.type === 'string' ? evalInContext(config.code.value) : x => x;
     return streamMap(queue, [build(queue, context, config.arg)], ([value]) =>
-      toData(map(toJs(value))),
+      toData(map(value)),
     );
   }
   if (config.type === 'list') {

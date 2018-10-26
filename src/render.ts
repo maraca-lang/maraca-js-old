@@ -1,18 +1,72 @@
-import * as debounce from 'lodash.debounce';
 import * as Chart from 'chart.js';
+import * as loadScript from 'load-script';
+import * as debounce from 'lodash.debounce';
 
 import { toTypedValue } from './data';
 
-const unpack = ({ type, value, set }: any, shallow?) => {
-  if (type !== 'list') return shallow ? { value: value || null, set } : value;
+const mapListeners = [] as any[];
+const withMapScript = onReady => {
+  if ((window as any).google) {
+    onReady();
+  } else {
+    mapListeners.push(onReady);
+    if (mapListeners.length === 1) {
+      loadScript(
+        'https://maps.googleapis.com/maps/api/js?key=AIzaSyCQ8P7-0kTGz2_tkcHjOo0IUiMB_z9Bbp4',
+        () => mapListeners.forEach(l => l()),
+      );
+    }
+  }
+};
+const mapPool = [] as any[];
+const linkMap = (node, onReady) => {
+  withMapScript(() => {
+    if (node.__mapInstance) {
+      onReady(node.__mapInstance);
+    } else {
+      if (mapPool.length === 0) {
+        const div = document.createElement('div');
+        div.style.height = '100%';
+        mapPool.push(new (window as any).google.maps.Map(div));
+      }
+      const map = mapPool.pop();
+      node.appendChild(map.getDiv());
+      node.__mapInstance = map;
+      onReady(node.__mapInstance);
+    }
+  });
+};
+const unlinkMap = node => {
+  mapPool.push(node.__mapInstance);
+  node.removeChild(node.childNodes[0]);
+  delete node.__mapInstance;
+};
+
+const convertValue = ({ type, value, set }: any, options = {} as any) => {
+  const { deep = false, withSet = true } = options;
+  if (type !== 'list') {
+    return withSet ? { value: value || null, set } : value || null;
+  }
   const values: any = {};
   const children: any[] = [];
   for (const { key: k, value: v } of value.values) {
     const key = toTypedValue(k);
-    if (key.type === 'integer') children.push(shallow ? v : unpack(v, shallow));
-    else values[key.value || ''] = unpack(v, shallow);
+    if (key.type === 'integer') {
+      children.push(deep ? convertValue(v, options) : v);
+    } else if (key.type !== 'list') {
+      values[key.value || ''] = deep ? convertValue(v, options) : v;
+    }
   }
-  return shallow ? { values, children, set } : { values, children };
+  return withSet ? { values, children, set } : { values, children };
+};
+const convert = (
+  values,
+  options: { deep: boolean; withSet: boolean } = {} as any,
+) => convertValue({ type: 'list', value: { values } }, options);
+
+const getValue = x => {
+  if (x === null || typeof x === 'string') return x;
+  return Object.keys(x.values).length > 0 ? x.values : x.children;
 };
 
 const shallowEqual = (a, b) => {
@@ -52,8 +106,8 @@ const modes = {
       return node;
     },
     update: (node, next, prev) => {
-      const n = unpack({ type: 'list', value: { values: next } }, true);
-      const p = unpack({ type: 'list', value: { values: prev } }, true);
+      const n = convert(next);
+      const p = convert(prev);
       diffValues(n.values, p.values, (k, v, p) => {
         if (k === 'value' && v.set) {
           node.oninput = debounce(e => v.set(e.target.value), 1000);
@@ -88,16 +142,19 @@ const modes = {
     },
     transform: node => node,
     update: (node, next, prev) => {
-      const n = unpack({ type: 'list', value: { values: next } }, false);
+      const n = convert(next, { deep: true, withSet: false });
       const {
         type,
         labels: { children: labels },
       } = n.values;
       const datasets = n.children.map(x => ({
-        ...x.values,
+        ...Object.keys(x.values).reduce(
+          (res, k) => ({ ...res, [k]: getValue(x.values[k]) }),
+          {},
+        ),
         data: x.children,
       }));
-      const p = unpack({ type: 'list', value: { values: prev } }, false);
+      const p = convert(prev, { deep: true, withSet: false });
       if (p.values.type === type) {
         node.__chart.data = { labels, datasets };
         node.__chart.update();
@@ -114,9 +171,64 @@ const modes = {
       node.__chart.destroy();
     },
   },
+  map: {
+    create: () => {
+      const node = document.createElement('div');
+      node.style.height = '400px';
+      return node;
+    },
+    transform: node => node,
+    update: (node, next) => {
+      linkMap(node, map => {
+        if (!node.__map) {
+          node.__map = {
+            markers: [],
+            info: new (window as any).google.maps.InfoWindow(),
+          };
+        }
+        node.__map.markers.forEach(m => m.setMap(null));
+        const bounds = new (window as any).google.maps.LatLngBounds();
+        node.__map.markers = convert(next)
+          .children.map(x => {
+            const {
+              values,
+              children: [location],
+            } = convertValue(x);
+            const loc = toTypedValue(location);
+            if (loc.type === 'location') {
+              const marker = new (window as any).google.maps.Marker({
+                position: loc.value,
+                map,
+              });
+              bounds.extend(marker.position);
+              marker.addListener('click', () => {
+                node.__map.info.setContent(
+                  render(document.createElement('div'), null, values.info),
+                );
+                node.__map.info.open(map, marker);
+              });
+              return marker;
+            }
+          })
+          .filter(x => x);
+        map.fitBounds(bounds);
+        const zoom = map.getZoom();
+        map.setZoom(zoom > 10 ? 10 : zoom);
+      });
+    },
+    destroy: node => {
+      node.__map.markers.forEach(m => m.setMap(null));
+      node.__map.info.close();
+      unlinkMap(node);
+    },
+  },
 } as any;
 
-const getMode = tag => (tag === 'chart' ? 'chart' : 'dom');
+const getMode = tag => {
+  if (tag === 'chart') return 'chart';
+  if (tag === 'map') return 'map';
+  return 'dom';
+};
 
 const render = (parent, child, data) => {
   if (data.type === 'nil') {
@@ -153,6 +265,7 @@ const render = (parent, child, data) => {
     modes[mode].update(node, values, node.__data ? node.__data.values : []);
     node.__data = { tag, values };
   }
+  return parent;
 };
 
 export default (node, data) => render(node, node.childNodes[0], data);
