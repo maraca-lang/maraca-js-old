@@ -109,10 +109,21 @@ const script = `
 
 // const script = `
 // [
-//   hello,
-//   there,
+//   1,
+//   ...[2, 3]
 // ]
 // `;
+
+// data?
+// [v=>> (v? (First name) == Mina, v?)]
+// [v=>> :: v?]
+// ]
+
+// [k=> v=> [...##("[" .. sort? .. "]") v?, ##(filter?) v?, k?]: v?]
+//   [v=>> :: v?]
+//   [k=> v=> [index: k?, ...v?]]
+//   [k=> v=> (##(limit? [:1, x=> "(" .. x? .. ")"]) k?, v?)]
+// [v=>> :: v?],
 
 // run(script, toData({ data }), data =>
 //   console.log(JSON.stringify(data, null, 2)),

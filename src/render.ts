@@ -42,31 +42,52 @@ const unlinkMap = node => {
   delete node.__mapInstance;
 };
 
-const convertValue = ({ type, value, set }: any, options = {} as any) => {
-  const { deep = false, withSet = true } = options;
-  if (type !== 'list') {
-    return withSet ? { value: value || null, set } : value || null;
-  }
-  const values: any = {};
-  const children: any[] = [];
-  for (const { key: k, value: v } of value.values) {
-    const key = toTypedValue(k);
-    if (key.type === 'integer') {
-      children.push(deep ? convertValue(v, options) : v);
-    } else if (key.type !== 'list') {
-      values[key.value || ''] = deep ? convertValue(v, options) : v;
-    }
-  }
-  return withSet ? { values, children, set } : { values, children };
+// const convertValue = ({ type, value, set }: any, options = {} as any) => {
+//   const { deep = false, withSet = true } = options;
+//   if (type !== 'list') {
+//     return withSet ? { value: value || null, set } : value || null;
+//   }
+//   const values: any = {};
+//   const children: any[] = [];
+//   for (const { key: k, value: v } of value.values) {
+//     const key = toTypedValue(k);
+//     if (key.type === 'integer') {
+//       children.push(deep ? convertValue(v, options) : v);
+//     } else if (key.type !== 'list') {
+//       values[key.value || ''] = deep ? convertValue(v, options) : v;
+//     }
+//   }
+//   return withSet ? { values, children, set } : { values, children };
+// };
+// const convert = (
+//   values,
+//   options: { deep: boolean; withSet: boolean } = {} as any,
+// ) => convertValue({ type: 'list', value: { values } }, options);
+
+const valuesToObject = values =>
+  values.reduce(
+    (res, v) =>
+      v.key.type === 'list' ? res : { ...res, [v.key.value || '']: v.value },
+    {},
+  );
+
+const dataToJs = data => {
+  if (data.type !== 'list') return data.value || null;
+  return {
+    indices: data.indices.map(dataToJs),
+    values: data.values.reduce(
+      (res, v) =>
+        v.key.type === 'list'
+          ? res
+          : { ...res, [v.key.value || '']: dataToJs(v.value) },
+      {},
+    ),
+  };
 };
-const convert = (
-  values,
-  options: { deep: boolean; withSet: boolean } = {} as any,
-) => convertValue({ type: 'list', value: { values } }, options);
 
 const getValue = x => {
   if (x === null || typeof x === 'string') return x;
-  return Object.keys(x.values).length > 0 ? x.values : x.children;
+  return Object.keys(x.values).length > 0 ? x.values : x.indices;
 };
 
 const shallowEqual = (a, b) => {
@@ -82,12 +103,12 @@ const shallowEqual = (a, b) => {
   return true;
 };
 
-const diffValues = (next = {}, prev = {}, update) => {
-  for (const k of Array.from(
-    new Set([...Object.keys(next), ...Object.keys(prev)]),
-  )) {
-    if (!shallowEqual(next[k], prev[k])) {
-      update(k, next[k], prev[k]);
+const diffValues = (next = [], prev = [], update) => {
+  const n = valuesToObject(next);
+  const p = valuesToObject(prev);
+  for (const k of Array.from(new Set([...Object.keys(n), ...Object.keys(p)]))) {
+    if (!shallowEqual(n[k], p[k])) {
+      update(k, n[k], p[k]);
     }
   }
 };
@@ -106,9 +127,7 @@ const modes = {
       return node;
     },
     update: (node, next, prev) => {
-      const n = convert(next);
-      const p = convert(prev);
-      diffValues(n.values, p.values, (k, v, p) => {
+      diffValues(next.values, prev.values, (k, v, p) => {
         if (k === 'value' && v.set) {
           node.oninput = debounce(e => v.set(e.target.value), 1000);
         }
@@ -123,10 +142,10 @@ const modes = {
         }
       });
       const childPairs = Array.from({
-        length: Math.max(node.childNodes.length, n.children.length),
+        length: Math.max(node.childNodes.length, next.indices.length),
       }).map((_, i) => ({
         child: node.childNodes[i],
-        data: n.children[i] || { type: 'nil' },
+        data: next.indices[i] || { type: 'nil' },
       }));
       for (const { child, data } of childPairs) {
         render(node, child, data);
@@ -142,19 +161,19 @@ const modes = {
     },
     transform: node => node,
     update: (node, next, prev) => {
-      const n = convert(next, { deep: true, withSet: false });
+      const n = dataToJs({ type: 'list', ...next });
       const {
         type,
-        labels: { children: labels },
+        labels: { indices: labels },
       } = n.values;
-      const datasets = n.children.map(x => ({
+      const datasets = n.indices.map(x => ({
         ...Object.keys(x.values).reduce(
           (res, k) => ({ ...res, [k]: getValue(x.values[k]) }),
           {},
         ),
-        data: x.children,
+        data: x.indices,
       }));
-      const p = convert(prev, { deep: true, withSet: false });
+      const p = dataToJs({ type: 'list', ...prev });
       if (p.values.type === type) {
         node.__chart.data = { labels, datasets };
         node.__chart.update();
@@ -188,13 +207,9 @@ const modes = {
         }
         node.__map.markers.forEach(m => m.setMap(null));
         const bounds = new (window as any).google.maps.LatLngBounds();
-        node.__map.markers = convert(next)
-          .children.map(x => {
-            const {
-              values,
-              children: [location],
-            } = convertValue(x);
-            const loc = toTypedValue(location);
+        node.__map.markers = next.indices
+          .map(x => {
+            const loc = toTypedValue(x.indices[0]);
             if (loc.type === 'location') {
               const marker = new (window as any).google.maps.Marker({
                 position: loc.value,
@@ -203,7 +218,11 @@ const modes = {
               bounds.extend(marker.position);
               marker.addListener('click', () => {
                 node.__map.info.setContent(
-                  render(document.createElement('div'), null, values.info),
+                  render(
+                    document.createElement('div'),
+                    null,
+                    valuesToObject(x.values).info,
+                  ),
                 );
                 node.__map.info.open(map, marker);
               });
@@ -248,9 +267,11 @@ const render = (parent, child, data) => {
       child.nodeValue = data.value;
     }
   } else {
-    const values = [...data.value.values];
-    const i = values.findIndex(x => x.key.type === 'nil');
-    const tag = i === -1 ? 'div' : values.splice(i, 1)[0].value.value;
+    const values = [...data.values];
+    const tag =
+      values.length > 0 && values[values.length - 1].key.type === 'nil'
+        ? values.pop().value.value
+        : 'div';
     let node = child;
     const prevMode = node && getMode(node.__data.tag);
     const mode = getMode(tag);
@@ -262,8 +283,12 @@ const render = (parent, child, data) => {
       modes[prevMode].destroy(child);
       parent.replaceChild(node, child);
     }
-    modes[mode].update(node, values, node.__data ? node.__data.values : []);
-    node.__data = { tag, values };
+    modes[mode].update(
+      node,
+      { indices: data.indices, values },
+      node.__data || { indices: [], values: [] },
+    );
+    node.__data = { tag, indices: data.indices, values };
   }
   return parent;
 };

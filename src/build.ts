@@ -30,7 +30,11 @@ const evalContext = {
       `${v.value.getFullYear()}`.slice(2),
     ].join('/');
   },
-  size: x => (x.type === 'list' ? x.value.values.length : '0'),
+  size: x =>
+    x.type === 'list'
+      ? x.value.indices.filter(x => x).length +
+        Object.keys(x.value.values).length
+      : '0',
 };
 
 const evalInContext = code =>

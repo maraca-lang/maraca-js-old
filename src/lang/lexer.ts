@@ -23,7 +23,7 @@ export default moo.compile({
   arithmetic: ['+', '-', '*', '/', '%', '^'],
   misc: [',', '?', ':', '~', '&', '!', '#', '@'],
   value: {
-    match: /(?:[a-zA-Z0-9]+)|(?:\d*\.?\d+)/,
+    match: /(?:\d*\.?\d+)|(?:[a-zA-Z0-9]+)/,
     value: s => toData(s),
   },
   string: {

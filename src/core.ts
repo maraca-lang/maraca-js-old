@@ -113,8 +113,12 @@ const numericFunc = func =>
 
 const listFunc = func => ([data, ...args]) => {
   if (data.type !== 'nil' && data.type !== 'list') return data;
-  const result = func(data.value || { values: [], indices: [] }, ...args);
-  if (Object.keys(result.values).length === 0 && !result.other) {
+  const result = func(data.value || { indices: [], values: {} }, ...args);
+  if (
+    result.indices.length === 0 &&
+    Object.keys(result.values).length === 0 &&
+    !result.other
+  ) {
     return { type: 'nil' };
   }
   return { type: 'list', value: result };

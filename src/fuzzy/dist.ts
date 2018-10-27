@@ -1,5 +1,5 @@
 export default (s1, s2) => {
-  var matchWindow = Math.floor(Math.max(s1.length, s2.length) / 2.0) - 1;
+  var matchWindow = Math.ceil(Math.max(s1.length, s2.length) / 2.0) - 1;
   var matches1 = new Array(s1.length);
   var matches2 = new Array(s2.length);
   var m = 0;

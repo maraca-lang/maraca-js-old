@@ -1,5 +1,5 @@
 import { binary } from './core';
-import { compare } from './data';
+import { compare, toKey, toData } from './data';
 
 const sortTypes = ([v1, v2]: any) => {
   if (v2.type === 'nil') return [v1, v2];
@@ -28,10 +28,12 @@ const combineInfo = ([v1, v2]: any) => {
 };
 
 const listGet = (data, key) => {
-  const v = data.values.find(x => compare(x.key, key) === 0);
-  if (v) return v.value;
-  if (data.other) return data.other;
-  return { type: 'nil' };
+  const k = toKey(key);
+  const v =
+    typeof k === 'number'
+      ? data.indices[k]
+      : data.values[k] && data.values[k].value;
+  return v || data.other || { type: 'nil' };
 };
 
 const run: any = (type, { initial, output }) => {
@@ -69,15 +71,25 @@ const run: any = (type, { initial, output }) => {
     };
   }
   if (type === 'multi') {
-    const values1 = initial[0].value.values;
-    const values2 = initial[1].value.values;
     const keys = [
-      ...values1.map(x => x.key),
-      ...values2
-        .map(x => x.key)
-        .filter(k => !values1.find(x => compare(k, x.key) === 0)),
-    ].sort(compare);
-
+      ...Array.from({
+        length: Math.max(
+          initial[0].value.indices.length,
+          initial[1].value.indices.length,
+        ),
+      }).map((_, i) => i),
+      ...Array.from(
+        new Set([
+          ...Object.keys(initial[0].value.values),
+          ...Object.keys(initial[1].value.values),
+        ]),
+      ).sort((a, b) =>
+        compare(
+          (initial[0].value.values[a] || initial[1].value.values[a]).key,
+          (initial[0].value.values[b] || initial[1].value.values[b]).key,
+        ),
+      ),
+    ];
     const inputs = [] as any;
     const values = [] as any;
     const runMulti = first => {
@@ -86,13 +98,20 @@ const run: any = (type, { initial, output }) => {
           inputs[i]();
           inputs[i] = null;
         }
+        const k =
+          typeof keys[i] === 'number'
+            ? toData((keys[i] as number) + 1)
+            : (
+                initial[0].value.values[keys[i]] ||
+                initial[1].value.values[keys[i]]
+              ).key;
         const prev = values[i - 1] ? values[i - 1].combined : { type: 'nil' };
-        const big = listGet(initial[0].value, keys[i]);
-        const small = listGet(initial[1].value, keys[i]);
+        const big = listGet(initial[0].value, k);
+        const small = listGet(initial[1].value, k);
         if (typeof big === 'function') {
           const args = [prev];
           if (initial[0].value.otherType === 'k=>v=>') {
-            args.push(keys[i], small);
+            args.push(k, small);
           }
           if (initial[0].value.otherType === 'v=>>') args.push(small);
           if (initial[0].value.otherType === 'k=>') args.push(initial[1]);
@@ -104,7 +123,7 @@ const run: any = (type, { initial, output }) => {
               values[i].combined =
                 values[i].value.type === 'nil'
                   ? values[i].result
-                  : binary.assign([values[i].result, values[i].value, keys[i]]);
+                  : binary.assign([values[i].result, values[i].value, k]);
               output(0, runMulti(i + 1));
             },
           });
@@ -115,7 +134,7 @@ const run: any = (type, { initial, output }) => {
             combined:
               res.initial[1].type === 'nil'
                 ? res.initial[0]
-                : binary.assign([res.initial[0], res.initial[1], keys[i]]),
+                : binary.assign([res.initial[0], res.initial[1], k]),
           };
         } else {
           const res = combine({
@@ -125,7 +144,7 @@ const run: any = (type, { initial, output }) => {
               values[i].combined = binary.assign([
                 values[i].result,
                 values[i].value,
-                keys[i],
+                k,
               ]);
               output(0, runMulti(i + 1));
             },
@@ -134,7 +153,7 @@ const run: any = (type, { initial, output }) => {
           values[i] = {
             result: prev,
             value: res.initial[0],
-            combined: binary.assign([prev, res.initial[0], keys[i]]),
+            combined: binary.assign([prev, res.initial[0], k]),
           };
         }
       }

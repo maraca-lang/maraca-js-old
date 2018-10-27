@@ -15,20 +15,14 @@ export const toData = value => {
     return { type: 'string', value: JSON.stringify(value) };
   }
   if (Array.isArray(value)) {
-    const result = { values: [], indices: [] } as any;
-    value.forEach((v, i) => {
-      result.values.push({ key: toData(i + 1), value: toData(v) });
-      result.indices.push(i + 1);
-    });
-    return { type: 'list', value: result };
+    return { type: 'list', value: { indices: value.map(toData), values: {} } };
   }
-  const result = { values: [], indices: [] } as any;
+  const result = { indices: [], values: {} } as any;
   Object.keys(value).forEach((k: any) => {
     const n = !isNaN(k) && !isNaN(parseFloat(k)) && parseFloat(k);
-    if (n) result.indices.push(n);
-    result.values.push({ key: toData(k), value: toData(value[k]) });
+    if (n && Math.floor(n) === n) result.indices[n] = toData(value[k]);
+    else result.values[k] = { key: toData(k), value: toData(value[k]) };
   });
-  result.indices.sort((a, b) => a - b);
   return { type: 'list', value: result };
 };
 
@@ -97,97 +91,82 @@ export const compare = (v1, v2) => {
   }
   if (v1.type === 'nil') return 0;
   if (v1.type === 'string') return sortStrings(v1.value, v2.value);
-  const values1 = v1.value.values;
-  const values2 = v2.value.values;
   const keys = [
-    ...values1.map(x => x.key),
-    ...values2
-      .map(x => x.key)
-      .filter(k => !values1.find(x => compare(k, x.key) === 0)),
-  ].sort(compare);
+    ...Array.from({
+      length: Math.max(v1.value.indices.length, v2.value.indices.length),
+    }).map((_, i) => i),
+    ...Array.from(
+      new Set([
+        ...Object.keys(v1.value.values),
+        ...Object.keys(v2.value.values),
+      ]),
+    ).sort((a, b) =>
+      compare(
+        (v1.value.values[a] || v2.value.values[a]).key,
+        (v1.value.values[b] || v2.value.values[b]).key,
+      ),
+    ),
+  ];
   return sortMultiple(
-    keys.map(k => {
-      const v = values1.find(x => compare(k, x.key) === 0);
-      return v ? v.value : { type: 'nil' };
-    }),
-    keys.map(k => {
-      const v = values2.find(x => compare(k, x.key) === 0);
-      return v ? v.value : { type: 'nil' };
-    }),
+    keys.map(
+      k =>
+        (typeof k === 'number'
+          ? v1.value.indices[k]
+          : v1.value.values[k] && v1.value.values[k].value) || { type: 'nil' },
+    ),
+    keys.map(
+      k =>
+        (typeof k === 'number'
+          ? v2.value.indices[k]
+          : v2.value.values[k] && v2.value.values[k].value) || { type: 'nil' },
+    ),
     compare,
   );
 };
 
+export const toKey = ({ type, value }) => {
+  if (type !== 'list') {
+    if (!isNaN(value) && !isNaN(parseFloat(value))) {
+      const n = parseFloat(value);
+      if (Math.floor(n) === n) return n - 1;
+    }
+    return value || '';
+  }
+  return JSON.stringify({
+    indices: value.indices.map(toKey),
+    values: Object.keys(value.values).reduce(
+      (res, k) => ({ ...res, [k]: toKey(value.values[k].value) }),
+      {},
+    ),
+  });
+};
+
 export const list = {
-  clearIndices: list => ({
-    ...list,
-    values: list.values.filter(v => toTypedValue(v).type !== 'integer'),
-    indices: [],
-  }),
+  clearIndices: list => ({ ...list, indices: [] }),
   assign: (list, value, key) => {
     if (!key) {
       if (value.type === 'nil') return list;
-      const n = (list.indices[list.indices.length - 1] || 0) + 1;
-      return {
-        ...list,
-        values: [...list.values, { key: toData(n), value }].sort((a, b) =>
-          compare(a.key, b.key),
-        ),
-        indices: [...list.indices, n],
-      };
+      return { ...list, indices: [...list.indices, value] };
     }
-    const typed = toTypedValue(key);
-    const n = typed.type === 'integer' && typed.value;
-    const result = {
-      ...list,
-      values: list.values.filter(v => compare(v.key, key) !== 0),
-      indices: list.indices,
-    };
-    if (n) {
-      const i = result.indices.indexOf(n);
-      if (i !== -1) {
-        result.indices = [
-          ...result.indices.slice(0, i),
-          ...result.indices.slice(i + 1),
-        ];
-      }
+    const k = toKey(key);
+    if (typeof k === 'number') {
+      const indices = [...list.indices];
+      if (value.type === 'nil') delete indices[k];
+      else indices[k] = value;
+      return { ...list, indices };
     }
-    if (value.type !== 'nil' || value.set) {
-      result.values = [...result.values, { key, value }].sort((a, b) =>
-        compare(a.key, b.key),
-      );
-      if (n) {
-        result.indices = [...result.indices, n].sort((a, b) => a - b);
-      }
-    }
-    return result;
+    const values = { ...list.values };
+    if (value.type === 'nil' && !value.set) delete values[k];
+    else values[k] = { key, value };
+    return { ...list, values };
   },
   unpack: (list, value) => {
     if (value.type !== 'list') return list;
-    const result = {
+    return {
       ...list,
-      values: [...list.values],
-      indices: [...list.indices],
+      indices: [...list.indices, ...value.value.indices],
+      values: { ...list.values, ...value.value.values },
     };
-    const start = list.indices[list.indices.length - 1] || 0;
-    const values = [...value.value.values];
-    for (const i of value.value.indices) {
-      const [v] = values.splice(
-        values.findIndex(x => compare(x.key, toData(i)) === 0),
-        1,
-      );
-      result.values.push({ key: toData(start + i), value: v.value });
-      result.indices.push(start + i);
-    }
-    result.values = [...result.values, ...values].sort((a, b) =>
-      compare(a.key, b.key),
-    );
-    return result;
   },
-  other: (list, value, type) => ({
-    values: list.values,
-    indices: list.indices,
-    other: value,
-    otherType: type,
-  }),
+  other: (list, value, type) => ({ ...list, other: value, otherType: type }),
 };

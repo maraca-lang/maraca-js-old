@@ -49,18 +49,22 @@ const fuzzy = (doc, search) => {
       ? plainDist
       : dist(pairs(docClean), pairs(searchClean));
 
-  const phonDist = dist(
-    docTokens
-      .map(metaphone)
-      .join(' ')
-      .split(''),
-    searchTokens
-      .map(metaphone)
-      .join(' ')
-      .split(''),
-  );
+  const currentDist = plainDist * 0.4 + pairDist * 0.6;
 
-  return plainDist * 0.3 + pairDist * 0.5 + phonDist * 0.2;
+  const docPhon = docTokens
+    .map(t => metaphone(t)[0])
+    .join(' ')
+    .trim();
+  const searchPhon = searchTokens
+    .map(t => metaphone(t)[0])
+    .join(' ')
+    .trim();
+
+  if (!docPhon && !searchPhon) return currentDist;
+
+  const phonDist = dist(docPhon.split(''), searchPhon.split(''));
+
+  return currentDist * 0.8 + phonDist * 0.2;
 };
 
 export default fuzzy;
