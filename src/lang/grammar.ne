@@ -1,7 +1,6 @@
 @{%
 const lexer = require('./lang/lexer').default;
-const binary = x =>
-  ({ type: "binary", func: x[2][0].value, args: [x[0], x[4]] });
+const core = x => ({ type: "core", func: x[2][0].value, args: [x[0], x[4]] });
 %}
 @lexer lexer
 
@@ -42,29 +41,29 @@ expset ->
   | expid {% id %}
 
 expid ->
-    expid _ ("~") _ expnot {% binary %}
+    expid _ ("~") _ expnot {% core %}
   | expnot {% id %}
 
 expnot ->
     "!" _ expcomp
-      {% x => ({ type: "unary", func: x[0].value, arg: x[2] }) %}
+      {% x => ({ type: "core", func: x[0].value, args: [x[2]] }) %}
 	| expcomp {% id %}
 
 expcomp ->
 	  expcomp _ ("<" | ">" | "<=" | ">=" | "!" | "==" | "=") _ expconc
-      {% binary %}
+      {% core %}
 	| expconc {% id %}
 
 expconc ->
-	  expconc _ ("..") _ expsum {% binary %}
+	  expconc _ ("..") _ expsum {% core %}
 	| expsum {% id %}
 
 expsum ->
-	  expsum _ ("+" | "-") _ expprod {% binary %}
+	  expsum _ ("+" | "-") _ expprod {% core %}
 	| expprod {% id %}
 
 expprod ->
-    expprod _ ("*" | "/" | "%") _ expmerge {% binary %}
+    expprod _ ("*" | "/" | "%") _ expmerge {% core %}
 	| expmerge {% id %}
 
 expmerge ->
@@ -72,12 +71,12 @@ expmerge ->
 	| exppow {% id %}
 
 exppow ->
-    exppow _ ("^") _ expuni {% binary %}
+    exppow _ ("^") _ expuni {% core %}
   | expuni {% id %}
 
 expuni ->
     ("@@" | "@" | "-") _ expcomb
-      {% x => ({ type: "unary", func: x[0][0].value, arg: x[2] }) %}
+      {% x => ({ type: "core", func: x[0][0].value, args: [x[2]] }) %}
   | "##" _ atom _ expcomb 
       {% x => ({ type: "eval", code: x[2], arg: x[4] }) %}
   | "#" _ atom _ expcomb 
@@ -94,12 +93,12 @@ list ->
     "[" body "]" {% x => ({ type: "list", values: x[1] }) %}
   | "(" body ")"
       {% x => [
-        { type: "string", value: x[1].length.toString() },
+        { type: "value", value: x[1].length.toString() },
         { type: "list", values: x[1] }
       ] %}
   | "{" body "}"
       {% x => [
-        { type: "string", value: "1" },
+        { type: "value", value: "1" },
         { type: "list", values: x[1] }
       ] %}
 

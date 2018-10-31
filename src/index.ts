@@ -23,7 +23,7 @@ export default (script, initial, output) => {
     orderData(
       process(
         {
-          initial: [initial],
+          values: [initial],
           output: (_, next) => output(orderData(next)),
         },
         queue => [build(queue, { scope: [0], current: [0] }, parse(script))],

@@ -1,10 +1,10 @@
 export const toData = value => {
   if (!value) return { type: 'nil' };
-  if (value === true) return { type: 'string', value: '1' };
-  if (typeof value === 'number') return { type: 'string', value: `${value}` };
-  if (typeof value === 'string') return { type: 'string', value };
+  if (value === true) return { type: 'value', value: '1' };
+  if (typeof value === 'number') return { type: 'value', value: `${value}` };
+  if (typeof value === 'string') return { type: 'value', value };
   if (Object.prototype.toString.call(value) === '[object Date]') {
-    return { type: 'string', value: value.toISOString() };
+    return { type: 'value', value: value.toISOString() };
   }
   if (
     Object.keys(value).length === 2 &&
@@ -12,7 +12,7 @@ export const toData = value => {
       .sort()
       .join(',') === 'lat,lng'
   ) {
-    return { type: 'string', value: JSON.stringify(value) };
+    return { type: 'value', value: JSON.stringify(value) };
   }
   if (Array.isArray(value)) {
     return { type: 'list', value: { indices: value.map(toData), values: {} } };
@@ -31,7 +31,7 @@ const regexs = {
   location: /{"lat":[0-9\.-]+,"lng":[0-9\.-]+}/,
 };
 export const toTypedValue = ({ type, value }) => {
-  if (type !== 'string') return { type, value };
+  if (type !== 'value') return { type, value };
   if (!isNaN(value) && !isNaN(parseFloat(value))) {
     const v = parseFloat(value);
     return { type: Math.floor(v) === v ? 'integer' : 'number', value: v };
@@ -42,14 +42,14 @@ export const toTypedValue = ({ type, value }) => {
   if (regexs.location.test(value)) {
     return { type: 'location', value: JSON.parse(value) };
   }
-  return { type: 'string', value };
+  return { type: 'value', value };
 };
 
 const stringToNatural = s =>
   s
     .split(/(\-?\d*\.?\d+)/)
     .filter(x => x)
-    .map(x => toTypedValue({ type: 'string', value: x }).value);
+    .map(x => toTypedValue({ type: 'value', value: x }).value);
 
 const getMinus = v => {
   if (!v) return { minus: false, v };
@@ -87,10 +87,10 @@ const sortStrings = (s1, s2) =>
 
 export const compare = (v1, v2) => {
   if (v1.type !== v2.type) {
-    return v1.type === 'string' || v2.type === 'list' ? -1 : 1;
+    return v1.type === 'value' || v2.type === 'list' ? -1 : 1;
   }
   if (v1.type === 'nil') return 0;
-  if (v1.type === 'string') return sortStrings(v1.value, v2.value);
+  if (v1.type === 'value') return sortStrings(v1.value, v2.value);
   const keys = [
     ...Array.from({
       length: Math.max(v1.value.indices.length, v2.value.indices.length),
@@ -141,32 +141,37 @@ export const toKey = ({ type, value }) => {
   });
 };
 
-export const list = {
-  clearIndices: list => ({ ...list, indices: [] }),
-  assign: (list, value, key) => {
-    if (!key) {
-      if (value.type === 'nil') return list;
-      return { ...list, indices: [...list.indices, value] };
-    }
-    const k = toKey(key);
-    if (typeof k === 'number') {
-      const indices = [...list.indices];
-      if (value.type === 'nil') delete indices[k];
-      else indices[k] = value;
-      return { ...list, indices };
-    }
-    const values = { ...list.values };
-    if (value.type === 'nil' && !value.set) delete values[k];
-    else values[k] = { key, value };
-    return { ...list, values };
-  },
-  unpack: (list, value) => {
-    if (value.type !== 'list') return list;
-    return {
-      ...list,
-      indices: [...list.indices, ...value.value.indices],
-      values: { ...list.values, ...value.value.values },
-    };
-  },
-  other: (list, value, type) => ({ ...list, other: value, otherType: type }),
+export const resolve = (stream, get) => {
+  const result = get(stream);
+  return result.type === 'stream' ? resolve(result.value, get) : result;
 };
+
+export const resolveDeep = (value, get) => {
+  const result = value.type === 'stream' ? resolve(value.value, get) : value;
+  if (result.type !== 'list') return result;
+  return {
+    ...result,
+    value: {
+      indices: result.value.indices.map(v => resolveDeep(v, get)),
+      values: Object.keys(result.value.values).reduce(
+        (res, k) => ({
+          ...res,
+          [k]: {
+            key: resolveDeep(result.value.values[k].key, get),
+            value: resolveDeep(result.value.values[k].value, get),
+          },
+        }),
+        {},
+      ),
+    },
+  };
+};
+
+export const setOther = (list, other, otherType) => ({
+  type: 'list',
+  value: {
+    ...(list.value || { indices: [], values: {} }),
+    other,
+    otherType,
+  },
+});

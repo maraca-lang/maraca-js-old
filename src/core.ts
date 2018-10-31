@@ -1,152 +1,166 @@
 import * as chrono from 'chrono-node';
 
-import { compare, list, toData, toTypedValue } from './data';
+import { compare, resolve, toData, toKey, toTypedValue } from './data';
 import fuzzy from './fuzzy';
 
-const streamMap = map => ({ initial, output }) => {
-  let values = initial;
-  return {
-    initial: [map(values)],
-    input: updates => {
-      updates.forEach(([index, value]) => {
-        values[index] = value;
-      });
-      output(0, map(values));
-    },
-  };
+export const streamMap = map => (queue, args) =>
+  queue(1, ({ get, output }) => ({
+    initial: [map(...args.map(a => resolve(a, get)))],
+    input: () => output(0, map(...args.map(a => resolve(a, get)))),
+  }))[0];
+
+const toDateData = ({ type, value }) => {
+  if (type !== 'value') return { type: 'nil' };
+  const date = chrono.parseDate(value, new Date(), { forwardDate: true });
+  return date ? { type: 'value', value: date.toISOString() } : { type: 'nil' };
 };
 
 const geocodeCache = {};
 const geocodeListeners = {};
 
-const toDateData = ({ type, value }) => {
-  if (type !== 'string') return { type: 'nil' };
-  const date = chrono.parseDate(value, new Date(), { forwardDate: true });
-  return date ? { type: 'string', value: date.toISOString() } : { type: 'nil' };
-};
+const dataMap = map => streamMap((...args) => toData(map(...args)));
 
-export const unary = {
-  '@@': ({ initial, output }) => {
-    let unlisten;
-    const doLookup = ({ type, value }) => {
-      if (unlisten) unlisten();
-      if (type === 'string') {
-        if (!geocodeCache[value]) {
-          if (!geocodeListeners[value]) {
-            geocodeListeners[value] = [];
-            (async () => {
-              const result = await (await fetch(
-                `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-                  value,
-                )}&key=AIzaSyCQ8P7-0kTGz2_tkcHjOo0IUiMB_z9Bbp4`,
-              )).json();
-              geocodeCache[value] = toData(
-                JSON.stringify(result.results[0].geometry.location),
-              );
-              geocodeListeners[value].forEach(l => l());
-              geocodeListeners[value] = null;
-            })();
-          }
-          const listener = () => output(0, geocodeCache[value]);
-          geocodeListeners[value].push(listener);
-          unlisten = () =>
-            geocodeListeners[value].splice(
-              geocodeListeners[value].indexOf(listener),
-              1,
-            );
-          return { type: 'nil' };
-        }
-        return geocodeCache[value];
-      }
-    };
-    return {
-      initial: [doLookup(initial[0])],
-      input: updates => {
-        if (updates) output(0, doLookup(updates[0][1]));
-      },
-    };
-  },
-  '@': ({ initial, output }) => {
-    let value = initial[0];
-    let prev = toDateData(value);
-    const tryOutput = () => {
-      const next = toDateData(value);
-      if (next.value !== prev.value) output(0, next);
-      prev = next;
-    };
-    const interval = setInterval(tryOutput, 1000);
-    return {
-      initial: [prev],
-      input: updates => {
-        if (!updates) {
-          clearInterval(interval);
-        } else {
-          value = updates[0][1];
-          tryOutput();
-        }
-      },
-    };
-  },
-  '!': streamMap(
-    ([v]) =>
-      v.type === 'nil' ? { type: 'string', value: '1' } : { type: 'nil' },
-  ),
-  '-': streamMap(([v]) => {
-    if (v.type === 'string') {
-      return { type: 'string', value: `-${v.value}` };
-    }
-    return { type: 'nil' };
-  }),
-};
-
-const dataFunc = func => ([a, b]) => toData(func(a, b));
-
-const numericFunc = func =>
-  dataFunc((a, b) => {
-    const x = toTypedValue(a);
-    const y = toTypedValue(b);
-    if (typeof x.value !== 'number' || typeof y.value !== 'number') {
-      return null;
-    }
-    return func(x.value, y.value);
+const numericMap = map =>
+  dataMap((...args) => {
+    const values = args.map(a => toTypedValue(a).value);
+    if (values.some(v => typeof v !== 'number')) return null;
+    return map(...values);
   });
 
-const listFunc = func => ([data, ...args]) => {
-  if (data.type !== 'nil' && data.type !== 'list') return data;
-  const result = func(data.value || { indices: [], values: {} }, ...args);
-  if (
-    result.indices.length === 0 &&
-    Object.keys(result.values).length === 0 &&
-    !result.other
-  ) {
-    return { type: 'nil' };
-  }
-  return { type: 'list', value: result };
-};
+const listMap = map => (queue, [list, ...args]: any) =>
+  queue(1, ({ get, output }) => {
+    const run = () => {
+      const listValue = resolve(list, get);
+      if (listValue.type === 'value') return listValue;
+      const result = map(
+        get,
+        listValue.value || { indices: [], values: {} },
+        ...args,
+      );
+      if (
+        result.indices.length + Object.keys(result.values).length === 0 &&
+        !result.other
+      ) {
+        return { type: 'nil' };
+      }
+      return { type: 'list', value: result };
+    };
+    return { initial: [run()], input: () => output(0, run()) };
+  })[0];
 
-export const binary = {
-  clearIndices: listFunc(list.clearIndices),
-  assign: listFunc(list.assign),
-  unpack: listFunc(list.unpack),
-  other: listFunc(list.other),
+export default {
+  constant: (queue, value) => queue(1, () => ({ initial: [value] }))[0],
+  clearIndices: listMap((_, list) => ({ ...list, indices: [] })),
+  assign: listMap((get, list, value, key) => {
+    if (!key) {
+      const val = resolve(value, get);
+      if (val.type === 'nil') return list;
+      return { ...list, indices: [...list.indices, val] };
+    }
+    const keyValue = resolve(key, get);
+    const k = toKey(keyValue);
+    if (typeof k === 'number') {
+      const val = resolve(value, get);
+      const indices = [...list.indices];
+      if (val.type === 'nil') delete indices[k];
+      else indices[k] = val;
+      return { ...list, indices };
+    }
+    return {
+      ...list,
+      values: {
+        ...list.values,
+        [k]: { key: keyValue, value: { type: 'stream', value } },
+      },
+    };
+  }),
+  unpack: listMap((get, list, value) => {
+    const val = resolve(value, get);
+    if (val.type !== 'list') return list;
+    return {
+      ...list,
+      indices: [...list.indices, ...val.value.indices],
+      values: { ...list.values, ...val.value.values },
+    };
+  }),
+  '@@': (queue, [arg]) =>
+    queue(1, ({ get, output }) => {
+      let unlisten;
+      const doLookup = () => {
+        const { type, value } = resolve(arg, get);
+        if (unlisten) unlisten();
+        if (type === 'value') {
+          if (!geocodeCache[value]) {
+            if (!geocodeListeners[value]) {
+              geocodeListeners[value] = [];
+              (async () => {
+                const result = await (await fetch(
+                  `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+                    value,
+                  )}&key=AIzaSyCQ8P7-0kTGz2_tkcHjOo0IUiMB_z9Bbp4`,
+                )).json();
+                geocodeCache[value] = toData(
+                  JSON.stringify(result.results[0].geometry.location),
+                );
+                geocodeListeners[value].forEach(l => l());
+                geocodeListeners[value] = null;
+              })();
+            }
+            const listener = () => output(0, geocodeCache[value]);
+            geocodeListeners[value].push(listener);
+            unlisten = () =>
+              geocodeListeners[value].splice(
+                geocodeListeners[value].indexOf(listener),
+                1,
+              );
+            return { type: 'nil' };
+          }
+          return geocodeCache[value];
+        }
+      };
+      return { initial: [doLookup()], input: output(0, doLookup()) };
+    }),
+  '@': (queue, [arg]) =>
+    queue(1, ({ get, output }) => {
+      let prev = toDateData(resolve(arg, get));
+      const tryOutput = () => {
+        const next = toDateData(resolve(arg, get));
+        if (next.value !== prev.value) output(0, next);
+        prev = next;
+      };
+      let interval = setInterval(tryOutput, 1000);
+      return {
+        initial: [prev],
+        input: () => {
+          clearInterval(interval);
+          tryOutput();
+          interval = setInterval(tryOutput, 1000);
+        },
+        stop: () => clearInterval(interval),
+      };
+    })[0],
   '~': ([a, b]) => ({ ...b, id: a }),
   '==': ([a, b]) => toData(a.type === b.type && a.value === b.value),
-  '=': dataFunc((a, b) => {
-    if (a.type !== 'string' || b.type !== 'string') return null;
+  '=': dataMap((a, b) => {
+    if (a.type !== 'value' || b.type !== 'value') return null;
     const res = fuzzy(a.value, b.value);
     return res < 0.3 ? null : 2 - res;
   }),
-  '!': dataFunc((a, b) => a.type !== b.type || a.value !== b.value),
-  '<': dataFunc((a, b) => compare(a, b) === -1),
-  '>': dataFunc((a, b) => compare(a, b) === 1),
-  '<=': dataFunc((a, b) => compare(a, b) !== 1),
-  '>=': dataFunc((a, b) => compare(a, b) !== -1),
-  '..': dataFunc((a, b) => {
-    if (a.type !== 'string' || b.type !== 'string') return null;
+  '!': dataMap((a, b) => {
+    if (!b) a.type === 'nil' ? 1 : null;
+    return a.type !== b.type || a.value !== b.value;
+  }),
+  '<': dataMap((a, b) => compare(a, b) === -1),
+  '>': dataMap((a, b) => compare(a, b) === 1),
+  '<=': dataMap((a, b) => compare(a, b) !== 1),
+  '>=': dataMap((a, b) => compare(a, b) !== -1),
+  '..': dataMap((a, b) => {
+    if (a.type !== 'value' || b.type !== 'value') return null;
     return a.value + b.value;
   }),
-  '+': numericFunc((a, b) => a + b),
-  '-': dataFunc((a, b) => {
+  '+': numericMap((a, b) => a + b),
+  '-': dataMap((a, b) => {
+    if (!b) return a.type === 'value' ? `-${a.value}` : null;
     const v1 = toTypedValue(a);
     const v2 = toTypedValue(b);
     if (v1.type !== v2.type) return null;
@@ -172,8 +186,8 @@ export const binary = {
     }
     return null;
   }),
-  '*': numericFunc((a, b) => a * b),
-  '/': numericFunc((a, b) => a / b),
-  '%': numericFunc((a, b) => ((a % b) + b) % b),
-  '^': numericFunc((a, b) => a ** b),
+  '*': numericMap((a, b) => a * b),
+  '/': numericMap((a, b) => a / b),
+  '%': numericMap((a, b) => ((a % b) + b) % b),
+  '^': numericMap((a, b) => a ** b),
 };

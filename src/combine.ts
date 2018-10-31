@@ -1,11 +1,10 @@
-import { binary } from './core';
-import { compare, toKey, toData } from './data';
+import { compare, resolveDeep, toData, toKey } from './data';
 
-const sortTypes = ([v1, v2]: any) => {
+const sortTypes = (v1, v2) => {
   if (v2.type === 'nil') return [v1, v2];
   if (v1.type === 'nil') return [v2, v1];
-  if (v2.type === 'string') return [v1, v2];
-  if (v1.type === 'string') return [v2, v1];
+  if (v2.type === 'value') return [v1, v2];
+  if (v1.type === 'value') return [v2, v1];
   if (!v2.value.other) return [v1, v2];
   if (!v1.value.other) return [v2, v1];
   if (!['=>', 'k=>'].includes(v2.value.otherType)) return [v1, v2];
@@ -13,18 +12,13 @@ const sortTypes = ([v1, v2]: any) => {
   return [v1, v2];
 };
 
-const combineInfo = ([v1, v2]: any) => {
-  const [big, small] = sortTypes([v1, v2]);
-  const base = { reverse: big !== v1, values: [big, small] };
+const getType = (big, small) => {
   if (small.type === 'list') {
-    return {
-      type: ['=>', 'k=>'].includes(big.value.otherType) ? 'get' : 'multi',
-      ...base,
-    };
+    return ['=>', 'k=>'].includes(big.value.otherType) ? 'get' : 'multi';
   }
-  if (big.type === 'list') return { type: 'get', ...base };
-  if (small.type === 'string') return { type: 'join', ...base };
-  return { type: 'nil', ...base };
+  if (big.type === 'list') return 'get';
+  if (small.type === 'value') return 'join';
+  return 'nil';
 };
 
 const listGet = (data, key) => {
@@ -36,174 +30,159 @@ const listGet = (data, key) => {
   return v || data.other || { type: 'nil' };
 };
 
-const run: any = (type, { initial, output }) => {
+const listOrNull = list => {
+  if (
+    list.indices.length + Object.keys(list.values).length === 0 &&
+    !list.other
+  ) {
+    return { type: 'nil' };
+  }
+  return { type: 'list', value: list };
+};
+const assign = (list = { indices: [], values: {} } as any, value, key) => {
+  if (!key) {
+    if (value.type === 'nil') return list;
+    return listOrNull({ ...list, indices: [...list.indices, value] });
+  }
+  const k = toKey(key);
+  if (typeof k === 'number') {
+    const indices = [...list.indices];
+    if (value.type === 'nil') delete indices[k];
+    else indices[k] = value;
+    return listOrNull({ ...list, indices });
+  }
+  return listOrNull({
+    ...list,
+    values: { ...list.values, [k]: { key, value } },
+  });
+};
+
+const run = (v1, v2, get, output) => {
+  const [big, small] = sortTypes(v1, v2);
+  const reverse = big !== v1;
+  const type = getType(big, small);
   if (type === 'nil') {
-    return { initial: [{ type: 'nil' }] };
+    return { initial: { type: 'nil' } };
   }
   if (type === 'join') {
-    return {
-      initial: [
-        {
-          type: 'string',
-          value: `${initial[0].value} ${initial[1].value}`,
-        },
-      ],
-    };
+    return { initial: { type: 'value', value: `${big.value} ${small.value}` } };
   }
   if (type === 'get') {
-    const value = listGet(initial[0].value, initial[1]);
+    const value = listGet(big.value, small);
     if (typeof value !== 'function') {
-      return { initial: [value] };
+      return { initial: value };
     }
-    if (!['=>', 'k=>'].includes(initial[0].value.otherType)) {
-      return { initial: [{ type: 'nil' }] };
+    if (!['=>', 'k=>'].includes(big.value.otherType)) {
+      return { initial: { type: 'nil' } };
     }
     const args = [{ type: 'nil' }];
-    if (initial[0].value.otherType === 'k=>') args.push(initial[1]);
-    const result = value({
-      initial: args,
-      output: (i, v) => {
-        if (i === 1) output(0, v);
-      },
+    if (big.value.otherType === 'k=>') args.push(small);
+    const result = value(args.map(a => resolveDeep(a, get)), (i, v) => {
+      if (i === 1) output(v);
     });
     return {
-      initial: [result.initial[1]],
+      initial: result.initial[1],
+      stop: result.stop,
     };
   }
-  if (type === 'multi') {
-    const keys = [
-      ...Array.from({
-        length: Math.max(
-          initial[0].value.indices.length,
-          initial[1].value.indices.length,
-        ),
-      }).map((_, i) => i),
-      ...Array.from(
-        new Set([
-          ...Object.keys(initial[0].value.values),
-          ...Object.keys(initial[1].value.values),
-        ]),
-      ).sort((a, b) =>
-        compare(
-          (initial[0].value.values[a] || initial[1].value.values[a]).key,
-          (initial[0].value.values[b] || initial[1].value.values[b]).key,
-        ),
+  const keys = [
+    ...Array.from({
+      length: Math.max(big.value.indices.length, small.value.indices.length),
+    }).map((_, i) => i),
+    ...Array.from(
+      new Set([
+        ...Object.keys(big.value.values),
+        ...Object.keys(small.value.values),
+      ]),
+    ).sort((a, b) =>
+      compare(
+        (big.value.values[a] || small.value.values[a]).key,
+        (big.value.values[b] || small.value.values[b]).key,
       ),
-    ];
-    const inputs = [] as any;
-    const values = [] as any;
-    const runMulti = first => {
-      for (let i = first; i < keys.length; i++) {
-        if (inputs[i]) {
-          inputs[i]();
-          inputs[i] = null;
-        }
-        const k =
-          typeof keys[i] === 'number'
-            ? toData((keys[i] as number) + 1)
-            : (
-                initial[0].value.values[keys[i]] ||
-                initial[1].value.values[keys[i]]
-              ).key;
-        const prev = values[i - 1] ? values[i - 1].combined : { type: 'nil' };
-        const big = listGet(initial[0].value, k);
-        const small = listGet(initial[1].value, k);
-        if (typeof big === 'function') {
-          const args = [prev];
-          if (initial[0].value.otherType === 'k=>v=>') {
-            args.push(k, small);
-          }
-          if (initial[0].value.otherType === 'v=>>') args.push(small);
-          if (initial[0].value.otherType === 'k=>') args.push(initial[1]);
-          const res = big({
-            initial: args,
-            output: (index, value) => {
-              if (index === 0) values[i].result = value;
-              else values[i].value = value;
-              values[i].combined =
-                values[i].value.type === 'nil'
-                  ? values[i].result
-                  : binary.assign([values[i].result, values[i].value, k]);
-              output(0, runMulti(i + 1));
-            },
-          });
-          inputs[i] = res.input;
-          values[i] = {
-            result: res.initial[0],
-            value: res.initial[1],
-            combined:
-              res.initial[1].type === 'nil'
-                ? res.initial[0]
-                : binary.assign([res.initial[0], res.initial[1], k]),
-          };
-        } else {
-          const res = combine({
-            initial: [big, small],
-            output: (_, value) => {
-              values[i].value = value;
-              values[i].combined = binary.assign([
-                values[i].result,
-                values[i].value,
-                k,
-              ]);
-              output(0, runMulti(i + 1));
-            },
-          } as any);
-          inputs[i] = res.input;
-          values[i] = {
-            result: prev,
-            value: res.initial[0],
-            combined: binary.assign([prev, res.initial[0], k]),
-          };
-        }
+    ),
+  ];
+  const stops = [] as any;
+  const values = [] as any;
+  const runMulti = first => {
+    for (let i = first; i < keys.length; i++) {
+      if (stops[i]) stops[i]();
+      const k =
+        typeof keys[i] === 'number'
+          ? toData((keys[i] as number) + 1)
+          : (big.value.values[keys[i]] || small.value.values[keys[i]]).key;
+      const prev = values[i - 1] ? values[i - 1].combined : { type: 'nil' };
+      const bigValue = listGet(big.value, k);
+      const smallValue = listGet(small.value, k);
+      if (typeof bigValue === 'function') {
+        const args = [prev];
+        if (big.value.otherType === 'k=>v=>') args.push(k, smallValue);
+        if (big.value.otherType === 'v=>>') args.push(smallValue);
+        if (big.value.otherType === 'k=>') args.push(k);
+
+        const { initial, stop } = bigValue(
+          args.map(a => resolveDeep(a, get)),
+          (i, v) => {
+            if (i === 0) values[i].result = v;
+            else values[i].value = v;
+            values[i].combined =
+              values[i].value.type === 'nil'
+                ? values[i].result
+                : assign(values[i].result.value, values[i].value, k);
+            output(runMulti(i + 1));
+          },
+        );
+        stops[i] = stop;
+        values[i] = {
+          result: initial[0],
+          value: initial[1],
+          combined:
+            initial[1].type === 'nil'
+              ? initial[0]
+              : assign(initial[0].value, initial[1], k),
+        };
+      } else {
+        const { initial, stop } = (combine as any)(
+          ...(reverse ? [smallValue, bigValue] : [bigValue, smallValue]),
+          get,
+          value => {
+            values[i].value = value;
+            values[i].combined = assign(
+              values[i].result.value,
+              values[i].value,
+              k,
+            );
+            output(runMulti(i + 1));
+          },
+        );
+        stops[i] = stop;
+        values[i] = {
+          result: prev,
+          value: initial,
+          combined: assign(prev.value, initial, k),
+        };
       }
-      return values[keys.length - 1].combined;
-    };
-    return { initial: [runMulti(0)] };
-  }
-};
-
-const canContinue = (next, prev, changes) => {
-  if (next.type === prev.type && next.reverse === prev.reverse) {
-    if (
-      next.type === 'get' &&
-      !changes.some(c => c[0] === 0) &&
-      typeof listGet(next.values[0].value, next.values[1]) === 'function'
-    ) {
-      return true;
     }
-  }
-  return false;
+    return values[keys.length - 1].combined;
+  };
+  return {
+    initial: runMulti(0),
+    stop: () => {
+      stops.forEach(s => s());
+    },
+  };
 };
 
-const combine = ({ initial: first, output }) => {
-  let base = first;
-  let prev = combineInfo(base);
-  let { initial, input } = run(prev.type, { initial: prev.values, output });
+const combine = (s1, s2, get, output) => {
+  let { initial, stop } = run(s1, s2, get, output);
   return {
     initial,
-    input: (updates?) => {
-      if (updates) {
-        let changes = [...updates];
-        changes.forEach(c => (base[c[0]] = c[1]));
-        let next = combineInfo(base);
-        if (next.reverse) {
-          changes.forEach(c => {
-            if (c[0] < 2) c[0] = c[0] === 0 ? 1 : 0;
-          });
-        }
-        if (input && canContinue(next, prev, changes)) {
-          input(changes);
-        } else {
-          if (input) input();
-          ({ initial, input } = run(next.type, {
-            initial: next.values,
-            output,
-          }));
-          output(0, initial[0]);
-          prev = next;
-        }
-      }
+    input: (s1, s2) => {
+      if (stop) stop();
+      ({ initial, stop } = run(s1, s2, get, output));
+      output(initial);
+    },
+    stop: () => {
+      if (stop) stop();
     },
   };
 };

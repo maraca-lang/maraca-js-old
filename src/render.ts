@@ -42,28 +42,6 @@ const unlinkMap = node => {
   delete node.__mapInstance;
 };
 
-// const convertValue = ({ type, value, set }: any, options = {} as any) => {
-//   const { deep = false, withSet = true } = options;
-//   if (type !== 'list') {
-//     return withSet ? { value: value || null, set } : value || null;
-//   }
-//   const values: any = {};
-//   const children: any[] = [];
-//   for (const { key: k, value: v } of value.values) {
-//     const key = toTypedValue(k);
-//     if (key.type === 'integer') {
-//       children.push(deep ? convertValue(v, options) : v);
-//     } else if (key.type !== 'list') {
-//       values[key.value || ''] = deep ? convertValue(v, options) : v;
-//     }
-//   }
-//   return withSet ? { values, children, set } : { values, children };
-// };
-// const convert = (
-//   values,
-//   options: { deep: boolean; withSet: boolean } = {} as any,
-// ) => convertValue({ type: 'list', value: { values } }, options);
-
 const valuesToObject = values =>
   values.reduce(
     (res, v) =>
@@ -258,7 +236,7 @@ const render = (parent, child, data) => {
       }
       parent.removeChild(child);
     }
-  } else if (data.type === 'string') {
+  } else if (data.type === 'value') {
     if (!child) {
       parent.appendChild(document.createTextNode(data.value));
     } else if (child.nodeType !== 3) {

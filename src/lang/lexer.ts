@@ -1,7 +1,7 @@
 import * as moo from 'moo';
 import * as dedent from 'dedent';
 
-const toData = s => (s ? { type: 'string', value: s } : { type: 'nil' });
+const toData = s => (s ? { type: 'value', value: s } : { type: 'nil' });
 
 export default moo.compile({
   multi: [
