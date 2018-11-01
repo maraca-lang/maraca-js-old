@@ -52,8 +52,8 @@ const valuesToObject = values =>
 const dataToJs = data => {
   if (data.type !== 'list') return data.value || null;
   return {
-    indices: data.indices.map(dataToJs),
-    values: data.values.reduce(
+    indices: (data.indices || []).map(dataToJs),
+    values: (data.values || []).reduce(
       (res, v) =>
         v.key.type === 'list'
           ? res
@@ -92,13 +92,21 @@ const diffValues = (next = [], prev = [], update) => {
 };
 
 const modes = {
+  '': {
+    create: ({ value }) => document.createTextNode(value),
+    transform: node => node,
+    update: (node, { value }) => (node.nodeValue = value),
+    destroy: () => {},
+  },
   dom: {
-    create: tag => document.createElement(tag),
-    transform: (node, tag) => {
+    create: ({ tag }) => document.createElement(tag),
+    transform: (node, { tag }) => {
       if (tag !== node.nodeName.toLowerCase()) {
         const newNode = document.createElement(tag);
         for (let i = node.childNodes.length - 1; i >= 0; i--) {
+          const hasFocus = document.activeElement === node.childNodes[i];
           newNode.insertBefore(node.childNodes[i], newNode.childNodes[0]);
+          if (hasFocus) node.childNodes[i].focus();
         }
         return newNode;
       }
@@ -119,15 +127,16 @@ const modes = {
           node[k] = v.value || '';
         }
       });
-      const childPairs = Array.from({
-        length: Math.max(node.childNodes.length, next.indices.length),
-      }).map((_, i) => ({
-        child: node.childNodes[i],
-        data: next.indices[i] || { type: 'nil' },
-      }));
-      for (const { child, data } of childPairs) {
-        render(node, child, data);
-      }
+      const children = [...node.childNodes];
+      const dataPairs = next.indices.map(v => {
+        const i = children.findIndex(c => c.__data.id === v.id);
+        if (i === -1) return { data: v };
+        return { child: children.splice(i, 1)[0], data: v };
+      });
+      [
+        ...dataPairs,
+        ...children.map(child => ({ child, data: { type: 'nil' } })),
+      ].forEach(({ child, data }, i) => render(node, child, data, i));
     },
     destroy: () => {},
   },
@@ -200,6 +209,7 @@ const modes = {
                     document.createElement('div'),
                     null,
                     valuesToObject(x.values).info,
+                    0,
                   ),
                 );
                 node.__map.info.open(map, marker);
@@ -224,10 +234,11 @@ const modes = {
 const getMode = tag => {
   if (tag === 'chart') return 'chart';
   if (tag === 'map') return 'map';
+  if (tag === '') return '';
   return 'dom';
 };
 
-const render = (parent, child, data) => {
+const render = (parent, child, data, index) => {
   if (data.type === 'nil') {
     if (child) {
       if (child.__data) {
@@ -236,39 +247,39 @@ const render = (parent, child, data) => {
       }
       parent.removeChild(child);
     }
-  } else if (data.type === 'value') {
-    if (!child) {
-      parent.appendChild(document.createTextNode(data.value));
-    } else if (child.nodeType !== 3) {
-      parent.replaceChild(document.createTextNode(data.value), child);
-    } else {
-      child.nodeValue = data.value;
-    }
   } else {
-    const values = [...data.values];
-    const tag =
-      values.length > 0 && values[values.length - 1].key.type === 'nil'
-        ? values.pop().value.value
-        : 'div';
+    const d = { id: data.id } as any;
+    if (data.type === 'value') {
+      d.tag = '';
+      d.value = data.value;
+    } else if (data.type === 'list') {
+      d.indices = data.indices;
+      d.values = [...data.values];
+      d.tag =
+        d.values.length > 0 && d.values[d.values.length - 1].key.type === 'nil'
+          ? d.values.pop().value.value
+          : 'div';
+    }
     let node = child;
     const prevMode = node && getMode(node.__data.tag);
-    const mode = getMode(tag);
-    if (mode !== prevMode) node = modes[mode].create(tag);
-    node = modes[mode].transform(node, tag);
+    const mode = getMode(d.tag);
+    const hasFocus = node && document.activeElement === node;
+    if (mode !== prevMode) node = modes[mode].create(d);
+    else node = modes[mode].transform(node, d);
     if (!child) {
       parent.appendChild(node);
     } else if (node !== child) {
-      modes[prevMode].destroy(child);
+      if (prevMode) modes[prevMode].destroy(child);
       parent.replaceChild(node, child);
     }
-    modes[mode].update(
-      node,
-      { indices: data.indices, values },
-      node.__data || { indices: [], values: [] },
-    );
-    node.__data = { tag, indices: data.indices, values };
+    if (node !== parent.childNodes[index]) {
+      parent.insertBefore(node, parent.childNodes[index]);
+    }
+    if (hasFocus) node.focus();
+    modes[mode].update(node, d, node.__data || {});
+    node.__data = d;
   }
   return parent;
 };
 
-export default (node, data) => render(node, node.childNodes[0], data);
+export default (node, data) => render(node, node.childNodes[0], data, 0);

@@ -1,13 +1,23 @@
 import * as chrono from 'chrono-node';
 
-import { compare, resolve, toData, toKey, toTypedValue } from './data';
+import {
+  compare,
+  resolve,
+  toData,
+  toKey,
+  toTypedValue,
+  resolveDeep,
+} from './data';
 import fuzzy from './fuzzy';
 
-export const streamMap = map => (queue, args) =>
-  queue(1, ({ get, output }) => ({
-    initial: [map(...args.map(a => resolve(a, get)))],
-    input: () => output(0, map(...args.map(a => resolve(a, get)))),
-  }))[0];
+export const streamMap = (map, deep = false) => (queue, args) =>
+  queue(1, ({ get, output }) => {
+    const resolveArg = a => (deep ? resolveDeep(get(a), get) : resolve(a, get));
+    return {
+      initial: [map(...args.map(resolveArg))],
+      input: () => output(0, map(...args.map(resolveArg))),
+    };
+  })[0];
 
 const toDateData = ({ type, value }) => {
   if (type !== 'value') return { type: 'nil' };
@@ -139,8 +149,8 @@ export default {
         stop: () => clearInterval(interval),
       };
     })[0],
-  '~': ([a, b]) => ({ ...b, id: a }),
-  '==': ([a, b]) => toData(a.type === b.type && a.value === b.value),
+  '~': streamMap((a, b) => ({ ...b, id: a })),
+  '==': dataMap((a, b) => a.type === b.type && a.value === b.value),
   '=': dataMap((a, b) => {
     if (a.type !== 'value' || b.type !== 'value') return null;
     const res = fuzzy(a.value, b.value);

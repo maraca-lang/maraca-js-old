@@ -78,35 +78,37 @@ const build = (queue, context, config) => {
       args.push(build(queue, context, config.value));
       type = type === 'k=>' ? 'k=>v=>' : 'v=>>';
     }
-    context.current[0] = streamMap((current, scope, ...keys) =>
-      setOther(
-        current,
-        ([result, ...values], output) =>
-          process(
-            {
-              values: [
-                result,
-                scope,
-                ...keys.reduce((res, k, i) => [...res, values[i], k], []),
-              ],
-              output,
-            },
-            queue => {
-              const ctx = { scope: [1], current: [0] };
-              keys.forEach(
-                (_, i) =>
-                  (ctx.scope[0] = core.assign(queue, [
-                    ctx.scope[0],
-                    2 + 2 * i,
-                    3 + 2 * i,
-                  ])),
-              );
-              const result = build(queue, ctx, config.output);
-              return [ctx.current[0], result];
-            },
-          ),
-        type,
-      ),
+    context.current[0] = streamMap(
+      (current, scope, ...keys) =>
+        setOther(
+          current,
+          ([result, ...values], output) =>
+            process(
+              {
+                values: [
+                  result,
+                  scope,
+                  ...keys.reduce((res, k, i) => [...res, values[i], k], []),
+                ],
+                output,
+              },
+              queue => {
+                const ctx = { scope: [1], current: [0] };
+                keys.forEach(
+                  (_, i) =>
+                    (ctx.scope[0] = core.assign(queue, [
+                      ctx.scope[0],
+                      2 + 2 * i,
+                      3 + 2 * i,
+                    ])),
+                );
+                const result = build(queue, ctx, config.output);
+                return [ctx.current[0], result];
+              },
+            ),
+          type,
+        ),
+      true,
     )(queue, args);
     return core.constant(queue, { type: 'nil' });
   }

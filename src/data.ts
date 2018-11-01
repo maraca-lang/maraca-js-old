@@ -152,7 +152,7 @@ export const resolveDeep = (value, get) => {
   return {
     ...result,
     value: {
-      indices: result.value.indices.map(v => resolveDeep(v, get)),
+      indices: result.value.indices.map(v => v && resolveDeep(v, get)),
       values: Object.keys(result.value.values).reduce(
         (res, k) => ({
           ...res,

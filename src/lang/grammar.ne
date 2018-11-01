@@ -1,5 +1,5 @@
 @{%
-const lexer = require('./lang/lexer').default;
+const lexer = require("./lang/lexer").default;
 const core = x => ({ type: "core", func: x[2][0].value, args: [x[0], x[4]] });
 %}
 @lexer lexer
@@ -104,8 +104,16 @@ list ->
 
 body ->
     body "," line
-      {% x => [...x[0], { type: 'set', value: x[2] }] %}
-  | line {% x => [{ type: 'set', value: x[0] }] %}
+      {% x => [...x[0], { type: "set", value: {
+        type: "core",
+        func: "~",
+        args: [{ type: "value", value: (x[0].length + 1).toString() }, x[2]]
+      } }] %}
+  | line {% x => [{ type: "set", value: {
+        type: "core",
+        func: "~",
+        args: [{ type: "value", value: "1" }, x[0]]
+      } }] %}
 
 line ->
     _ exp _ {% x => x[1] %}
