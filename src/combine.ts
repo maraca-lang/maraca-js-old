@@ -1,4 +1,11 @@
-import { compare, resolveDeep, toData, toKey } from './data';
+import {
+  compare,
+  listGet,
+  listOrNull,
+  resolveDeep,
+  toData,
+  toKey,
+} from './data';
 
 const sortTypes = (v1, v2) => {
   if (v2.type === 'nil') return [v1, v2];
@@ -21,24 +28,6 @@ const getType = (big, small) => {
   return 'nil';
 };
 
-const listGet = (data, key) => {
-  const k = toKey(key);
-  const v =
-    typeof k === 'number'
-      ? data.indices[k]
-      : data.values[k] && data.values[k].value;
-  return v || data.other || { type: 'nil' };
-};
-
-const listOrNull = list => {
-  if (
-    list.indices.length + Object.keys(list.values).length === 0 &&
-    !list.other
-  ) {
-    return { type: 'nil' };
-  }
-  return { type: 'list', value: list };
-};
 const assign = (list = { indices: [], values: {} } as any, value, key) => {
   if (!key) {
     if (value.type === 'nil') return list;
@@ -68,7 +57,7 @@ const run = (v1, v2, get, output) => {
     return { initial: { type: 'value', value: `${big.value} ${small.value}` } };
   }
   if (type === 'get') {
-    const value = listGet(big.value, small);
+    const value = listGet(big, small);
     if (typeof value !== 'function') {
       return { initial: value };
     }
@@ -88,36 +77,29 @@ const run = (v1, v2, get, output) => {
   const keys = [
     ...Array.from({
       length: Math.max(big.value.indices.length, small.value.indices.length),
-    }).map((_, i) => i),
+    }).map((_, i) => toData(i + 1)),
     ...Array.from(
       new Set([
         ...Object.keys(big.value.values),
         ...Object.keys(small.value.values),
       ]),
-    ).sort((a, b) =>
-      compare(
-        (big.value.values[a] || small.value.values[a]).key,
-        (big.value.values[b] || small.value.values[b]).key,
-      ),
-    ),
+    )
+      .map(k => (big.value.values[k] || small.value.values[k]).key)
+      .sort(compare),
   ];
   const stops = [] as any;
   const values = [] as any;
   const runMulti = first => {
     for (let i = first; i < keys.length; i++) {
       if (stops[i]) stops[i]();
-      const k =
-        typeof keys[i] === 'number'
-          ? toData((keys[i] as number) + 1)
-          : (big.value.values[keys[i]] || small.value.values[keys[i]]).key;
       const prev = values[i - 1] ? values[i - 1].combined : { type: 'nil' };
-      const bigValue = listGet(big.value, k);
-      const smallValue = listGet(small.value, k);
+      const bigValue = listGet(big, keys[i]);
+      const smallValue = listGet(small, keys[i]);
       if (typeof bigValue === 'function') {
         const args = [prev];
-        if (big.value.otherType === 'k=>v=>') args.push(k, smallValue);
+        if (big.value.otherType === 'k=>v=>') args.push(keys[i], smallValue);
         if (big.value.otherType === 'v=>>') args.push(smallValue);
-        if (big.value.otherType === 'k=>') args.push(k);
+        if (big.value.otherType === 'k=>') args.push(keys[i]);
 
         const { initial, stop } = bigValue(
           args.map(a => resolveDeep(a, get)),
@@ -127,7 +109,7 @@ const run = (v1, v2, get, output) => {
             values[i].combined =
               values[i].value.type === 'nil'
                 ? values[i].result
-                : assign(values[i].result.value, values[i].value, k);
+                : assign(values[i].result.value, values[i].value, keys[i]);
             output(runMulti(i + 1));
           },
         );
@@ -138,7 +120,7 @@ const run = (v1, v2, get, output) => {
           combined:
             initial[1].type === 'nil'
               ? initial[0]
-              : assign(initial[0].value, initial[1], k),
+              : assign(initial[0].value, initial[1], keys[i]),
         };
       } else {
         const { initial, stop } = (combine as any)(
@@ -149,7 +131,7 @@ const run = (v1, v2, get, output) => {
             values[i].combined = assign(
               values[i].result.value,
               values[i].value,
-              k,
+              keys[i],
             );
             output(runMulti(i + 1));
           },
@@ -158,7 +140,7 @@ const run = (v1, v2, get, output) => {
         values[i] = {
           result: prev,
           value: initial,
-          combined: assign(prev.value, initial, k),
+          combined: assign(prev.value, initial, keys[i]),
         };
       }
     }

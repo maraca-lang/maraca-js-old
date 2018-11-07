@@ -49,24 +49,6 @@ const build = (queue, context, config) => {
       };
     })[0];
   }
-  if (config.type === 'set') {
-    if (
-      !config.key &&
-      !Array.isArray(config.value) &&
-      (config.value.type === 'set' || config.value.type === 'other')
-    ) {
-      return build(queue, context, config.value);
-    }
-    let map: any = core.assign;
-    const args = [build(queue, context, config.value)];
-    if (config.key) {
-      if (config.key === true) map = core.unpack;
-      else args.push(build(queue, context, config.key));
-    }
-    context.scope[0] = map(queue, [context.scope[0], ...args]);
-    context.current[0] = map(queue, [context.current[0], ...args]);
-    return core.constant(queue, { type: 'nil' });
-  }
   if (config.type === 'other') {
     const args = [context.current[0], context.scope[0]];
     let type = config.key ? '=>' : '=>>';
@@ -96,7 +78,7 @@ const build = (queue, context, config) => {
                 const ctx = { scope: [1], current: [0] };
                 keys.forEach(
                   (_, i) =>
-                    (ctx.scope[0] = core.assign(queue, [
+                    (ctx.scope[0] = core.set(true)(queue, [
                       ctx.scope[0],
                       2 + 2 * i,
                       3 + 2 * i,
@@ -110,6 +92,20 @@ const build = (queue, context, config) => {
         ),
       true,
     )(queue, args);
+    return core.constant(queue, { type: 'nil' });
+  }
+  if (config.type === 'set') {
+    if (
+      !config.args[1] &&
+      !Array.isArray(config.args[0]) &&
+      (config.args[0].type === 'set' || config.args[0].type === 'other')
+    ) {
+      return build(queue, context, config.args[0]);
+    }
+    const map = core.set(config.unpack);
+    const args = config.args.map(c => build(queue, context, c));
+    context.scope[0] = map(queue, [context.scope[0], ...args]);
+    context.current[0] = map(queue, [context.current[0], ...args]);
     return core.constant(queue, { type: 'nil' });
   }
   if (config.type === 'core') {
@@ -181,7 +177,9 @@ const build = (queue, context, config) => {
   if (config.type === 'list') {
     context.scope.unshift(core.clearIndices(queue, [context.scope[0]]));
     context.current.unshift(core.constant(queue, { type: 'nil' }));
-    config.values.forEach(c => build(queue, context, c));
+    config.values.forEach(c =>
+      build(queue, context, { type: 'set', args: [c] }),
+    );
     context.scope.shift();
     return context.current.shift();
   }

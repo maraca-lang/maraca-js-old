@@ -175,3 +175,23 @@ export const setOther = (list, other, otherType) => ({
     otherType,
   },
 });
+
+export const listGet = ({ type, value }, key, withOther = true) => {
+  if (type !== 'list') return { type: 'nil' };
+  const k = toKey(key);
+  const v =
+    typeof k === 'number'
+      ? value.indices[k]
+      : value.values[k] && value.values[k].value;
+  return v || (withOther && value.other) || { type: 'nil' };
+};
+
+export const listOrNull = list => {
+  if (
+    list.indices.length + Object.keys(list.values).length === 0 &&
+    !list.other
+  ) {
+    return { type: 'nil' };
+  }
+  return { type: 'list', value: list };
+};

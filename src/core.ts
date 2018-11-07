@@ -2,6 +2,8 @@ import * as chrono from 'chrono-node';
 
 import {
   compare,
+  listGet,
+  listOrNull,
   resolve,
   toData,
   toKey,
@@ -37,62 +39,75 @@ const numericMap = map =>
     return map(...values);
   });
 
-const listMap = map => (queue, [list, ...args]: any) =>
-  queue(1, ({ get, output }) => {
-    const run = () => {
-      const listValue = resolve(list, get);
-      if (listValue.type === 'value') return listValue;
-      const result = map(
-        get,
-        listValue.value || { indices: [], values: {} },
-        ...args,
-      );
-      if (
-        result.indices.length + Object.keys(result.values).length === 0 &&
-        !result.other
-      ) {
-        return { type: 'nil' };
-      }
-      return { type: 'list', value: result };
+const set = (unpack, get, list, v, k) => {
+  if (!k) {
+    const value = v.type === 'stream' ? resolve(v.value, get) : v;
+    if (value.type === 'nil') return list;
+    if (!unpack || value.type === 'value') {
+      return { ...list, indices: [...list.indices, value] };
+    }
+    return {
+      ...list,
+      indices: [...list.indices, ...value.value.indices],
+      values: { ...list.values, ...value.value.values },
     };
-    return { initial: [run()], input: () => output(0, run()) };
-  })[0];
+  }
+  const key = k.type === 'stream' ? resolve(k.value, get) : k;
+  if (unpack && key.type === 'list') {
+    const value = v.type === 'stream' ? resolve(v.value, get) : v;
+    return [
+      ...key.value.indices.map((v, i) => ({ key: toData(i + 1), value: v })),
+      ...Object.keys(key.value.values).map(k => key.value.values[k]),
+    ].reduce(
+      (res, p) => set(unpack, get, res, listGet(value, p.key), p.value),
+      list,
+    );
+  }
+  const objKey = toKey(key);
+  if (typeof objKey === 'number') {
+    const value = v.type === 'stream' ? resolve(v.value, get) : v;
+    const indices = [...list.indices];
+    if (value.type === 'nil') delete indices[objKey];
+    else indices[objKey] = value;
+    return { ...list, indices };
+  }
+  return {
+    ...list,
+    values: {
+      ...list.values,
+      [objKey]: { key, value: v },
+    },
+  };
+};
 
 export default {
   constant: (queue, value) => queue(1, () => ({ initial: [value] }))[0],
-  clearIndices: listMap((_, list) => ({ ...list, indices: [] })),
-  assign: listMap((get, list, value, key) => {
-    if (!key) {
-      const val = resolve(value, get);
-      if (val.type === 'nil') return list;
-      return { ...list, indices: [...list.indices, val] };
-    }
-    const keyValue = resolve(key, get);
-    const k = toKey(keyValue);
-    if (typeof k === 'number') {
-      const val = resolve(value, get);
-      const indices = [...list.indices];
-      if (val.type === 'nil') delete indices[k];
-      else indices[k] = val;
-      return { ...list, indices };
-    }
-    return {
-      ...list,
-      values: {
-        ...list.values,
-        [k]: { key: keyValue, value: { type: 'stream', value } },
-      },
-    };
-  }),
-  unpack: listMap((get, list, value) => {
-    const val = resolve(value, get);
-    if (val.type !== 'list') return list;
-    return {
-      ...list,
-      indices: [...list.indices, ...val.value.indices],
-      values: { ...list.values, ...val.value.values },
-    };
-  }),
+  clearIndices: streamMap(
+    ({ type, value }) =>
+      type === 'list' ? listOrNull({ ...value, indices: [] }) : { type: 'nil' },
+  ),
+  set: unpack => (queue, [l, v, k]: any) =>
+    queue(1, ({ get, output }) => {
+      const run = () => {
+        const list = resolve(l, get);
+        if (list.type === 'value') return list;
+        const result = set(
+          unpack,
+          get,
+          list.value || { indices: [], values: {} },
+          { type: 'stream', value: v },
+          k && { type: 'stream', value: k },
+        );
+        if (
+          result.indices.length + Object.keys(result.values).length === 0 &&
+          !result.other
+        ) {
+          return { type: 'nil' };
+        }
+        return { type: 'list', value: result };
+      };
+      return { initial: [run()], input: () => output(0, run()) };
+    }),
   '@@': (queue, [arg]) =>
     queue(1, ({ get, output }) => {
       let unlisten;

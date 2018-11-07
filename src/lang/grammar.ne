@@ -25,19 +25,17 @@ expother ->
 
 expset ->
     expset _ ":=?"
-      {% x =>
-        ({ type: "set", key: x[0], value: [x[0], { type: "context" }] })
-      %}
+      {% x => ({ type: "set", args: [[x[0], { type: "context" }], x[0]] }) %}
   | expset _ ":="
-      {% x => ({ type: "set", key: x[0], value: x[0] }) %}
+      {% x => ({ type: "set", args: [x[0], x[0]] }) %}
   | expid _ ":" _ expset
-      {% x => ({ type: "set", key: x[0], value: x[4] }) %}
-  | "::" _ expset
-      {% x => ({ type: "set", value: x[2] }) %}
+      {% x => ({ type: "set", args: [x[4], x[0]] }) %}
   | ":" _ expset
-      {% x => ({ type: "set", key: { type: "nil" }, value: x[2] }) %}
-  | "..." _ expset
-      {% x => ({ type: "set", key: true, value: x[2] }) %}
+      {% x => ({ type: "set", args: [x[2], { type: "nil" }] }) %}
+  | expid _ "::" _ expset
+      {% x => ({ type: "set", unpack: true, args: [x[4], x[0]] }) %}
+  | "::" _ expset
+      {% x => ({ type: "set", unpack: true, args: [x[2]] }) %}
   | expid {% id %}
 
 expid ->
@@ -103,17 +101,8 @@ list ->
       ] %}
 
 body ->
-    body "," line
-      {% x => [...x[0], { type: "set", value: {
-        type: "core",
-        func: "~",
-        args: [{ type: "value", value: (x[0].length + 1).toString() }, x[2]]
-      } }] %}
-  | line {% x => [{ type: "set", value: {
-        type: "core",
-        func: "~",
-        args: [{ type: "value", value: "1" }, x[0]]
-      } }] %}
+    body "," line {% x => [...x[0], x[2]] %}
+  | line {% x => [x[0]] %}
 
 line ->
     _ exp _ {% x => x[1] %}

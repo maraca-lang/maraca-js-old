@@ -33,11 +33,11 @@ const script = `
 
   data: data?
     [v=>> (##(filter? [:1, x=> "(" .. x? .. ")"]) v?, v?)]
-    [k=> v=> [...##("[" .. sort? .. "]") v?, ##(filter?) v?, k?]: v?]
-    [v=>> :: v?]
-    [k=> v=> [index: k?, ...v?]]
+    [k=> v=> [:: ##("[" .. sort? .. "]") v?, ##(filter?) v?, k?]: v?]
+    [v=>> :: [v?]]
+    [k=> v=> [index: k?, :: v?]]
     [k=> v=> (##(limit? [:1, x=> "(" .. x? .. ")"]) k?, v?)]
-    [v=>> :: v?],
+    [v=>> :: [v?]],
 
   [class: container "mt-4",
     [:table, class: table, style: [tableDisplay: fixed],
@@ -63,7 +63,7 @@ const script = `
         ],
         [:tr,
           [:th, scope: col, "#"],
-          ...
+          ::
           fields?
           [f=>> [:th, scope: col, f?]],
           [:th, scope: col, style: [width: 300px],
@@ -76,12 +76,12 @@ const script = `
         ]
       ],
       [:tbody,
-        ...
+        ::
         data?
         [k=> v=>
           [:tr,
             [:th, scope: row, v? index],
-            ...
+            ::
             fields?
             [f=>> [:td, f? [DOB: #time f? (v?), => f? (v?)]]],
             [:td, ##(formula?) v?],
@@ -90,7 +90,7 @@ const script = `
       ]
     ],
     [:map,
-      ...data? [v=>> [v? Address, info: [:h1, v? (First name)]]]
+      :: data? [v=>> [v? Address, info: [:h1, v? (First name)]]]
     ],
     [:chart,
       type: pie,
@@ -108,13 +108,7 @@ const script = `
 `;
 
 // const script = `
-// {
-//   x: *,
-//   [
-//     x? [bill: "", k => k?],
-//     [:input, value: x?]
-//   ]
-// }
+// [[a, x: b]:: [c, x: d]]
 // `;
 
 // run(script, toData({ data }), data =>
@@ -125,9 +119,4 @@ const root = document.createElement('div');
 root.id = 'root';
 document.body.appendChild(root);
 
-run(
-  script,
-  toData({ data }),
-  data =>
-    (console.log(JSON.stringify(data, null, 2)) as any) || render(root, data),
-);
+run(script, toData({ data }), data => render(root, data));
