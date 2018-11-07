@@ -32,11 +32,11 @@ const script = `
   formula: *,
 
   data: data?
-    [v=>> (##(filter? [:1, x=> "(" .. x? .. ")"]) v?, v?)]
-    [k=> v=> [:: ##("[" .. sort? .. "]") v?, ##(filter?) v?, k?]: v?]
+    [v=>> (##(filter? [:1, x=> "(".x?.")"]) v?, v?)]
+    [k=> v=> [:: ##("[".sort?."]") v?, ##(filter?) v?, k?]: v?]
     [v=>> :: [v?]]
     [k=> v=> [index: k?, :: v?]]
-    [k=> v=> (##(limit? [:1, x=> "(" .. x? .. ")"]) k?, v?)]
+    [k=> v=> (##(limit? [:1, x=> "(".x?.")"]) k?, v?)]
     [v=>> :: [v?]],
 
   [class: container "mt-4",
@@ -83,14 +83,14 @@ const script = `
             [:th, scope: row, v? index],
             ::
             fields?
-            [f=>> [:td, f? [DOB: #time f? (v?), => f? (v?)]]],
+            [f=>> [:td, f? [DOB: #time f?.v?, => f?.v?]]],
             [:td, ##(formula?) v?],
           ]
         ]
       ]
     ],
     [:map,
-      :: data? [v=>> [v? Address, info: [:h1, v? (First name)]]]
+      :: data? [v=>> [v? Address, info: [:h1, v?.First name]]]
     ],
     [:chart,
       type: pie,
@@ -98,9 +98,7 @@ const script = `
       [
         label: My first chart,
         backgroundColor: [red, blue, green],
-        #size data? [v=>> v? Category == Red],
-        #size data? [v=>> v? Category == Blue],
-        #size data? [v=>> v? Category == Green],
+        :: [Red, Blue, Green][c=>> #size data? [v=>> v? Category == c?]],
       ],
     ]
   ]

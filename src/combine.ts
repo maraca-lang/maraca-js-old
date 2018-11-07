@@ -46,7 +46,7 @@ const assign = (list = { indices: [], values: {} } as any, value, key) => {
   });
 };
 
-const run = (v1, v2, get, output) => {
+const run = (v1, v2, get, output, tight) => {
   const [big, small] = sortTypes(v1, v2);
   const reverse = big !== v1;
   const type = getType(big, small);
@@ -54,7 +54,12 @@ const run = (v1, v2, get, output) => {
     return { initial: { type: 'nil' } };
   }
   if (type === 'join') {
-    return { initial: { type: 'value', value: `${big.value} ${small.value}` } };
+    return {
+      initial: {
+        type: 'value',
+        value: `${big.value}${tight ? '' : ' '}${small.value}`,
+      },
+    };
   }
   if (type === 'get') {
     const value = listGet(big, small);
@@ -154,13 +159,13 @@ const run = (v1, v2, get, output) => {
   };
 };
 
-const combine = (s1, s2, get, output) => {
-  let { initial, stop } = run(s1, s2, get, output);
+const combine = (s1, s2, get, output, tight) => {
+  let { initial, stop } = run(s1, s2, get, output, tight);
   return {
     initial,
     input: (s1, s2) => {
       if (stop) stop();
-      ({ initial, stop } = run(s1, s2, get, output));
+      ({ initial, stop } = run(s1, s2, get, output, tight));
       output(initial);
     },
     stop: () => {

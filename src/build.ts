@@ -34,21 +34,6 @@ const evalInContext = code =>
   );
 
 const build = (queue, context, config) => {
-  if (Array.isArray(config)) {
-    const args = config.map(c => build(queue, context, c));
-    return queue(1, ({ get, output }) => {
-      const { initial, input } = combine(
-        resolve(args[0], get),
-        resolve(args[1], get),
-        get,
-        v => output(0, v),
-      );
-      return {
-        initial: [initial],
-        input: () => input(resolve(args[0], get), resolve(args[1], get)),
-      };
-    })[0];
-  }
   if (config.type === 'other') {
     const args = [context.current[0], context.scope[0]];
     let type = config.key ? '=>' : '=>>';
@@ -174,7 +159,32 @@ const build = (queue, context, config) => {
       };
     })[0];
   }
+  if (config.type === 'combine') {
+    const args = config.args.map(c => build(queue, context, c));
+    return queue(1, ({ get, output }) => {
+      const { initial, input } = combine(
+        resolve(args[0], get),
+        resolve(args[1], get),
+        get,
+        v => output(0, v),
+        config.tight,
+      );
+      return {
+        initial: [initial],
+        input: () => input(resolve(args[0], get), resolve(args[1], get)),
+      };
+    })[0];
+  }
   if (config.type === 'list') {
+    if (config.bracket !== '[') {
+      return build(queue, context, {
+        type: 'combine',
+        args: [
+          toData(config.bracket === '(' ? config.values.length : 1),
+          { ...config, bracket: '[' },
+        ],
+      });
+    }
     context.scope.unshift(core.clearIndices(queue, [context.scope[0]]));
     context.current.unshift(core.constant(queue, { type: 'nil' }));
     config.values.forEach(c =>

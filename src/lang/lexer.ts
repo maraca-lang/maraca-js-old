@@ -4,13 +4,13 @@ import * as dedent from 'dedent';
 const toData = s => (s ? { type: 'value', value: s } : { type: 'nil' });
 
 export default moo.compile({
-  multi: ['=>>', '=>', '<=', '>=', '==', ':=?', ':=', '::', '..', '##', '@@'],
+  multi: ['=>>', '=>', '<=', '>=', '==', ':=?', ':=', '::', '##', '@@'],
   brackets: ['[', ']', '(', ')', '{', '}'],
   comparison: ['<', '>', '='],
   arithmetic: ['+', '-', '*', '/', '%', '^'],
-  misc: [',', '?', ':', '~', '&', '!', '#', '@'],
+  misc: [',', '?', ':', '~', '&', '!', '#', '@', '.'],
   value: {
-    match: /(?:\d*\.?\d+)|(?:[a-zA-Z0-9]+)/,
+    match: /(?:\d*\.\d+)|(?:[a-zA-Z0-9]+)|(?:\d+)/,
     value: s => toData(s),
   },
   string: {
