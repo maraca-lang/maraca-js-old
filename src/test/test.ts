@@ -106,7 +106,20 @@ const script = `
 `;
 
 // const script = `
-// [[a, x: b]:: [c, x: d]]
+// {
+//   url: #url,
+//   [
+//     [
+//       [:a, Home],
+//       [:a, href: about, About],
+//     ],
+//     url? [
+//       : [:p, "Hi!"],
+//       about: [:p, "About!"],
+//       => [:p, "Not found..."]
+//     ],
+//   ]
+// }
 // `;
 
 // run(script, toData({ data }), data =>

@@ -2,7 +2,8 @@ import * as Chart from 'chart.js';
 import * as loadScript from 'load-script';
 import * as debounce from 'lodash.debounce';
 
-import { toTypedValue } from './data';
+import { history } from '../build';
+import { toTypedValue } from '../data';
 
 const mapListeners = [] as any[];
 const withMapScript = onReady => {
@@ -81,7 +82,7 @@ const shallowEqual = (a, b) => {
   return true;
 };
 
-const diffValues = (next = [], prev = [], update) => {
+const diffValues = (next = [] as any[], prev = [] as any[], update) => {
   const n = valuesToObject(next);
   const p = valuesToObject(prev);
   for (const k of Array.from(new Set([...Object.keys(n), ...Object.keys(p)]))) {
@@ -113,20 +114,41 @@ const modes = {
       return node;
     },
     update: (node, next, prev) => {
-      diffValues(next.values, prev.values, (k, v, p) => {
-        if (k === 'value' && v.set) {
-          node.oninput = debounce(e => v.set(e.target.value), 1000);
-        }
-        if (k === 'style') {
-          diffValues(v && v.values, p && p.values, (k, v) => {
-            node.style[k] = v.value || '';
-          });
-        } else if (k === 'class') {
-          node.className = v.value || '';
-        } else {
-          node[k] = v.value || '';
-        }
-      });
+      diffValues(
+        [
+          ...(next.tag === 'a'
+            ? [
+                {
+                  key: { type: 'value', value: 'href' },
+                  value: { type: 'nil' },
+                },
+              ]
+            : []),
+          ...next.values,
+        ],
+        prev.values,
+        (k, v, p) => {
+          if (k === 'value' && v.set) {
+            node.oninput = debounce(e => v.set(e.target.value), 1000);
+          }
+          if (k === 'style') {
+            diffValues(v && v.values, p && p.values, (k, v) => {
+              node.style[k] = v.value || '';
+            });
+          } else if (k === 'class') {
+            node.className = v.value || '';
+          } else if (k === 'href') {
+            const url = `/${v.type === 'value' ? v.value : ''}`;
+            node.href = url;
+            node.onclick = e => {
+              e.preventDefault();
+              history.push(url);
+            };
+          } else {
+            node[k] = v.value || '';
+          }
+        },
+      );
       const children = [...node.childNodes];
       const dataPairs = next.indices.map(v => {
         const i = children.findIndex(c => c.__data.id === v.id);

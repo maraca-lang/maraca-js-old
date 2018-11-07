@@ -215,4 +215,21 @@ export default {
   '/': numericMap((a, b) => a / b),
   '%': numericMap((a, b) => ((a % b) + b) % b),
   '^': numericMap((a, b) => a ** b),
+  '&': (queue, args) => {
+    const revArgs = [...args].reverse();
+    return queue(1, ({ get, output }) => {
+      let prev = [] as any[];
+      const run = () => {
+        const values = revArgs.map(a => resolve(a, get));
+        const changed = values.findIndex((v, i) => v !== prev[i]);
+        const setters = values.filter(v => v.set);
+        prev = values;
+        return {
+          ...values[changed],
+          ...(setters.length === 1 ? { set: setters[0].set } : {}),
+        };
+      };
+      return { initial: [run()], input: () => output(0, run()) };
+    });
+  },
 };

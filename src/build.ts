@@ -1,3 +1,5 @@
+import { createBrowserHistory, createMemoryHistory } from 'history';
+
 import core, { streamMap } from './core';
 import { resolve, resolveDeep, setOther, toData, toTypedValue } from './data';
 import combine from './combine';
@@ -8,6 +10,11 @@ const evalDataMap = map => (value, { output }) => ({
   initial: toData(map(value)),
   input: value => output(toData(map(value))),
 });
+
+export const history =
+  typeof window === 'undefined'
+    ? createMemoryHistory()
+    : createBrowserHistory();
 
 const evalContext = {
   time: evalDataMap(x => {
@@ -26,6 +33,18 @@ const evalContext = {
           Object.keys(x.value.values).length
         : '0',
   ),
+  url: (_, { output }) => {
+    const run = v => history.push(`/${v.type === 'value' ? v.value : ''}`);
+    const toValue = location => ({
+      ...toData(location.pathname.slice(1)),
+      set: v => run(toData(v)),
+    });
+    return {
+      initial: toValue(history.location),
+      input: run,
+      stop: history.listen(location => output(toValue(location))),
+    };
+  },
 };
 
 const evalInContext = code =>
@@ -82,7 +101,6 @@ const build = (queue, context, config) => {
   if (config.type === 'set') {
     if (
       !config.args[1] &&
-      !Array.isArray(config.args[0]) &&
       (config.args[0].type === 'set' || config.args[0].type === 'other')
     ) {
       return build(queue, context, config.args[0]);
@@ -98,23 +116,6 @@ const build = (queue, context, config) => {
       queue,
       config.args.map(c => build(queue, context, c)),
     );
-  }
-  if (config.type === 'merge') {
-    const args = config.args.map(c => build(queue, context, c)).reverse();
-    return queue(1, ({ get, output }) => {
-      let prev = [];
-      const run = () => {
-        const values = args.map(a => resolve(a, get));
-        const changed = values.findIndex((v, i) => v !== prev[i]);
-        const setters = values.filter(v => v.set);
-        prev = values;
-        return {
-          ...values[changed],
-          ...(setters.length === 1 ? { set: setters[0].set } : {}),
-        };
-      };
-      return { initial: [run()], input: () => output(0, run()) };
-    });
   }
   if (config.type === 'eval') {
     const code = build(queue, context, config.code);

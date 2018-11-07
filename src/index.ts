@@ -3,6 +3,9 @@ import { compare } from './data';
 import parse from './parse';
 import process from './process';
 
+export { default as parse } from './parse';
+export { default as render } from './render';
+
 const prepareData = ({ type, value, set, id }) => {
   const idValue = id && id.type === 'value' && id.value;
   if (type !== 'list') return { type, value, set, id: idValue };

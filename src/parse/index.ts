@@ -1,7 +1,7 @@
 import { Grammar, Parser } from 'nearley';
 
-import * as grammar from '../lib/grammar';
-import lexer from './lang/lexer';
+import * as grammar from '../../lib/grammar';
+import lexer from './lexer';
 
 export default script => {
   try {

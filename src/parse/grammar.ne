@@ -1,5 +1,5 @@
 @{%
-const lexer = require("./lang/lexer").default;
+const lexer = require("./parse/lexer").default;
 const core = x => ({ type: "core", func: x[2][0].value, args: [x[0], x[4]] });
 %}
 @lexer lexer
@@ -64,7 +64,7 @@ expprod ->
 	| expmerge {% id %}
 
 expmerge ->
-	  expmerge _ "&" _ exppow {% x => ({ type: "merge", args: [x[0], x[4]] }) %}
+	  expmerge _ ("&") _ exppow {% core %}
 	| exppow {% id %}
 
 exppow ->
@@ -97,11 +97,19 @@ atom -> (list | value | any | context) {% x => x[0][0] %}
 
 list ->
     (("[" body "]") | ("(" body ")") | ("{" body "}"))
-      {% x => ({
-        type: "list",
-        bracket: x[0][0][0].text,
-        values: x[0][0][1],
-      }) %}
+      {% x => {
+        const values = x[0][0][1];
+        let i = values.length - 1;
+        while (i >= 0 && values[i].type === "nil") {
+          values.pop();
+          i--;
+        }
+        return ({
+          type: "list",
+          bracket: x[0][0][0].text,
+          values: x[0][0][1],
+        });
+      } %}
 
 body ->
     body "," line {% x => [...x[0], x[2]] %}
