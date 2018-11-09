@@ -143,7 +143,7 @@ exppow ->
   | expuni {% id %}
 
 expuni ->
-    ("@@" | "@" | "-") _ expcomb2
+    ("@@" | "@" | "-") _ expcomb3
       {% x => ({
         type: "core",
         func: x[0][0].value,
@@ -151,7 +151,7 @@ expuni ->
         start: x[0][0].offset,
         end: x[2].end,
       }) %}
-  | "##" _ atom _ expcomb2 
+  | "##" _ atom _ expcomb3 
       {% x => ({
         type: "eval",
         code: x[2],
@@ -167,7 +167,7 @@ expuni ->
         start: x[0].offset,
         end: x[2].end,
       }) %}
-  | "#" _ atom _ expcomb2 
+  | "#" _ atom _ expcomb3 
       {% x => ({
         type: "js",
         code: x[2],
@@ -183,13 +183,24 @@ expuni ->
         start: x[0].offset,
         end: x[2].end,
       }) %}
+	| expcomb3 {% id %}
+
+expcomb3 ->
+	  expcomb3 _ "_" _ expcomb2
+      {% x => ({
+        type: "combine",
+        level: 3,
+        args: [x[0], x[4]],
+        start: x[0].start,
+        end: x[4].end,
+      }) %}
 	| expcomb2 {% id %}
 
 expcomb2 ->
 	  expcomb2 _ "." _ expcomb1
       {% x => ({
         type: "combine",
-        tight: true,
+        level: 2,
         args: [x[0], x[4]],
         start: x[0].start,
         end: x[4].end,
@@ -200,13 +211,14 @@ expcomb1 ->
 	  expcomb1 _ atom
       {% x => ({
         type: "combine",
+        level: 1,
         args: [x[0], x[2]],
         start: x[0].start,
         end: x[2].end,
       }) %}
 	| atom {% id %}
 
-atom -> (list | value | any | context) {% x => x[0][0] %}
+atom -> (list | value | any | space | context) {% x => x[0][0] %}
 
 list ->
     (("[" body "]") | ("(" body ")") | ("{" body "}"))
@@ -250,6 +262,14 @@ value ->
 any ->
     "*" {% x => ({
       type: "any",
+      start: x[0].offset,
+      end: x[0].offset + x[0].text.length,
+    }) %}
+
+space ->
+    "_" {% x => ({
+      type: "value",
+      value: " ",
       start: x[0].offset,
       end: x[0].offset + x[0].text.length,
     }) %}

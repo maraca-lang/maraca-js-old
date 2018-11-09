@@ -1,5 +1,6 @@
 import * as moo from 'moo';
-import * as dedent from 'dedent';
+
+import dedent from './dedent';
 
 const toData = s => (s ? { type: 'value', value: s } : { type: 'nil' });
 
@@ -8,9 +9,9 @@ export default moo.compile({
   brackets: ['[', ']', '(', ')', '{', '}'],
   comparison: ['<', '>', '='],
   arithmetic: ['+', '-', '*', '/', '%', '^'],
-  misc: [',', '?', ':', '~', '&', '!', '#', '@', '.'],
+  misc: [',', '?', ':', '~', '&', '!', '#', '@', '.', '_'],
   value: {
-    match: /(?:\d*\.\d+)|(?:[a-zA-Z0-9]+)|(?:\d+)/,
+    match: /(?:\d*\.\d+)|(?:[a-zA-Z0-9]+)/,
     value: s => toData(s),
   },
   string: {

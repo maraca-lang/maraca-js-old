@@ -152,6 +152,7 @@ export const resolveDeep = (value, get) => {
   return {
     ...result,
     value: {
+      ...result.value,
       indices: result.value.indices.reduce((res, v, i) => {
         const r = v && resolveDeep(v, get);
         if (r && r.type !== 'nil') res[i] = r;
