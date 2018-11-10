@@ -1,4 +1,5 @@
 export const toData = value => {
+  if (value === 0) return { type: 'value', value: '0' };
   if (!value) return { type: 'nil' };
   if (value === true) return { type: 'value', value: '1' };
   if (typeof value === 'number') return { type: 'value', value: `${value}` };

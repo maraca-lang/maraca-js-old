@@ -24,8 +24,7 @@ const getType = (big, small) => {
     return ['=>', 'k=>'].includes(big.value.otherType) ? 'get' : 'multi';
   }
   if (big.type === 'list') return 'get';
-  if (small.type === 'value') return 'join';
-  return 'nil';
+  return 'join';
 };
 
 const assign = (list = { indices: [], values: {} } as any, value, key) => {
@@ -50,16 +49,11 @@ const run = (v1, v2, get, output, tight) => {
   const [big, small] = sortTypes(v1, v2);
   const reverse = big !== v1;
   const type = getType(big, small);
-  if (type === 'nil') {
-    return { initial: { type: 'nil' } };
-  }
   if (type === 'join') {
-    return {
-      initial: {
-        type: 'value',
-        value: `${big.value}${tight ? '' : ' '}${small.value}`,
-      },
-    };
+    const v1 = (reverse ? small.value : big.value) || '';
+    const v2 = (reverse ? big.value : small.value) || '';
+    const join = small.value && big.value && !tight ? ' ' : '';
+    return { initial: { type: 'value', value: v1 + join + v2 } };
   }
   if (type === 'get') {
     const value = listGet(big, small);

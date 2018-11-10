@@ -25,7 +25,11 @@ const prepareData = ({ type, value, set, id }) => {
   };
 };
 
-export default ({ modules, index }, initial, methods, output) => {
+export default (source, initial, methods, output) => {
+  const { modules, index } =
+    typeof source === 'string'
+      ? { modules: { index: source }, index: 'index' }
+      : source;
   const parsed = Object.keys(modules).reduce(
     (res, k) => ({ ...res, [k]: parse(modules[k]) }),
     {},

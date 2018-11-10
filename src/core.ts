@@ -82,9 +82,8 @@ const set = (unpack, get, list, v, k) => {
 
 export default {
   constant: (queue, value) => queue(1, () => ({ initial: [value] }))[0],
-  clearIndices: streamMap(
-    ({ type, value }) =>
-      type === 'list' ? listOrNull({ ...value, indices: [] }) : { type: 'nil' },
+  clearIndices: streamMap(({ type, value }) =>
+    type === 'list' ? listOrNull({ ...value, indices: [] }) : { type: 'nil' },
   ),
   set: unpack => (queue, [l, v, k]: any) =>
     queue(1, ({ get, output }) => {
@@ -189,7 +188,7 @@ export default {
     const v1 = toTypedValue(a);
     const v2 = toTypedValue(b);
     if (v1.type !== v2.type) return null;
-    if (v1.type === 'number') return v1.value - v2.value;
+    if (['integer', 'number'].includes(v1.type)) return v1.value - v2.value;
     if (v1.type === 'time') {
       return (v1.value.getTime() - v2.value.getTime()) / 60000;
     }
@@ -232,4 +231,8 @@ export default {
       return { initial: [run()], input: () => output(0, run()) };
     });
   },
+  _: dataMap((a, b) => {
+    if (a.type === 'list' || b.type === 'list') return null;
+    return `${a.value || ''} ${b.value || ''}`;
+  }),
 };

@@ -143,7 +143,7 @@ exppow ->
   | expuni {% id %}
 
 expuni ->
-    ("@@" | "@" | "-") _ expcomb3
+    ("@@" | "@" | "-") _ expjoin
       {% x => ({
         type: "core",
         func: x[0][0].value,
@@ -151,7 +151,7 @@ expuni ->
         start: x[0][0].offset,
         end: x[2].end,
       }) %}
-  | "##" _ atom _ expcomb3 
+  | "##" _ unit _ expjoin 
       {% x => ({
         type: "eval",
         code: x[2],
@@ -159,7 +159,7 @@ expuni ->
         start: x[0].offset,
         end: x[4].end,
       }) %}
-  | "##" _ atom 
+  | "##" _ unit 
       {% x => ({
         type: "eval",
         code: x[2],
@@ -167,7 +167,7 @@ expuni ->
         start: x[0].offset,
         end: x[2].end,
       }) %}
-  | "#" _ atom _ expcomb3 
+  | "#" _ unit _ expjoin 
       {% x => ({
         type: "js",
         code: x[2],
@@ -175,7 +175,7 @@ expuni ->
         start: x[0].offset,
         end: x[4].end,
       }) %}
-  | "#" _ atom 
+  | "#" _ unit 
       {% x => ({
         type: "js",
         code: x[2],
@@ -183,42 +183,37 @@ expuni ->
         start: x[0].offset,
         end: x[2].end,
       }) %}
-	| expcomb3 {% id %}
+	| expjoin {% id %}
 
-expcomb3 ->
-	  expcomb3 _ "_" _ expcomb2
+expjoin ->
+	  expjoin _ ("_") _ exptight {% core %}
+	| exptight {% id %}
+
+exptight ->
+	  exptight _ "." _ expcomb
       {% x => ({
         type: "combine",
-        level: 3,
+        tight: true,
         args: [x[0], x[4]],
         start: x[0].start,
         end: x[4].end,
       }) %}
-	| expcomb2 {% id %}
+	| expcomb {% id %}
 
-expcomb2 ->
-	  expcomb2 _ "." _ expcomb1
+expcomb ->
+	  expcomb _ unit
       {% x => ({
         type: "combine",
-        level: 2,
-        args: [x[0], x[4]],
-        start: x[0].start,
-        end: x[4].end,
-      }) %}
-	| expcomb1 {% id %}
-
-expcomb1 ->
-	  expcomb1 _ atom
-      {% x => ({
-        type: "combine",
-        level: 1,
         args: [x[0], x[2]],
         start: x[0].start,
         end: x[2].end,
       }) %}
+  | unit {% id %}
 	| atom {% id %}
 
-atom -> (list | value | any | space | context) {% x => x[0][0] %}
+unit -> (list | value | context) {% x => x[0][0] %}
+
+atom -> (any | space) {% x => x[0][0] %}
 
 list ->
     (("[" body "]") | ("(" body ")") | ("{" body "}"))
@@ -259,6 +254,13 @@ value ->
         end: x[0][0].offset + x[0][0].text.length,
       }) %}
 
+context ->
+    "?" {% x => ({
+      type: "context",
+      start: x[0].offset,
+      end: x[0].offset + x[0].text.length,
+    }) %}
+
 any ->
     "*" {% x => ({
       type: "any",
@@ -270,13 +272,6 @@ space ->
     "_" {% x => ({
       type: "value",
       value: " ",
-      start: x[0].offset,
-      end: x[0].offset + x[0].text.length,
-    }) %}
-
-context ->
-    "?" {% x => ({
-      type: "context",
       start: x[0].offset,
       end: x[0].offset + x[0].text.length,
     }) %}

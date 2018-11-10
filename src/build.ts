@@ -126,7 +126,7 @@ const build = (methods, queue, context, config) => {
         resolve(args[1], get),
         get,
         v => output(0, v),
-        config.level === 2,
+        config.tight,
       );
       return {
         initial: [initial],
@@ -140,7 +140,14 @@ const build = (methods, queue, context, config) => {
         type: 'combine',
         args: [
           toData(config.bracket === '(' ? config.values.length : 1),
-          { ...config, bracket: '[' },
+          {
+            type: 'list',
+            bracket: '[',
+            values: [
+              ...config.values,
+              { type: 'other', key: true, output: { type: 'nil' } },
+            ],
+          },
         ],
       });
     }
