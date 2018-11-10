@@ -153,13 +153,13 @@ var step1b = function(s) {
     return rgxSFXatORblORiz.test(sd)
       ? sd + 'e'
       : // or
-        rgxDouble.test(sd)
-        ? sd.replace(/.$/, '')
-        : // or
-          isShort(sd) && rgn.r1 === ''
-          ? sd + 'e'
-          : // or
-            sd;
+      rgxDouble.test(sd)
+      ? sd.replace(/.$/, '')
+      : // or
+      isShort(sd) && rgn.r1 === ''
+      ? sd + 'e'
+      : // or
+        sd;
   }
   return s;
 };
@@ -216,8 +216,8 @@ var step4 = function(s) {
     return rgxSFXstep4.test(s)
       ? s.replace(rgxSFXstep4, '')
       : rgxSFXstep4ion.test(s)
-        ? s.replace(rgxSFXstep4ion, '$1$2')
-        : s;
+      ? s.replace(rgxSFXstep4ion, '$1$2')
+      : s;
   }
   return s;
 };
