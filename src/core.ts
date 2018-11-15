@@ -81,7 +81,11 @@ const set = (unpack, get, list, v, k) => {
 };
 
 export default {
-  constant: (queue, value) => queue(1, () => ({ initial: [value] }))[0],
+  constant: (queue, value) =>
+    queue(1, ({ output }) => {
+      const set = v => output(0, { ...toData(v), set });
+      return { initial: [{ ...value, set }] };
+    })[0],
   clearIndices: streamMap(({ type, value }) =>
     type === 'list' ? listOrNull({ ...value, indices: [] }) : { type: 'nil' },
   ),

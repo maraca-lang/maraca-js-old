@@ -82,6 +82,13 @@ expset ->
         start: x[0].start,
         end: x[4].end,
       }) %}
+  | expset _ ":"
+      {% x => ({
+        type: "set",
+        args: [{ type: "nil" }, x[0]],
+        start: x[0].start,
+        end: x[2].offset + x[2].text.length,
+      }) %}
   | ":" _ expset
       {% x => ({
         type: "set",
@@ -143,7 +150,7 @@ exppow ->
   | expuni {% id %}
 
 expuni ->
-    ("@@" | "@" | "-") _ expjoin
+    ("@@" | "@" | "-") _ exptight
       {% x => ({
         type: "core",
         func: x[0][0].value,
@@ -151,7 +158,7 @@ expuni ->
         start: x[0][0].offset,
         end: x[2].end,
       }) %}
-  | "##" _ unit _ expjoin 
+  | "##" _ atom _ exptight 
       {% x => ({
         type: "eval",
         code: x[2],
@@ -159,7 +166,7 @@ expuni ->
         start: x[0].offset,
         end: x[4].end,
       }) %}
-  | "##" _ unit 
+  | "##" _ atom 
       {% x => ({
         type: "eval",
         code: x[2],
@@ -167,7 +174,7 @@ expuni ->
         start: x[0].offset,
         end: x[2].end,
       }) %}
-  | "#" _ unit _ expjoin 
+  | "#" _ atom _ exptight 
       {% x => ({
         type: "js",
         code: x[2],
@@ -175,7 +182,7 @@ expuni ->
         start: x[0].offset,
         end: x[4].end,
       }) %}
-  | "#" _ unit 
+  | "#" _ atom 
       {% x => ({
         type: "js",
         code: x[2],
@@ -183,10 +190,6 @@ expuni ->
         start: x[0].offset,
         end: x[2].end,
       }) %}
-	| expjoin {% id %}
-
-expjoin ->
-	  expjoin _ ("_") _ exptight {% core %}
 	| exptight {% id %}
 
 exptight ->
@@ -194,26 +197,23 @@ exptight ->
       {% x => ({
         type: "combine",
         tight: true,
-        args: [x[0], x[4]],
+        args: [...(x[0].tight ? x[0].args : [x[0]]), x[4]],
         start: x[0].start,
         end: x[4].end,
       }) %}
 	| expcomb {% id %}
 
 expcomb ->
-	  expcomb _ unit
+	  expcomb _ atom
       {% x => ({
         type: "combine",
-        args: [x[0], x[2]],
+        args: [...(x[0].type === "combine" ? x[0].args : [x[0]]), x[2]],
         start: x[0].start,
         end: x[2].end,
       }) %}
-  | unit {% id %}
-	| atom {% id %}
+  | atom {% id %}
 
-unit -> (list | value | context) {% x => x[0][0] %}
-
-atom -> (any | space) {% x => x[0][0] %}
+atom -> (list | value | space | context) {% x => x[0][0] %}
 
 list ->
     (("[" body "]") | ("(" body ")") | ("{" body "}"))
@@ -254,24 +254,17 @@ value ->
         end: x[0][0].offset + x[0][0].text.length,
       }) %}
 
-context ->
-    "?" {% x => ({
-      type: "context",
-      start: x[0].offset,
-      end: x[0].offset + x[0].text.length,
-    }) %}
-
-any ->
-    "*" {% x => ({
-      type: "any",
-      start: x[0].offset,
-      end: x[0].offset + x[0].text.length,
-    }) %}
-
 space ->
     "_" {% x => ({
       type: "value",
       value: " ",
+      start: x[0].offset,
+      end: x[0].offset + x[0].text.length,
+    }) %}
+
+context ->
+    "?" {% x => ({
+      type: "context",
       start: x[0].offset,
       end: x[0].offset + x[0].text.length,
     }) %}

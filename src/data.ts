@@ -1,7 +1,7 @@
 export const toData = value => {
   if (value === 0) return { type: 'value', value: '0' };
   if (!value) return { type: 'nil' };
-  if (value === true) return { type: 'value', value: '1' };
+  if (value === true) return { type: 'value', value: 'true' };
   if (typeof value === 'number') return { type: 'value', value: `${value}` };
   if (typeof value === 'string') return { type: 'value', value };
   if (Object.prototype.toString.call(value) === '[object Date]') {

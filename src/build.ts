@@ -119,20 +119,24 @@ const build = (methods, queue, context, config) => {
     })[0];
   }
   if (config.type === 'combine') {
-    const args = config.args.map(c => build(methods, queue, context, c));
-    return queue(1, ({ get, output }) => {
-      const { initial, input } = combine(
-        resolve(args[0], get),
-        resolve(args[1], get),
-        get,
-        v => output(0, v),
-        config.tight,
+    return config.args
+      .map(c => build(methods, queue, context, c))
+      .reduce(
+        (a1, a2) =>
+          queue(1, ({ get, output }) => {
+            const { initial, input } = combine(
+              resolve(a1, get),
+              resolve(a2, get),
+              get,
+              v => output(0, v),
+              config.tight,
+            );
+            return {
+              initial: [initial],
+              input: () => input(resolve(a1, get), resolve(a2, get)),
+            };
+          })[0],
       );
-      return {
-        initial: [initial],
-        input: () => input(resolve(args[0], get), resolve(args[1], get)),
-      };
-    })[0];
   }
   if (config.type === 'list') {
     if (config.bracket !== '[') {
@@ -158,12 +162,6 @@ const build = (methods, queue, context, config) => {
     );
     context.scope.shift();
     return context.current.shift();
-  }
-  if (config.type === 'any') {
-    return queue(1, ({ output }) => {
-      const set = v => output(0, { ...toData(v), set });
-      return { initial: [{ type: 'nil', set }] };
-    })[0];
   }
   if (['value', 'nil'].includes(config.type)) {
     return core.constant(queue, config);
