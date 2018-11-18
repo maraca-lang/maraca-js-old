@@ -8,18 +8,14 @@ import {
   toData,
   toKey,
   toTypedValue,
-  resolveDeep,
 } from './data';
 import fuzzy from './fuzzy';
 
-export const streamMap = (map, deep = false) => (queue, args) =>
-  queue(1, ({ get, output }) => {
-    const resolveArg = a => (deep ? resolveDeep(get(a), get) : resolve(a, get));
-    return {
-      initial: [map(...args.map(resolveArg))],
-      input: () => output(0, map(...args.map(resolveArg))),
-    };
-  })[0];
+export const streamMap = (map, deep = false) => (create, index, args) =>
+  create(index, ({ get, output }) => {
+    const run = () => map(...args.map(a => resolve(a, get, deep)));
+    return { initial: run(), update: () => output(run()) };
+  });
 
 const toDateData = ({ type, value }) => {
   if (type !== 'value') return { type: 'nil' };
@@ -41,7 +37,7 @@ const numericMap = map =>
 
 const set = (unpack, get, list, v, k) => {
   if (!k) {
-    const value = v.type === 'stream' ? resolve(v.value, get) : v;
+    const value = resolve(v, get);
     if (value.type === 'nil') return list;
     if (!unpack || value.type === 'value') {
       return { ...list, indices: [...list.indices, value] };
@@ -52,9 +48,9 @@ const set = (unpack, get, list, v, k) => {
       values: { ...list.values, ...value.value.values },
     };
   }
-  const key = k.type === 'stream' ? resolve(k.value, get) : k;
+  const key = resolve(k, get);
   if (unpack && key.type === 'list') {
-    const value = v.type === 'stream' ? resolve(v.value, get) : v;
+    const value = resolve(v, get);
     return [
       ...key.value.indices.map((v, i) => ({ key: toData(i + 1), value: v })),
       ...Object.keys(key.value.values).map(k => key.value.values[k]),
@@ -65,7 +61,7 @@ const set = (unpack, get, list, v, k) => {
   }
   const objKey = toKey(key);
   if (typeof objKey === 'number') {
-    const value = v.type === 'stream' ? resolve(v.value, get) : v;
+    const value = resolve(v, get);
     const indices = [...list.indices];
     if (value.type === 'nil') delete indices[objKey];
     else indices[objKey] = value;
@@ -81,16 +77,16 @@ const set = (unpack, get, list, v, k) => {
 };
 
 export default {
-  constant: (queue, value) =>
-    queue(1, ({ output }) => {
-      const set = v => output(0, { ...toData(v), set });
-      return { initial: [{ ...value, set }] };
-    })[0],
+  constant: (create, index, value) =>
+    create(index, ({ output }) => {
+      const set = v => output({ ...toData(v), set });
+      return { initial: { ...value, set } };
+    }),
   clearIndices: streamMap(({ type, value }) =>
     type === 'list' ? listOrNull({ ...value, indices: [] }) : { type: 'nil' },
   ),
-  set: unpack => (queue, [l, v, k]: any) =>
-    queue(1, ({ get, output }) => {
+  set: unpack => (create, index, [l, v, k]: any) =>
+    create(index, ({ get, output }) => {
       const run = () => {
         const list = resolve(l, get);
         if (list.type === 'value') return list;
@@ -98,8 +94,8 @@ export default {
           unpack,
           get,
           list.value || { indices: [], values: {} },
-          { type: 'stream', value: v },
-          k && { type: 'stream', value: k },
+          v,
+          k,
         );
         if (
           result.indices.length + Object.keys(result.values).length === 0 &&
@@ -109,12 +105,12 @@ export default {
         }
         return { type: 'list', value: result };
       };
-      return { initial: [run()], input: () => output(0, run()) };
+      return { initial: run(), update: () => output(run()) };
     }),
-  '@@': (queue, [arg]) =>
-    queue(1, ({ get, output }) => {
+  '@@': (create, index, [arg]) =>
+    create(index, ({ get, output }) => {
       let unlisten;
-      const doLookup = () => {
+      const run = () => {
         const { type, value } = resolve(arg, get);
         if (unlisten) unlisten();
         if (type === 'value') {
@@ -134,7 +130,7 @@ export default {
                 geocodeListeners[value] = null;
               })();
             }
-            const listener = () => output(0, geocodeCache[value]);
+            const listener = () => output(geocodeCache[value]);
             geocodeListeners[value].push(listener);
             unlisten = () =>
               geocodeListeners[value].splice(
@@ -146,27 +142,27 @@ export default {
           return geocodeCache[value];
         }
       };
-      return { initial: [doLookup()], input: output(0, doLookup()) };
+      return { initial: run(), update: output(run()) };
     }),
-  '@': (queue, [arg]) =>
-    queue(1, ({ get, output }) => {
+  '@': (create, index, [arg]) =>
+    create(index, ({ get, output }) => {
       let prev = toDateData(resolve(arg, get));
       const tryOutput = () => {
         const next = toDateData(resolve(arg, get));
-        if (next.value !== prev.value) output(0, next);
+        if (next.value !== prev.value) output(next);
         prev = next;
       };
       let interval = setInterval(tryOutput, 1000);
       return {
-        initial: [prev],
-        input: () => {
+        initial: prev,
+        update: () => {
           clearInterval(interval);
           tryOutput();
           interval = setInterval(tryOutput, 1000);
         },
         stop: () => clearInterval(interval),
       };
-    })[0],
+    }),
   '~': streamMap((a, b) => ({ ...b, id: a })),
   '==': dataMap((a, b) => a.type === b.type && a.value === b.value),
   '=': dataMap((a, b) => {
@@ -218,9 +214,9 @@ export default {
   '/': numericMap((a, b) => a / b),
   '%': numericMap((a, b) => ((a % b) + b) % b),
   '^': numericMap((a, b) => a ** b),
-  '&': (queue, args) => {
+  '&': (create, index, args) => {
     const revArgs = [...args].reverse();
-    return queue(1, ({ get, output }) => {
+    return create(index, ({ get, output }) => {
       let prev = [] as any[];
       const run = () => {
         const values = revArgs.map(a => resolve(a, get));
@@ -232,7 +228,7 @@ export default {
           ...(setters.length === 1 ? { set: setters[0].set } : {}),
         };
       };
-      return { initial: [run()], input: () => output(0, run()) };
+      return { initial: run(), update: () => output(run()) };
     });
   },
   _: dataMap((a, b) => {

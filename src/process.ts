@@ -1,107 +1,105 @@
-import { resolveDeep } from './data';
+import { resolve, sortMultiple } from './data';
 
-export default ({ values, output }, build) => {
-  const streams: any = values.map((value, index) => ({
-    current: value,
-    listeners: {},
-    listen: listenIndex => {
-      streams[index].listeners[listenIndex] = true;
+const createStreamBase = (index, value, onChange, run?) => {
+  const listeners = new Set();
+  let stop;
+  const stream = {
+    index,
+    value,
+    setValue(v) {
+      stream.value = v;
+      if (onChange) onChange(v);
     },
-    unlisten: listenIndex => {
-      delete streams[index].listeners[listenIndex];
+    listeners,
+    observe(x) {
+      if (listeners.size === 0) stop = run();
+      listeners.add(x);
     },
-    stop: () => {},
-  }));
-  const actions: any = [];
+    unobserve(x) {
+      listeners.delete(x);
+      if (listeners.size === 0 && stop) {
+        stop();
+        stop = null;
+      }
+    },
+    update: null,
+  };
+  return stream;
+};
+
+export const createProcess = () => {
   let queue: any = null;
 
-  const updateStream = (index, value) => {
-    const first = !queue;
-    if (first) queue = {};
-    const i = result.indexOf(index);
-    if (i !== -1) output(i, value);
-    streams[index].current = value;
-    Object.keys(streams[index].listeners).forEach(i => i && (queue[i] = true));
-    if (first) runNext();
-  };
-
   const runNext = () => {
-    const next = Object.keys(queue)
-      .map(k => parseFloat(k))
-      .sort((a, b) => a - b)[0];
-    if (next !== undefined) {
-      delete queue[next];
-      actions[next]();
+    if (queue.size > 0) {
+      const next = [...queue].sort((a, b) =>
+        sortMultiple(a.index, b.index, (x, y) => x - y),
+      )[0];
+      queue.delete(next);
+      next.update();
       runNext();
     } else {
       queue = null;
     }
   };
 
-  const addAction = (count, action) => {
-    const actionIndex = actions.length;
-    let actionInput;
-    let actionStop;
-    actions.push(() => actionInput());
-    const indices = Array.from({ length: count }).map(
-      (_, i) => streams.length + i,
+  const updateStream = (stream, value) => {
+    const first = !queue;
+    stream.setValue(value);
+    queue = new Set(
+      [...(queue || []), ...stream.listeners].filter(x => x.index),
     );
-    indices.forEach(index =>
-      streams.push({
-        current: null,
-        listeners: {},
-        listen: listenIndex => {
-          if (Object.keys(streams[index].listeners).length === 0) {
-            const live = {};
-            const { initial, input, stop } = action({
-              get: streamIndex => {
-                live[streamIndex] = true;
-                streams[streamIndex].listen(actionIndex);
-                return streams[streamIndex].current;
-              },
-              stop: streamIndex => {
-                delete live[streamIndex];
-                streams[streamIndex].unlisten(actionIndex);
-              },
-              output: (i, v) => updateStream(indices[i], v),
-            });
-            initial.forEach((v, i) => (streams[indices[i]].current = v));
-            actionInput = input;
-            actionStop = () => {
-              Object.keys(live).forEach(streamIndex => {
-                delete live[streamIndex];
-                streams[streamIndex].unlisten(actionIndex);
-              });
-              if (stop) stop();
-            };
-          }
-          streams[index].listeners[listenIndex || ''] = true;
-        },
-        unlisten: listenIndex => {
-          delete streams[index].listeners[listenIndex || ''];
-          if (Object.keys(streams[index].listeners).length === 0) {
-            if (actionStop) actionStop();
-            actionInput = null;
-            actionStop = null;
-          }
-        },
-      }),
-    );
-    return indices;
+    if (first) setTimeout(runNext);
   };
 
-  const result = build(addAction).map(
-    index =>
-      addAction(1, ({ get, output }) => {
-        const run = () => resolveDeep(get(index), get);
-        return { initial: [run()], input: () => output(0, run()) };
-      })[0],
-  );
+  return (index, value, onChange?) => {
+    const stream = createStreamBase(index, null, onChange, () => {
+      const active = new Set();
+      const { initial, update, stop } = value({
+        get(s) {
+          active.add(s);
+          s.observe(stream);
+          return s.value;
+        },
+        stop(s) {
+          active.delete(s);
+          s.unobserve(stream);
+        },
+        output(v) {
+          updateStream(stream, v);
+        },
+      });
+      stream.value = initial;
+      stream.update = update;
+      return () => {
+        for (const s of active.values()) s.unobserve(stream);
+        if (stop) stop();
+      };
+    });
+    return { type: 'stream', value: stream };
+  };
+};
 
-  result.map(i => streams[i].listen());
+export const createIndexer = (base = [] as number[]) => {
+  let index = 0;
+  return () => [...base, index++];
+};
+
+export const watchStreams = (create, indexer, streams, output) => {
+  const results = streams.map((s, i) =>
+    create(
+      indexer(),
+      ({ get, output }) => {
+        const run = () => resolve(s, get, true);
+        return { initial: run(), update: () => output(run()) };
+      },
+      data => output(i, data),
+    ),
+  );
+  const obj = {};
+  results.forEach(r => r.value.observe(obj));
   return {
-    initial: result.map(i => streams[i].current),
-    input: (index, value) => updateStream(index, value),
-    stop: () => result.map(i => streams[i].unlisten()),
+    initial: results.map(r => r.value.value),
+    stop: () => results.forEach(r => r.value.unobserve(obj)),
   };
 };

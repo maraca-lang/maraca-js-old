@@ -59,7 +59,7 @@ const getMinus = v => {
   return { minus, value: typeof v === 'number' ? -v : v.slice(1) };
 };
 
-const sortMultiple = (items1, items2, sortItems) =>
+export const sortMultiple = (items1, items2, sortItems) =>
   Array.from({ length: Math.max(items1.length, items2.length) }).reduce(
     (res, _, i) => {
       if (res !== 0) return res;
@@ -142,28 +142,23 @@ export const toKey = ({ type, value }) => {
   });
 };
 
-export const resolve = (stream, get) => {
-  const result = get(stream);
-  return result.type === 'stream' ? resolve(result.value, get) : result;
-};
-
-export const resolveDeep = (value, get) => {
-  const result = value.type === 'stream' ? resolve(value.value, get) : value;
-  if (result.type !== 'list') return result;
+export const resolve = ({ type, value }: any, get, deep = false) => {
+  if (type === 'stream') return resolve(get(value), get, deep);
+  if (type !== 'list') return { type, value };
   return {
-    ...result,
+    type: 'list',
     value: {
-      ...result.value,
-      indices: result.value.indices.reduce((res, v, i) => {
-        const r = v && resolveDeep(v, get);
+      ...value,
+      indices: value.indices.reduce((res, v, i) => {
+        const r = v && resolve(v, get, deep);
         if (r && r.type !== 'nil') res[i] = r;
         return res;
       }, []),
-      values: Object.keys(result.value.values).reduce((res, k) => {
-        const r = resolveDeep(result.value.values[k].value, get);
+      values: Object.keys(value.values).reduce((res, k) => {
+        const r = resolve(value.values[k].value, get, deep);
         if (r.type !== 'nil' || r.set) {
           res[k] = {
-            key: resolveDeep(result.value.values[k].key, get),
+            key: resolve(value.values[k].key, get, deep),
             value: r,
           };
         }

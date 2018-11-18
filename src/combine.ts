@@ -1,11 +1,4 @@
-import {
-  compare,
-  listGet,
-  listOrNull,
-  resolveDeep,
-  toData,
-  toKey,
-} from './data';
+import { compare, listGet, listOrNull, resolve, toData, toKey } from './data';
 
 const sortTypes = (v1, v2) => {
   if (v2.type === 'nil') return [v1, v2];
@@ -45,7 +38,9 @@ const assign = (list = { indices: [], values: {} } as any, value, key) => {
   });
 };
 
-const run = (v1, v2, get, output, tight) => {
+const run = (index, s1, s2, get, output, tight) => {
+  const v1 = resolve(s1, get);
+  const v2 = resolve(s2, get);
   const [big, small] = sortTypes(v1, v2);
   const reverse = big !== v1;
   const type = getType(big, small);
@@ -65,9 +60,14 @@ const run = (v1, v2, get, output, tight) => {
     }
     const args = [{ type: 'nil' }];
     if (big.value.otherType === 'k=>') args.push(small);
-    const result = value(args.map(a => resolveDeep(a, get)), (i, v) => {
-      if (i === 1) output(v);
-    });
+    const result = value(
+      index,
+      args,
+      (i, v) => {
+        if (i === 1) output(v);
+      },
+      get,
+    );
     return {
       initial: result.initial[1],
       stop: result.stop,
@@ -99,11 +99,11 @@ const run = (v1, v2, get, output, tight) => {
         if (big.value.otherType === 'k=>v=>') args.push(keys[i], smallValue);
         if (big.value.otherType === 'v=>>') args.push(smallValue);
         if (big.value.otherType === 'k=>') args.push(keys[i]);
-
         const { initial, stop } = bigValue(
-          args.map(a => resolveDeep(a, get)),
-          (i, v) => {
-            if (i === 0) values[i].result = v;
+          index,
+          args,
+          (j, v) => {
+            if (j === 0) values[i].result = v;
             else values[i].value = v;
             values[i].combined =
               values[i].value.type === 'nil'
@@ -111,6 +111,7 @@ const run = (v1, v2, get, output, tight) => {
                 : assign(values[i].result.value, values[i].value, keys[i]);
             output(runMulti(i + 1));
           },
+          get,
         );
         stops[i] = stop;
         values[i] = {
@@ -124,7 +125,6 @@ const run = (v1, v2, get, output, tight) => {
       } else {
         const { initial, stop } = (combine as any)(
           ...(reverse ? [smallValue, bigValue] : [bigValue, smallValue]),
-          get,
           value => {
             values[i].value = value;
             values[i].combined = assign(
@@ -153,13 +153,13 @@ const run = (v1, v2, get, output, tight) => {
   };
 };
 
-const combine = (s1, s2, get, output, tight) => {
-  let { initial, stop } = run(s1, s2, get, output, tight);
+const combine = (index, s1, s2, get, output, tight) => {
+  let { initial, stop } = run(index, s1, s2, get, output, tight);
   return {
     initial,
-    input: (s1, s2) => {
+    update: () => {
       if (stop) stop();
-      ({ initial, stop } = run(s1, s2, get, output, tight));
+      ({ initial, stop } = run(index, s1, s2, get, output, tight));
       output(initial);
     },
     stop: () => {

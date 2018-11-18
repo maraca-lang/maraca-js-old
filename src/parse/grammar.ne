@@ -2,7 +2,7 @@
 const lexer = require("./parse/lexer").default;
 const core = x => ({
   type: "core",
-  func: x[2][0].value,
+  func: x[2][0].text,
   args: [x[0], x[4]],
   start: x[0].start,
   end: x[4].end,
@@ -122,7 +122,7 @@ expnot ->
     "!" _ expcomp
       {% x => ({
         type: "core",
-        func: x[0].value,
+        func: x[0].text,
         args: [x[2]],
         start: x[0].offset,
         end: x[2].end,
@@ -153,41 +153,9 @@ expuni ->
     ("@@" | "@" | "-") _ exptight
       {% x => ({
         type: "core",
-        func: x[0][0].value,
+        func: x[0][0].text,
         args: [x[2]],
         start: x[0][0].offset,
-        end: x[2].end,
-      }) %}
-  | "##" _ atom _ exptight 
-      {% x => ({
-        type: "eval",
-        code: x[2],
-        arg: x[4],
-        start: x[0].offset,
-        end: x[4].end,
-      }) %}
-  | "##" _ atom 
-      {% x => ({
-        type: "eval",
-        code: x[2],
-        arg: { type: "nil" },
-        start: x[0].offset,
-        end: x[2].end,
-      }) %}
-  | "#" _ atom _ exptight 
-      {% x => ({
-        type: "js",
-        code: x[2],
-        arg: x[4],
-        start: x[0].offset,
-        end: x[4].end,
-      }) %}
-  | "#" _ atom 
-      {% x => ({
-        type: "js",
-        code: x[2],
-        arg: { type: "nil" },
-        start: x[0].offset,
         end: x[2].end,
       }) %}
 	| exptight {% id %}
@@ -213,7 +181,7 @@ expcomb ->
       }) %}
   | atom {% id %}
 
-atom -> (list | value | space | context) {% x => x[0][0] %}
+atom -> (list | eval | value | space | context) {% x => x[0][0] %}
 
 list ->
     (("[" body "]") | ("(" body ")") | ("{" body "}"))
@@ -245,6 +213,16 @@ body ->
 line ->
     _ exp _ {% x => ({ ...x[1], break: x[0] && x[0].lineBreaks > 0 }) %}
   | _ {% x => ({ type: "nil" }) %}
+
+eval ->
+    ("#" | "##") _ atom 
+      {% x => ({
+        type: "eval",
+        mode: x[0][0].text,
+        code: x[2],
+        start: x[0][0].offset,
+        end: x[2].end,
+      }) %}
 
 value ->
     (%value | %string)

@@ -1,7 +1,8 @@
 import build from './build';
-import { compare, setOther } from './data';
+import { compare, resolve, setOther, toData } from './data';
 import parse from './parse';
-import process from './process';
+import { createIndexer, createProcess, watchStreams } from './process';
+import { streamMap } from './core';
 
 export { toData, toTypedValue } from './data';
 export { default as parse } from './parse';
@@ -25,7 +26,33 @@ const prepareData = ({ type, value, set, id }) => {
   };
 };
 
-export default (source, initial, methods, output) => {
+export const createMethod = (create, map, deep = false) => ({
+  type: 'list',
+  value: {
+    indices: [],
+    values: {},
+    other: (index, [list, v], output) => {
+      const subIndexer = createIndexer(index);
+      const subContext = { scope: [{ type: 'nil' }], current: [list] };
+      const result = streamMap(x => toData(map(x)), deep)(
+        create,
+        subIndexer(),
+        [v],
+      );
+      return watchStreams(
+        create,
+        subIndexer,
+        [subContext.current[0], result],
+        output,
+      );
+    },
+    otherType: 'k=>',
+  },
+});
+
+export default (source, methods, output) => {
+  const create = createProcess();
+  const indexer = createIndexer();
   const { modules, index } =
     typeof source === 'string'
       ? { modules: { index: source }, index: 'index' }
@@ -34,27 +61,43 @@ export default (source, initial, methods, output) => {
     (res, k) => ({ ...res, [k]: parse(modules[k]) }),
     {},
   );
-  const other = ([result, value], output) =>
-    process({ values: [result, { type: 'nil' }], output }, queue => {
-      const ctx = { scope: [1], current: [0] };
+  const scope = setOther(
+    { type: 'nil' },
+    (index, [list, v], output, get) => {
+      const value = resolve(v, get);
+      const subIndexer = createIndexer(index);
+      const subContext = { scope: [{ type: 'nil' }], current: [list] };
       const result = build(
         methods,
-        queue,
-        ctx,
+        create,
+        subIndexer,
+        subContext,
         value.type === 'value' ? parsed[value.value] : { type: 'nil' },
       );
-      return [ctx.current[0], result];
-    });
+      return watchStreams(
+        create,
+        subIndexer,
+        [subContext.current[0], result],
+        output,
+      );
+    },
+    'k=>',
+  );
   output(
     prepareData(
-      process(
-        {
-          values: [setOther(initial, other, 'k=>')],
-          output: (_, next) => output(prepareData(next)),
-        },
-        queue => [
-          build(methods, queue, { scope: [0], current: [0] }, parsed[index]),
+      watchStreams(
+        create,
+        indexer,
+        [
+          build(
+            methods,
+            create,
+            indexer,
+            { scope: [scope], current: [{ type: 'nil' }] },
+            parsed[index],
+          ),
         ],
+        (_, next) => output(prepareData(next)),
       ).initial[0],
     ),
   );
