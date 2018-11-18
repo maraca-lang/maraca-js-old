@@ -142,23 +142,23 @@ export const toKey = ({ type, value }) => {
   });
 };
 
-export const resolve = ({ type, value }: any, get, deep = false) => {
-  if (type === 'stream') return resolve(get(value), get, deep);
-  if (type !== 'list') return { type, value };
+export const resolve = (data, get, deep = false) => {
+  if (data.type === 'stream') return resolve(get(data.value), get, deep);
+  if (data.type !== 'list') return data;
   return {
-    type: 'list',
+    ...data,
     value: {
-      ...value,
-      indices: value.indices.reduce((res, v, i) => {
+      ...data.value,
+      indices: data.value.indices.reduce((res, v, i) => {
         const r = v && resolve(v, get, deep);
         if (r && r.type !== 'nil') res[i] = r;
         return res;
       }, []),
-      values: Object.keys(value.values).reduce((res, k) => {
-        const r = resolve(value.values[k].value, get, deep);
+      values: Object.keys(data.value.values).reduce((res, k) => {
+        const r = resolve(data.value.values[k].value, get, deep);
         if (r.type !== 'nil' || r.set) {
           res[k] = {
-            key: resolve(value.values[k].key, get, deep),
+            key: resolve(data.value.values[k].key, get, deep),
             value: r,
           };
         }

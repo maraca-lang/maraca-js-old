@@ -130,7 +130,7 @@ const build = (methods, create, indexer, context, config) => {
     context.scope.unshift(
       core.clearIndices(create, indexer(), [context.scope[0]]),
     );
-    context.current.unshift({ type: 'nil' });
+    context.current.unshift(core.constant(create, indexer(), { type: 'nil' }));
     config.values.forEach(c =>
       build(methods, create, indexer, context, { type: 'set', args: [c] }),
     );
@@ -148,10 +148,7 @@ const build = (methods, create, indexer, context, config) => {
       );
   }
   if (['value', 'nil'].includes(config.type)) {
-    return create(indexer(), ({ output }) => {
-      const set = v => output({ ...toData(v), set });
-      return { initial: { ...config, set } };
-    });
+    return core.constant(create, indexer(), config);
   }
   if (config.type === 'context') {
     return context.scope[0];
