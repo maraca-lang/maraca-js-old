@@ -46,12 +46,6 @@ export const toTypedValue = ({ type, value }) => {
   return { type: 'value', value };
 };
 
-const stringToNatural = s =>
-  s
-    .split(/(\-?\d*\.?\d+)/)
-    .filter(x => x)
-    .map(x => toTypedValue({ type: 'value', value: x }).value);
-
 const getMinus = v => {
   if (!v) return { minus: false, v };
   const minus = typeof v === 'number' ? v < 0 : v[0] === '-';
@@ -70,21 +64,24 @@ export const sortMultiple = (items1, items2, sortItems) =>
     0,
   ) as -1 | 0 | 1;
 
-const sortStrings = (s1, s2) =>
-  sortMultiple(stringToNatural(s1), stringToNatural(s2), (n1, n2) => {
-    if (n1 === n2) return 0;
-    const m1 = getMinus(n1);
-    const m2 = getMinus(n2);
-    if (m1.minus !== m2.minus) return m1.minus ? -1 : 1;
-    const dir = m1.minus ? -1 : 1;
-    const t1 = typeof m1.value;
-    const t2 = typeof m2.value;
-    if (t1 === t2) {
-      if (t1 === 'string') return dir * m1.value.localeCompare(m2.value);
-      return dir * (m1.value < m2.value ? -1 : 1);
-    }
-    return dir * (t1 === 'number' ? -1 : 1);
-  });
+const sortStrings = (s1, s2) => {
+  if (s1 === s2) return 0;
+  if (!s1) return -1;
+  if (!s2) return 1;
+  const n1 = toTypedValue({ type: 'value', value: s1 }).value;
+  const n2 = toTypedValue({ type: 'value', value: s2 }).value;
+  const m1 = getMinus(n1);
+  const m2 = getMinus(n2);
+  if (m1.minus !== m2.minus) return m1.minus ? -1 : 1;
+  const dir = m1.minus ? -1 : 1;
+  const t1 = typeof m1.value;
+  const t2 = typeof m2.value;
+  if (t1 === t2) {
+    if (t1 === 'string') return dir * m1.value.localeCompare(m2.value);
+    return dir * (m1.value < m2.value ? -1 : 1);
+  }
+  return dir * (t1 === 'number' ? -1 : 1);
+};
 
 export const compare = (v1, v2) => {
   if (v1.type !== v2.type) {
@@ -142,23 +139,23 @@ export const toKey = ({ type, value }) => {
   });
 };
 
-export const resolve = (data, get, deep = false) => {
+export const resolve = (data, get, deep) => {
   if (data.type === 'stream') return resolve(get(data.value), get, deep);
-  if (data.type !== 'list') return data;
+  if (!deep || data.type !== 'list') return data;
   return {
     ...data,
     value: {
       ...data.value,
       indices: data.value.indices.reduce((res, v, i) => {
-        const r = v && resolve(v, get, deep);
+        const r = v && resolve(v, get, true);
         if (r && r.type !== 'nil') res[i] = r;
         return res;
       }, []),
       values: Object.keys(data.value.values).reduce((res, k) => {
-        const r = resolve(data.value.values[k].value, get, deep);
+        const r = resolve(data.value.values[k].value, get, true);
         if (r.type !== 'nil' || r.set) {
           res[k] = {
-            key: resolve(data.value.values[k].key, get, deep),
+            key: resolve(data.value.values[k].key, get, true),
             value: r,
           };
         }

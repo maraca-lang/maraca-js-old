@@ -1,4 +1,6 @@
-import { compare, listGet, listOrNull, resolve, toData, toKey } from './data';
+import { compare, listGet, listOrNull, toData, toKey } from './data';
+import { streamMap } from './core';
+import { createIndexer } from './process';
 
 const sortTypes = (v1, v2) => {
   if (v2.type === 'nil') return [v1, v2];
@@ -20,6 +22,13 @@ const getType = (big, small) => {
   return 'join';
 };
 
+const getInfo = (s1, s2, get) => {
+  const v1 = get(s1);
+  const v2 = get(s2);
+  const [big, small] = sortTypes(v1, v2);
+  return { type: getType(big, small), reverse: big !== v1, big, small };
+};
+
 const assign = (list = { indices: [], values: {} } as any, value, key) => {
   if (!key) {
     if (value.type === 'nil') return list;
@@ -38,39 +47,52 @@ const assign = (list = { indices: [], values: {} } as any, value, key) => {
   });
 };
 
-const run = (index, s1, s2, get, output, tight) => {
-  const v1 = resolve(s1, get);
-  const v2 = resolve(s2, get);
-  const [big, small] = sortTypes(v1, v2);
-  const reverse = big !== v1;
-  const type = getType(big, small);
+const run = (
+  create,
+  indexer,
+  { type, reverse, big, small },
+  s1,
+  s2,
+  tight,
+  get,
+  output,
+) => {
   if (type === 'join') {
-    const v1 = (reverse ? small.value : big.value) || '';
-    const v2 = (reverse ? big.value : small.value) || '';
-    const join = small.value && big.value && !tight ? ' ' : '';
-    return { initial: { type: 'value', value: v1 + join + v2 } };
+    return {
+      result: streamMap((v1, v2) =>
+        toData(
+          (v1.value || '') +
+            (v1.value && v2.value && !tight ? ' ' : '') +
+            (v2.value || ''),
+        ),
+      )(create, indexer(), [s1, s2]),
+      canContinue: info => info.type === 'join',
+    };
   }
   if (type === 'get') {
     const value = listGet(big, small);
     if (typeof value !== 'function') {
-      return { initial: value };
+      return {
+        result: value,
+        canContinue: info =>
+          info.type === 'get' && listGet(info.big, info.small) === value,
+      };
     }
     if (!['=>', 'k=>'].includes(big.value.otherType)) {
-      return { initial: { type: 'nil' } };
+      return {
+        result: { type: 'nil' },
+        canContinue: info =>
+          info.type === 'get' &&
+          typeof listGet(info.big, info.small) === 'function' &&
+          !['=>', 'k=>'].includes(info.big.value.otherType),
+      };
     }
     const args = [{ type: 'nil' }];
-    if (big.value.otherType === 'k=>') args.push(small);
-    const result = value(
-      index,
-      args,
-      (i, v) => {
-        if (i === 1) output(v);
-      },
-      get,
-    );
+    if (big.value.otherType === 'k=>') args.push(reverse ? s1 : s2);
     return {
-      initial: result.initial[1],
-      stop: result.stop,
+      result: value(indexer(), args)[1],
+      canContinue: info =>
+        info.type === 'get' && listGet(info.big, info.small) === value,
     };
   }
   const keys = [
@@ -86,11 +108,9 @@ const run = (index, s1, s2, get, output, tight) => {
       .map(k => (big.value.values[k] || small.value.values[k]).key)
       .sort(compare),
   ];
-  const stops = [] as any;
   const values = [] as any;
   const runMulti = first => {
     for (let i = first; i < keys.length; i++) {
-      if (stops[i]) stops[i]();
       const prev = values[i - 1] ? values[i - 1].combined : { type: 'nil' };
       const bigValue = listGet(big, keys[i]);
       const smallValue = listGet(small, keys[i]);
@@ -99,71 +119,73 @@ const run = (index, s1, s2, get, output, tight) => {
         if (big.value.otherType === 'k=>v=>') args.push(keys[i], smallValue);
         if (big.value.otherType === 'v=>>') args.push(smallValue);
         if (big.value.otherType === 'k=>') args.push(keys[i]);
-        const { initial, stop } = bigValue(
-          index,
-          args,
-          (j, v) => {
-            if (j === 0) values[i].result = v;
-            else values[i].value = v;
-            values[i].combined =
-              values[i].value.type === 'nil'
-                ? values[i].result
-                : assign(values[i].result.value, values[i].value, keys[i]);
-            output(runMulti(i + 1));
-          },
-          get,
-        );
-        stops[i] = stop;
+        const res = bigValue(indexer(), args);
         values[i] = {
-          result: initial[0],
-          value: initial[1],
-          combined:
-            initial[1].type === 'nil'
-              ? initial[0]
-              : assign(initial[0].value, initial[1], keys[i]),
+          result: res[0],
+          value: res[1],
+          combined: streamMap((list, val) =>
+            val.type === 'nil' ? list : assign(list.value, val, keys[i]),
+          )(create, indexer(), res),
         };
       } else {
-        const { initial, stop } = (combine as any)(
+        const { initial } = (combine as any)(
+          create,
+          indexer(),
           ...(reverse ? [smallValue, bigValue] : [bigValue, smallValue]),
+          tight,
+          get,
           value => {
             values[i].value = value;
-            values[i].combined = assign(
-              values[i].result.value,
-              values[i].value,
-              keys[i],
-            );
+            values[i].combined = streamMap((list, val) =>
+              assign(list.value, val, keys[i]),
+            )(create, indexer(), [values[i].result, values[i].value]);
             output(runMulti(i + 1));
           },
         );
-        stops[i] = stop;
         values[i] = {
           result: prev,
           value: initial,
-          combined: assign(prev.value, initial, keys[i]),
+          combined: streamMap((list, val) => assign(list.value, val, keys[i]))(
+            create,
+            indexer(),
+            [prev, initial],
+          ),
         };
       }
     }
     return values[keys.length - 1].combined;
   };
-  return {
-    initial: runMulti(0),
-    stop: () => {
-      stops.forEach(s => s());
-    },
-  };
+  return { result: runMulti(0) };
 };
 
-const combine = (index, s1, s2, get, output, tight) => {
-  let { initial, stop } = run(index, s1, s2, get, output, tight);
+const combine = (create, index, s1, s2, tight, get, output) => {
+  let { result, canContinue } = run(
+    create,
+    createIndexer(index),
+    getInfo(s1, s2, get),
+    s1,
+    s2,
+    tight,
+    get,
+    output,
+  );
   return {
-    initial,
+    initial: result,
     update: () => {
-      if (stop) stop();
-      ({ initial, stop } = run(index, s1, s2, get, output, tight));
-      output(initial);
-    },
-    stop: () => {
-      if (stop) stop();
+      const info = getInfo(s1, s2, get);
+      if (!canContinue || !canContinue(info)) {
+        ({ result, canContinue } = run(
+          create,
+          createIndexer(index),
+          info,
+          s1,
+          s2,
+          tight,
+          get,
+          output,
+        ));
+        output(result);
+      }
     },
   };
 };

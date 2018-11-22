@@ -2,7 +2,7 @@ import combine from './combine';
 import core, { streamMap } from './core';
 import { setOther, toData } from './data';
 import parse from './parse';
-import { createIndexer, watchStreams } from './process';
+import { createIndexer } from './process';
 
 const evalInContext = (methods, code) =>
   new Function(...Object.keys(methods), `return ${code}`)(
@@ -22,38 +22,30 @@ const build = (methods, create, indexer, context, config) => {
       keys.push(build(methods, create, indexer, context, config.value));
       type = type === 'k=>' ? 'k=>v=>' : 'v=>>';
     }
-    context.current[0] = streamMap(
-      current =>
-        setOther(
-          current,
-          (index, [list, ...values], output) => {
-            const subIndexer = createIndexer(index);
-            const subContext = { scope: [scope], current: [list] };
-            keys.forEach((key, i) => {
-              subContext.scope[0] = core.set(true)(create, subIndexer(), [
-                subContext.scope[0],
-                values[i],
-                key,
-              ]);
-            });
-            const result = build(
-              methods,
-              create,
-              subIndexer,
-              subContext,
-              config.output,
-            );
-            return watchStreams(
-              create,
-              subIndexer,
-              [subContext.current[0], result],
-              output,
-            );
-          },
-          type,
-        ),
-      true,
-    )(create, indexer(), [context.current[0]]);
+    const other = (index, [list, ...values]) => {
+      const subIndexer = createIndexer(index);
+      const subContext = { scope: [scope], current: [list] };
+      keys.forEach((key, i) => {
+        subContext.scope[0] = core.set(true)(create, subIndexer(), [
+          subContext.scope[0],
+          values[i],
+          key,
+        ]);
+      });
+      const result = build(
+        methods,
+        create,
+        subIndexer,
+        subContext,
+        config.output,
+      );
+      return [subContext.current[0], result];
+    };
+    context.current[0] = streamMap(current => setOther(current, other, type))(
+      create,
+      indexer(),
+      [context.current[0]],
+    );
     return { type: 'nil' };
   }
   if (config.type === 'set') {
@@ -87,22 +79,17 @@ const build = (methods, create, indexer, context, config) => {
     return streamMap(code =>
       setOther(
         { type: 'nil' },
-        (index, [list, value], output) => {
+        (index, [list, value]) => {
           const subIndexer = createIndexer(index);
           const subContext = { scope: [value], current: [list] };
-          const result = build(
-            methods,
-            create,
-            subIndexer,
-            subContext,
-            parse(code.type === 'value' ? code.value : ''),
-          );
-          return watchStreams(
-            create,
-            subIndexer,
-            [subContext.current[0], result],
-            output,
-          );
+          let parsed = { type: 'nil' };
+          try {
+            parsed = parse(code.type === 'value' ? code.value : '');
+          } catch (e) {
+            console.log(e.message);
+          }
+          const result = build(methods, create, subIndexer, subContext, parsed);
+          return [subContext.current[0], result];
         },
         'k=>',
       ),
@@ -138,17 +125,24 @@ const build = (methods, create, indexer, context, config) => {
     return context.current.shift();
   }
   if (config.type === 'combine') {
+    const args = config.args.map(c =>
+      build(methods, create, indexer, context, c),
+    );
     const index = indexer();
-    return config.args
-      .map(c => build(methods, create, indexer, context, c))
-      .reduce((a1, a2) =>
-        create(index, ({ get, output }) =>
-          combine(index, a1, a2, get, output, config.tight),
-        ),
-      );
+    return args.reduce((a1, a2) =>
+      create(index, ({ get, output }) =>
+        combine(create, index, a1, a2, config.tight, get, output),
+      ),
+    );
   }
-  if (['value', 'nil'].includes(config.type)) {
-    return core.constant(create, indexer(), config);
+  if (config.type === 'value') {
+    return core.constant(create, indexer(), {
+      type: 'value',
+      value: config.value,
+    });
+  }
+  if (config.type === 'nil') {
+    return core.constant(create, indexer(), { type: 'nil' });
   }
   if (config.type === 'context') {
     return context.scope[0];

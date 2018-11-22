@@ -4,16 +4,15 @@ import {
   compare,
   listGet,
   listOrNull,
-  resolve,
   toData,
   toKey,
   toTypedValue,
 } from './data';
 import fuzzy from './fuzzy';
 
-export const streamMap = (map, deep = false) => (create, index, args) =>
+export const streamMap = map => (create, index, args) =>
   create(index, ({ get, output }) => {
-    const run = () => map(...args.map(a => resolve(a, get, deep)));
+    const run = () => map(...args.map(a => get(a)));
     return { initial: run(), update: () => output(run()) };
   });
 
@@ -37,7 +36,7 @@ const numericMap = map =>
 
 const set = (unpack, get, list, v, k) => {
   if (!k) {
-    const value = resolve(v, get);
+    const value = get(v);
     if (value.type === 'nil') return list;
     if (!unpack || value.type === 'value') {
       return { ...list, indices: [...list.indices, value] };
@@ -48,9 +47,9 @@ const set = (unpack, get, list, v, k) => {
       values: { ...list.values, ...value.value.values },
     };
   }
-  const key = resolve(k, get);
+  const key = get(k);
   if (unpack && key.type === 'list') {
-    const value = resolve(v, get);
+    const value = get(v);
     return [
       ...key.value.indices.map((v, i) => ({ key: toData(i + 1), value: v })),
       ...Object.keys(key.value.values).map(k => key.value.values[k]),
@@ -61,7 +60,7 @@ const set = (unpack, get, list, v, k) => {
   }
   const objKey = toKey(key);
   if (typeof objKey === 'number') {
-    const value = resolve(v, get);
+    const value = get(v);
     const indices = [...list.indices];
     if (value.type === 'nil') delete indices[objKey];
     else indices[objKey] = value;
@@ -88,7 +87,7 @@ export default {
   set: unpack => (create, index, [l, v, k]: any) =>
     create(index, ({ get, output }) => {
       const run = () => {
-        const list = resolve(l, get);
+        const list = get(l);
         if (list.type === 'value') return list;
         const result = set(
           unpack,
@@ -111,7 +110,7 @@ export default {
     create(index, ({ get, output }) => {
       let unlisten;
       const run = () => {
-        const { type, value } = resolve(arg, get);
+        const { type, value } = get(arg);
         if (unlisten) unlisten();
         if (type === 'value') {
           if (!geocodeCache[value]) {
@@ -146,9 +145,9 @@ export default {
     }),
   '@': (create, index, [arg]) =>
     create(index, ({ get, output }) => {
-      let prev = toDateData(resolve(arg, get));
+      let prev = toDateData(get(arg));
       const tryOutput = () => {
-        const next = toDateData(resolve(arg, get));
+        const next = toDateData(get(arg));
         if (next.value !== prev.value) output(next);
         prev = next;
       };
@@ -219,7 +218,7 @@ export default {
     return create(index, ({ get, output }) => {
       let prev = [] as any[];
       const run = () => {
-        const values = revArgs.map(a => resolve(a, get));
+        const values = revArgs.map(a => get(a));
         const changed = values.findIndex((v, i) => v !== prev[i]);
         const setters = values.filter(v => v.set);
         prev = values;

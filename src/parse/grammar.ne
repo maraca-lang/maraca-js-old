@@ -115,8 +115,19 @@ expset ->
   | expid {% id %}
 
 expid ->
-    expid _ ("~") _ expnot {% core %}
-  | expnot {% id %}
+    expid _ ("~") _ exptight {% core %}
+  | exptight {% id %}
+
+exptight ->
+	  exptight _ "." _ expnot
+      {% x => ({
+        type: "combine",
+        tight: true,
+        args: [...(x[0].tight ? x[0].args : [x[0]]), x[4]],
+        start: x[0].start,
+        end: x[4].end,
+      }) %}
+	| expnot {% id %}
 
 expnot ->
     "!" _ expcomp
@@ -135,6 +146,14 @@ expcomp ->
 
 expsum ->
 	  expsum _ ("+" | "-") _ expprod {% core %}
+  | "-" _ expprod
+      {% x => ({
+        type: "core",
+        func: x[0].text,
+        args: [x[2]],
+        start: x[0].offset,
+        end: x[2].end,
+      }) %}
 	| expprod {% id %}
 
 expprod ->
@@ -146,28 +165,17 @@ expmerge ->
 	| exppow {% id %}
 
 exppow ->
-    exppow _ ("^") _ expuni {% core %}
-  | expuni {% id %}
+    exppow _ ("^") _ expdata {% core %}
+  | expdata {% id %}
 
-expuni ->
-    ("@@" | "@" | "-") _ exptight
+expdata ->
+    ("@@" | "@") _ expcomb
       {% x => ({
         type: "core",
         func: x[0][0].text,
         args: [x[2]],
         start: x[0][0].offset,
         end: x[2].end,
-      }) %}
-	| exptight {% id %}
-
-exptight ->
-	  exptight _ "." _ expcomb
-      {% x => ({
-        type: "combine",
-        tight: true,
-        args: [...(x[0].tight ? x[0].args : [x[0]]), x[4]],
-        start: x[0].start,
-        end: x[4].end,
       }) %}
 	| expcomb {% id %}
 

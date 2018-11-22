@@ -1,6 +1,11 @@
 import { resolve, sortMultiple } from './data';
 
-const createStreamBase = (index, value, onChange, run?) => {
+export const createIndexer = (base = [] as number[]) => {
+  let index = 0;
+  return () => [...base, index++];
+};
+
+const createStream = (index, value, onChange, run) => {
   const listeners = new Set();
   let stop;
   const stream = {
@@ -22,12 +27,12 @@ const createStreamBase = (index, value, onChange, run?) => {
         stop = null;
       }
     },
-    update: null,
+    update: null as any,
   };
   return stream;
 };
 
-export const createProcess = () => {
+export default () => {
   let queue: any = null;
 
   const runNext = () => {
@@ -53,53 +58,31 @@ export const createProcess = () => {
   };
 
   return (index, value, onChange?) => {
-    const stream = createStreamBase(index, null, onChange, () => {
-      const active = new Set();
+    const stream = createStream(index, null, onChange, () => {
+      let active = new Set();
+      const get = s => {
+        active.add(s);
+        s.observe(stream);
+        return s.value;
+      };
       const { initial, update, stop } = value({
-        get(s) {
-          active.add(s);
-          s.observe(stream);
-          return s.value;
-        },
-        stop(s) {
-          active.delete(s);
-          s.unobserve(stream);
-        },
-        output(v) {
-          updateStream(stream, v);
-        },
+        get: (s, deep = false) => resolve(s, get, deep),
+        output: v => updateStream(stream, v),
       });
       stream.value = initial;
-      stream.update = update;
+      stream.update = () => {
+        const prevActive = active;
+        active = new Set();
+        update();
+        for (const s of prevActive) {
+          if (!active.has(s)) s.unobserve(stream);
+        }
+      };
       return () => {
         for (const s of active.values()) s.unobserve(stream);
         if (stop) stop();
       };
     });
     return { type: 'stream', value: stream };
-  };
-};
-
-export const createIndexer = (base = [] as number[]) => {
-  let index = 0;
-  return () => [...base, index++];
-};
-
-export const watchStreams = (create, indexer, streams, output) => {
-  const results = streams.map((s, i) =>
-    create(
-      indexer(),
-      ({ get, output }) => {
-        const run = () => resolve(s, get, true);
-        return { initial: run(), update: () => output(run()) };
-      },
-      data => output(i, data),
-    ),
-  );
-  const obj = {};
-  results.forEach(r => r.value.observe(obj));
-  return {
-    initial: results.map(r => r.value.value),
-    stop: () => results.forEach(r => r.value.unobserve(obj)),
   };
 };
