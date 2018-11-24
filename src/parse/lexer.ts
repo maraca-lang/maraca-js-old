@@ -5,7 +5,7 @@ import dedent from './dedent';
 const toData = s => (s ? { type: 'value', value: s } : { type: 'nil' });
 
 export default moo.compile({
-  multi: ['=>>', '=>', '<=', '>=', '==', ':=?', ':=', '::', '##', '@@'],
+  multi: ['=>>', '=>', '<=', '>=', '==', ':=?', ':=', '::', '##', '@@', '@@@'],
   brackets: ['[', ']', '(', ')', '{', '}'],
   comparison: ['<', '>', '='],
   arithmetic: ['+', '-', '*', '/', '%', '^'],

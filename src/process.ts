@@ -5,29 +5,29 @@ export const createIndexer = (base = [] as number[]) => {
   return () => [...base, index++];
 };
 
-const createStream = (index, value, onChange, run) => {
-  const listeners = new Set();
+const createStream = (index, value, run) => {
   let stop;
   const stream = {
     index,
     value,
-    setValue(v) {
-      stream.value = v;
-      if (onChange) onChange(v);
-    },
-    listeners,
+    listeners: new Set(),
     observe(x) {
-      if (listeners.size === 0) stop = run();
-      listeners.add(x);
+      if (stream.listeners.size === 0) stop = run();
+      stream.listeners.add(x);
     },
     unobserve(x) {
-      listeners.delete(x);
-      if (listeners.size === 0 && stop) {
-        stop();
-        stop = null;
+      if (stream.listeners.has(x)) {
+        stream.listeners.delete(x);
+        if (stream.listeners.size === 0) stop();
       }
     },
     update: null as any,
+    stop: () => {
+      if (stream.listeners.size > 0) {
+        stream.listeners = new Set();
+        stop();
+      }
+    },
   };
   return stream;
 };
@@ -48,17 +48,8 @@ export default () => {
     }
   };
 
-  const updateStream = (stream, value) => {
-    const first = !queue;
-    stream.setValue(value);
-    queue = new Set(
-      [...(queue || []), ...stream.listeners].filter(x => x.index),
-    );
-    if (first) setTimeout(runNext);
-  };
-
   return (index, value, onChange?) => {
-    const stream = createStream(index, null, onChange, () => {
+    const stream = createStream(index, null, () => {
       let active = new Set();
       const get = s => {
         active.add(s);
@@ -67,7 +58,16 @@ export default () => {
       };
       const { initial, update, stop } = value({
         get: (s, deep = false) => resolve(s, get, deep),
-        output: v => updateStream(stream, v),
+        output: v => {
+          stream.value = v;
+          if (onChange) onChange(v);
+          const first = !queue;
+          queue = queue || new Set();
+          for (const s of stream.listeners) {
+            if (s.index) queue.add(s);
+          }
+          if (first) setTimeout(runNext);
+        },
       });
       stream.value = initial;
       stream.update = () => {
@@ -79,7 +79,9 @@ export default () => {
         }
       };
       return () => {
+        if (queue.has(stream)) queue.delete(stream);
         for (const s of active.values()) s.unobserve(stream);
+        active = new Set();
         if (stop) stop();
       };
     });

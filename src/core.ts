@@ -1,13 +1,4 @@
-import * as chrono from 'chrono-node';
-
-import {
-  compare,
-  listGet,
-  listOrNull,
-  toData,
-  toKey,
-  toTypedValue,
-} from './data';
+import { compare, listOrNull, toData, toTypedValue } from './data';
 import fuzzy from './fuzzy';
 
 export const streamMap = map => (create, index, args) =>
@@ -15,15 +6,6 @@ export const streamMap = map => (create, index, args) =>
     const run = () => map(...args.map(a => get(a)));
     return { initial: run(), update: () => output(run()) };
   });
-
-const toDateData = ({ type, value }) => {
-  if (type !== 'value') return { type: 'nil' };
-  const date = chrono.parseDate(value, new Date(), { forwardDate: true });
-  return date ? { type: 'value', value: date.toISOString() } : { type: 'nil' };
-};
-
-const geocodeCache = {};
-const geocodeListeners = {};
 
 const dataMap = map => streamMap((...args) => toData(map(...args)));
 
@@ -34,134 +16,15 @@ const numericMap = map =>
     return map(...values);
   });
 
-const set = (unpack, get, list, v, k) => {
-  if (!k) {
-    const value = get(v);
-    if (value.type === 'nil') return list;
-    if (!unpack || value.type === 'value') {
-      return { ...list, indices: [...list.indices, value] };
-    }
-    return {
-      ...list,
-      indices: [...list.indices, ...value.value.indices],
-      values: { ...list.values, ...value.value.values },
-    };
-  }
-  const key = get(k);
-  if (unpack && key.type === 'list') {
-    const value = get(v);
-    return [
-      ...key.value.indices.map((v, i) => ({ key: toData(i + 1), value: v })),
-      ...Object.keys(key.value.values).map(k => key.value.values[k]),
-    ].reduce(
-      (res, p) => set(unpack, get, res, listGet(value, p.key), p.value),
-      list,
-    );
-  }
-  const objKey = toKey(key);
-  if (typeof objKey === 'number') {
-    const value = get(v);
-    const indices = [...list.indices];
-    if (value.type === 'nil') delete indices[objKey];
-    else indices[objKey] = value;
-    return { ...list, indices };
-  }
-  return {
-    ...list,
-    values: {
-      ...list.values,
-      [objKey]: { key, value: v },
-    },
-  };
-};
-
 export default {
   constant: (create, index, value) =>
     create(index, ({ output }) => {
-      const set = v => output({ ...toData(v), set });
+      const set = v => output({ ...v, set });
       return { initial: { ...value, set } };
     }),
   clearIndices: streamMap(({ type, value }) =>
     type === 'list' ? listOrNull({ ...value, indices: [] }) : { type: 'nil' },
   ),
-  set: unpack => (create, index, [l, v, k]: any) =>
-    create(index, ({ get, output }) => {
-      const run = () => {
-        const list = get(l);
-        if (list.type === 'value') return list;
-        const result = set(
-          unpack,
-          get,
-          list.value || { indices: [], values: {} },
-          v,
-          k,
-        );
-        if (
-          result.indices.length + Object.keys(result.values).length === 0 &&
-          !result.other
-        ) {
-          return { type: 'nil' };
-        }
-        return { type: 'list', value: result };
-      };
-      return { initial: run(), update: () => output(run()) };
-    }),
-  '@@': (create, index, [arg]) =>
-    create(index, ({ get, output }) => {
-      let unlisten;
-      const run = () => {
-        const { type, value } = get(arg);
-        if (unlisten) unlisten();
-        if (type === 'value') {
-          if (!geocodeCache[value]) {
-            if (!geocodeListeners[value]) {
-              geocodeListeners[value] = [];
-              (async () => {
-                const result = await (await fetch(
-                  `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-                    value,
-                  )}&key=AIzaSyCQ8P7-0kTGz2_tkcHjOo0IUiMB_z9Bbp4`,
-                )).json();
-                geocodeCache[value] = toData(
-                  JSON.stringify(result.results[0].geometry.location),
-                );
-                geocodeListeners[value].forEach(l => l());
-                geocodeListeners[value] = null;
-              })();
-            }
-            const listener = () => output(geocodeCache[value]);
-            geocodeListeners[value].push(listener);
-            unlisten = () =>
-              geocodeListeners[value].splice(
-                geocodeListeners[value].indexOf(listener),
-                1,
-              );
-            return { type: 'nil' };
-          }
-          return geocodeCache[value];
-        }
-      };
-      return { initial: run(), update: output(run()) };
-    }),
-  '@': (create, index, [arg]) =>
-    create(index, ({ get, output }) => {
-      let prev = toDateData(get(arg));
-      const tryOutput = () => {
-        const next = toDateData(get(arg));
-        if (next.value !== prev.value) output(next);
-        prev = next;
-      };
-      let interval = setInterval(tryOutput, 1000);
-      return {
-        initial: prev,
-        update: () => {
-          clearInterval(interval);
-          tryOutput();
-          interval = setInterval(tryOutput, 1000);
-        },
-        stop: () => clearInterval(interval),
-      };
-    }),
   '~': streamMap((a, b) => ({ ...b, id: a })),
   '==': dataMap((a, b) => a.type === b.type && a.value === b.value),
   '=': dataMap((a, b) => {
@@ -170,17 +33,13 @@ export default {
     return res < 0.3 ? null : 2 - res;
   }),
   '!': dataMap((a, b) => {
-    if (!b) a.type === 'nil' ? 1 : null;
+    if (!b) return a.type === 'nil' ? 1 : null;
     return a.type !== b.type || a.value !== b.value;
   }),
   '<': dataMap((a, b) => compare(a, b) === -1),
   '>': dataMap((a, b) => compare(a, b) === 1),
   '<=': dataMap((a, b) => compare(a, b) !== 1),
   '>=': dataMap((a, b) => compare(a, b) !== -1),
-  '..': dataMap((a, b) => {
-    if (a.type !== 'value' || b.type !== 'value') return null;
-    return a.value + b.value;
-  }),
   '+': numericMap((a, b) => a + b),
   '-': dataMap((a, b) => {
     if (!b) return a.type === 'value' ? `-${a.value}` : null;
@@ -230,8 +89,4 @@ export default {
       return { initial: run(), update: () => output(run()) };
     });
   },
-  _: dataMap((a, b) => {
-    if (a.type === 'list' || b.type === 'list') return null;
-    return `${a.value || ''} ${b.value || ''}`;
-  }),
 };

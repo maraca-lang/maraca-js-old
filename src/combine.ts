@@ -174,6 +174,7 @@ const combine = (create, index, s1, s2, tight, get, output) => {
     update: () => {
       const info = getInfo(s1, s2, get);
       if (!canContinue || !canContinue(info)) {
+        if (result.type === 'stream') result.value.stop();
         ({ result, canContinue } = run(
           create,
           createIndexer(index),

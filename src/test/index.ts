@@ -1,9 +1,9 @@
-import { toData } from '../data';
+import { toData, toTypedValue } from '../data';
 import maraca, { createMethod } from '../index';
 
 const source = {
   modules: {
-    index: `test? (@now)`,
+    index: `test? (@500)`,
     test: '#size [a, b, c]',
   },
   index: 'index',
@@ -14,17 +14,40 @@ const map = m => ({ initial, output }) => ({
   update: value => output(toData(m(value))),
 });
 
-const methods = {
-  size: create =>
-    createMethod(
+const config = create => ({
+  dynamics: [
+    arg => ({ get, output }) => {
+      let interval;
+      const run = () => {
+        let count = 0;
+        const inc = toTypedValue(get(arg));
+        if (['integer', 'number'].includes(inc.type)) {
+          interval = setInterval(() => output(toData(count++)), inc.value);
+          return toData(count++);
+        }
+        return toData(null);
+      };
+      return {
+        initial: run(),
+        update: () => {
+          clearInterval(interval);
+          output(run());
+        },
+        stop: () => clearInterval(interval),
+      };
+    },
+  ],
+  library: {
+    size: createMethod(
       create,
-      map(x => {
-        return x.type === 'list'
+      map(x =>
+        x.type === 'list'
           ? x.value.indices.filter(x => x).length +
-              Object.keys(x.value.values).length
-          : '0';
-      }),
+            Object.keys(x.value.values).length
+          : '0',
+      ),
     ),
-};
+  },
+});
 
-maraca(source, methods, data => console.log(JSON.stringify(data, null, 2)));
+maraca(config, source, data => console.log(JSON.stringify(data, null, 2)));

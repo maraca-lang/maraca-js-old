@@ -165,15 +165,15 @@ expmerge ->
 	| exppow {% id %}
 
 exppow ->
-    exppow _ ("^") _ expdata {% core %}
-  | expdata {% id %}
+    exppow _ ("^") _ expdyn {% core %}
+  | expdyn {% id %}
 
-expdata ->
-    ("@@" | "@") _ expcomb
+expdyn ->
+    ("@@@" | "@@" | "@") _ expcomb
       {% x => ({
-        type: "core",
-        func: x[0][0].text,
-        args: [x[2]],
+        type: "dynamic",
+        level: x[0][0].text.length,
+        arg: x[2],
         start: x[0][0].offset,
         end: x[2].end,
       }) %}

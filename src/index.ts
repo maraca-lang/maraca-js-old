@@ -1,5 +1,5 @@
 import build from './build';
-import { compare, setOther } from './data';
+import { compare, setOther, toKey } from './data';
 import parse from './parse';
 import process, { createIndexer } from './process';
 import { streamMap } from './core';
@@ -26,6 +26,22 @@ const prepareData = ({ type, value, set, id }) => {
   };
 };
 
+export const unprepare = data => {
+  if (data.type !== 'list') return data;
+  const { type, indices, values, set } = data;
+  return {
+    type,
+    value: {
+      indices: indices.map(unprepare),
+      values: values.reduce(
+        (res, v) => ({ ...res, [toKey(v.key)]: unprepare(v) }),
+        {},
+      ),
+    },
+    set,
+  };
+};
+
 export const createMethod = (create, map, deep = false) => ({
   type: 'list',
   value: {
@@ -47,9 +63,10 @@ export const createMethod = (create, map, deep = false) => ({
   },
 });
 
-export default (source, methods, output) => {
+export default (config, source, output) => {
   const create = process();
   const indexer = createIndexer();
+  const createdConfig = config(create, indexer);
   const { modules, index } =
     typeof source === 'string'
       ? { modules: { index: source }, index: 'index' }
@@ -63,12 +80,15 @@ export default (source, methods, output) => {
     (index, [list, v]) => {
       const result = streamMap(value => {
         const subIndexer = createIndexer(index);
+        if (value.type !== 'value' || !parsed[value.value]) {
+          return { type: 'nil' };
+        }
         return build(
-          methods,
+          createdConfig,
           create,
           subIndexer,
           { scope: [scope], current: [list] },
-          (value.type === 'value' && parsed[value.value]) || { type: 'nil' },
+          parsed[value.value],
         );
       })(create, index, [v]);
       return [{ type: 'nil' }, result];
@@ -76,7 +96,7 @@ export default (source, methods, output) => {
     'k=>',
   );
   const stream = build(
-    methods,
+    createdConfig,
     create,
     indexer,
     { scope: [scope], current: [{ type: 'nil' }] },
@@ -92,6 +112,12 @@ export default (source, methods, output) => {
   );
   const obj = {};
   result.value.observe(obj);
-  output(prepareData(result.value.value));
-  return () => result.value.unobserve(obj);
+  const initial = prepareData(result.value.value);
+  const stop = () => result.value.unobserve(obj);
+  if (!output) {
+    stop();
+    return initial;
+  }
+  output(initial);
+  return stop;
 };
