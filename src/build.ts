@@ -1,7 +1,7 @@
 import assign from './assign';
 import combine from './combine';
 import core, { streamMap } from './core';
-import { setOther, toData } from './data';
+import { toData } from './data';
 import parse from './parse';
 import { createIndexer } from './process';
 
@@ -13,34 +13,36 @@ const evalInContext = (library, code) =>
 const build = (config, create, indexer, context, node) => {
   if (node.type === 'other') {
     const scope = context.scope[0];
-    const keys: any[] = [];
-    let type = node.key ? '=>' : '=>>';
-    if (node.key && node.key !== true) {
-      keys.push(build(config, create, indexer, context, node.key));
-      type = 'k=>';
-    }
-    if (node.value && node.value !== true) {
-      keys.push(build(config, create, indexer, context, node.value));
-      type = type === 'k=>' ? 'k=>v=>' : 'v=>>';
-    }
-    const other = (index, [list, ...values]) => {
+    const keys = [node.key, node.value].map(
+      n => n && build(config, create, indexer, context, n),
+    );
+    const otherMap = (list, key?) => (index, value) => {
+      const values = [key, value];
       const subIndexer = createIndexer(index);
       const subContext = { scope: [scope], current: [list] };
       keys.forEach((key, i) => {
-        subContext.scope[0] = assign(true)(create, subIndexer(), [
-          subContext.scope[0],
-          values[i],
-          key,
-        ]);
+        if (key) {
+          subContext.scope[0] = assign(
+            create,
+            subIndexer(),
+            [subContext.scope[0], values[i], key],
+            true,
+            true,
+          );
+        }
       });
       const result = build(config, create, subIndexer, subContext, node.output);
-      return [subContext.current[0], result];
+      return [result, subContext.current[0]];
     };
-    context.current[0] = streamMap(current => setOther(current, other, type))(
-      create,
-      indexer(),
-      [context.current[0]],
-    );
+    const other = otherMap([{ type: 'nil' }]);
+    context.current[0] = streamMap(current => ({
+      type: 'list',
+      value: {
+        ...(current.value || { indices: [], values: {} }),
+        other: node.map ? otherMap : other,
+        otherMap: node.map,
+      },
+    }))(create, indexer(), [context.current[0]]);
     return { type: 'nil' };
   }
   if (node.type === 'set') {
@@ -50,10 +52,21 @@ const build = (config, create, indexer, context, node) => {
     ) {
       return build(config, create, indexer, context, node.args[0]);
     }
-    const map = assign(node.unpack);
     const args = node.args.map(n => build(config, create, indexer, context, n));
-    context.scope[0] = map(create, indexer(), [context.scope[0], ...args]);
-    context.current[0] = map(create, indexer(), [context.current[0], ...args]);
+    context.scope[0] = assign(
+      create,
+      indexer(),
+      [context.scope[0], ...args],
+      node.unpack,
+      true,
+    );
+    context.current[0] = assign(
+      create,
+      indexer(),
+      [context.current[0], ...args],
+      node.unpack,
+      true,
+    );
     return { type: 'nil' };
   }
   if (node.type === 'dynamic') {
@@ -72,24 +85,24 @@ const build = (config, create, indexer, context, node) => {
         : { type: 'nil' };
     }
     const code = build(config, create, indexer, context, node.code);
-    return streamMap(code =>
-      setOther(
-        { type: 'nil' },
-        (index, [list, value]) => {
+    return streamMap(code => ({
+      type: 'list',
+      value: {
+        indices: [],
+        values: {},
+        other: (index, value) => {
           const subIndexer = createIndexer(index);
-          const subContext = { scope: [value], current: [list] };
+          const subContext = { scope: [value], current: [{ type: 'nil' }] };
           let parsed = { type: 'nil' };
           try {
             parsed = parse(code.type === 'value' ? code.value : '');
           } catch (e) {
             console.log(e.message);
           }
-          const result = build(config, create, subIndexer, subContext, parsed);
-          return [subContext.current[0], result];
+          return [build(config, create, subIndexer, subContext, parsed)];
         },
-        'k=>',
-      ),
-    )(create, indexer(), [code]);
+      },
+    }))(create, indexer(), [code]);
   }
   if (node.type === 'list') {
     if (node.bracket !== '[') {
@@ -124,12 +137,9 @@ const build = (config, create, indexer, context, node) => {
   }
   if (node.type === 'combine') {
     const args = node.args.map(n => build(config, create, indexer, context, n));
-    return args.reduce((a1, a2) => {
-      const index = indexer();
-      return create(index, ({ get, output }) =>
-        combine(create, index, a1, a2, node.tight, get, output),
-      );
-    });
+    return args.reduce(
+      (a1, a2) => combine(create, indexer(), [a1, a2], node.tight)[0],
+    );
   }
   if (node.type === 'value') {
     return core.constant(create, indexer(), {

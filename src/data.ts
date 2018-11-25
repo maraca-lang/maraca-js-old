@@ -165,15 +165,6 @@ export const resolve = (data, get, deep) => {
   };
 };
 
-export const setOther = (list, other, otherType) => ({
-  type: 'list',
-  value: {
-    ...(list.value || { indices: [], values: {} }),
-    other,
-    otherType,
-  },
-});
-
 export const listGet = ({ type, value }, key, withOther = true) => {
   if (type !== 'list') return { type: 'nil' };
   const k = toKey(key);

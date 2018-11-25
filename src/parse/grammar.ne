@@ -20,6 +20,7 @@ expother ->
     expset _ "=>" _ expset _ "=>" _ expset
       {% x => ({
         type: "other",
+        map: true,
         key: x[0],
         value: x[4],
         output: x[8],
@@ -29,6 +30,7 @@ expother ->
   | expset _ "=>>" _ expset
       {% x => ({
         type: "other",
+        map: true,
         value: x[0],
         output: x[4],
         start: x[0].start,
@@ -37,7 +39,7 @@ expother ->
   | expset _ "=>" _ expset
       {% x => ({
         type: "other",
-        key: x[0],
+        value: x[0],
         output: x[4],
         start: x[0].start,
         end: x[4].end,
@@ -45,7 +47,7 @@ expother ->
   | "=>>" _ expset
       {% x => ({
         type: "other",
-        value: true,
+        map: true,
         output: x[2],
         start: x[0].offset,
         end: x[2].end,
@@ -53,7 +55,6 @@ expother ->
   | "=>" _ expset
       {% x => ({
         type: "other",
-        key: true,
         output: x[2],
         start: x[0].offset,
         end: x[2].end,
@@ -157,11 +158,7 @@ expsum ->
 	| expprod {% id %}
 
 expprod ->
-    expprod _ ("*" | "/" | "%") _ expmerge {% core %}
-	| expmerge {% id %}
-
-expmerge ->
-	  expmerge _ ("&") _ exppow {% core %}
+    expprod _ ("*" | "/" | "%") _ exppow {% core %}
 	| exppow {% id %}
 
 exppow ->
@@ -189,7 +186,7 @@ expcomb ->
       }) %}
   | atom {% id %}
 
-atom -> (list | eval | value | space | context) {% x => x[0][0] %}
+atom -> (list | eval | value | context) {% x => x[0][0] %}
 
 list ->
     (("[" body "]") | ("(" body ")") | ("{" body "}"))
@@ -239,14 +236,6 @@ value ->
         start: x[0][0].offset,
         end: x[0][0].offset + x[0][0].text.length,
       }) %}
-
-space ->
-    "_" {% x => ({
-      type: "value",
-      value: " ",
-      start: x[0].offset,
-      end: x[0].offset + x[0].text.length,
-    }) %}
 
 context ->
     "?" {% x => ({
