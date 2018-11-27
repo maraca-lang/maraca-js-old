@@ -35,7 +35,7 @@ export const toTypedValue = ({ type, value }) => {
   if (type !== 'value') return { type, value };
   if (!isNaN(value) && !isNaN(parseFloat(value))) {
     const v = parseFloat(value);
-    return { type: Math.floor(v) === v ? 'integer' : 'number', value: v };
+    return { type: 'number', integer: Math.floor(v) === v, value: v };
   }
   if (regexs.time.test(value)) {
     return { type: 'time', value: new Date(value) };
@@ -44,13 +44,6 @@ export const toTypedValue = ({ type, value }) => {
     return { type: 'location', value: JSON.parse(value) };
   }
   return { type: 'value', value };
-};
-
-const getMinus = v => {
-  if (!v) return { minus: false, v };
-  const minus = typeof v === 'number' ? v < 0 : v[0] === '-';
-  if (!minus) return { minus, value: v };
-  return { minus, value: typeof v === 'number' ? -v : v.slice(1) };
 };
 
 export const sortMultiple = (items1, items2, sortItems) =>
@@ -64,12 +57,21 @@ export const sortMultiple = (items1, items2, sortItems) =>
     0,
   ) as -1 | 0 | 1;
 
+const toNumber = s => (!isNaN(s) && !isNaN(parseFloat(s)) ? parseFloat(s) : s);
+
+const getMinus = v => {
+  if (!v) return { minus: false, v };
+  const minus = typeof v === 'number' ? v < 0 : v[0] === '-';
+  if (!minus) return { minus, value: v };
+  return { minus, value: typeof v === 'number' ? -v : v.slice(1) };
+};
+
 const sortStrings = (s1, s2) => {
   if (s1 === s2) return 0;
   if (!s1) return -1;
   if (!s2) return 1;
-  const n1 = toTypedValue({ type: 'value', value: s1 }).value;
-  const n2 = toTypedValue({ type: 'value', value: s2 }).value;
+  const n1 = toNumber(s1);
+  const n2 = toNumber(s2);
   const m1 = getMinus(n1);
   const m2 = getMinus(n2);
   if (m1.minus !== m2.minus) return m1.minus ? -1 : 1;
@@ -126,7 +128,7 @@ export const toKey = ({ type, value }) => {
   if (type !== 'list') {
     if (!isNaN(value) && !isNaN(parseFloat(value))) {
       const n = parseFloat(value);
-      if (Math.floor(n) === n) return n - 1;
+      if (Math.floor(n) === n && n > 0) return n - 1;
     }
     return value || '';
   }
@@ -165,22 +167,12 @@ export const resolve = (data, get, deep) => {
   };
 };
 
-export const listGet = ({ type, value }, key, withOther = true) => {
+export const listGet = ({ type, value }, key, withMap = false) => {
   if (type !== 'list') return { type: 'nil' };
   const k = toKey(key);
   const v =
     typeof k === 'number'
       ? value.indices[k]
       : value.values[k] && value.values[k].value;
-  return v || (withOther && value.other) || { type: 'nil' };
-};
-
-export const listOrNull = list => {
-  if (
-    list.indices.length + Object.keys(list.values).length === 0 &&
-    !list.other
-  ) {
-    return { type: 'nil' };
-  }
-  return { type: 'list', value: list };
+  return v || ((withMap || !value.otherMap) && value.other) || { type: 'nil' };
 };

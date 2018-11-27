@@ -36,12 +36,18 @@ const toList = indices => ({
   value: { indices, values: {} },
 });
 
+const copy = (create, index, stream) =>
+  create(index, ({ get, output }) => ({
+    initial: get(stream),
+    update: () => output(get(stream)),
+  }));
+
 const run = (
   create,
   indexer,
   { type, reverse, big, small },
   [s1, s2],
-  tight,
+  space,
 ) => {
   if (type === 'nil') {
     return {
@@ -55,7 +61,7 @@ const run = (
         streamMap((v1, v2) =>
           toData(
             (v1.value || '') +
-              (v1.value && v2.value && !tight ? ' ' : '') +
+              (v1.value && v2.value && space ? ' ' : '') +
               (v2.value || ''),
           ),
         )(create, indexer(), [s1, s2]),
@@ -65,12 +71,15 @@ const run = (
   }
   if (type === 'get') {
     const value = listGet(big, small);
+    const result =
+      typeof value !== 'function'
+        ? [value]
+        : value(indexer(), reverse ? s1 : s2);
+    if (result[0].type === 'stream') {
+      result[0] = copy(create, indexer(), result[0]);
+    }
     return {
-      result: toList(
-        typeof value !== 'function'
-          ? [value]
-          : value(indexer(), reverse ? s1 : s2),
-      ),
+      result: toList(result),
       canContinue: info =>
         info.type === 'get' && listGet(info.big, info.small) === value,
     };
@@ -95,7 +104,7 @@ const run = (
       ].reduce(
         (res, k) => {
           const [b, s] = [big, small]
-            .map(v => listGet(v, k))
+            .map(v => listGet(v, k, true))
             .map(v => {
               if (typeof v !== 'function') return v;
               return {
@@ -107,17 +116,17 @@ const run = (
             create,
             indexer(),
             reverse ? [s, b] : [b, s],
-            tight,
+            space,
           );
           return assign(create, indexer(), [l, v, k], false, false);
         },
-        { type: 'nil' },
+        { type: 'list', value: { indices: [], values: {} } },
       ),
     ]),
   };
 };
 
-const combine = (create, index, args, tight) => {
+const combine = (create, index, args, space) => {
   const indexer = createIndexer(index);
   const baseIndex = indexer();
   const base = create(baseIndex, ({ get, output }) => {
@@ -126,7 +135,7 @@ const combine = (create, index, args, tight) => {
       createIndexer(baseIndex),
       getInfo(args, get),
       args,
-      tight,
+      space,
     );
     return {
       initial: result,
@@ -141,7 +150,7 @@ const combine = (create, index, args, tight) => {
             createIndexer(baseIndex),
             info,
             args,
-            tight,
+            space,
           ));
           output(result);
         }

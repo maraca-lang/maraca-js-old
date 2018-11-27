@@ -116,19 +116,8 @@ expset ->
   | expid {% id %}
 
 expid ->
-    expid _ ("~") _ exptight {% core %}
-  | exptight {% id %}
-
-exptight ->
-	  exptight _ "." _ expnot
-      {% x => ({
-        type: "combine",
-        tight: true,
-        args: [...(x[0].tight ? x[0].args : [x[0]]), x[4]],
-        start: x[0].start,
-        end: x[4].end,
-      }) %}
-	| expnot {% id %}
+    expid _ ("~") _ expnot {% core %}
+  | expnot {% id %}
 
 expnot ->
     "!" _ expcomp
@@ -166,7 +155,7 @@ exppow ->
   | expdyn {% id %}
 
 expdyn ->
-    ("@@@" | "@@" | "@") _ expcomb
+    ("@@@" | "@@" | "@") _ expdot
       {% x => ({
         type: "dynamic",
         level: x[0][0].text.length,
@@ -174,12 +163,27 @@ expdyn ->
         start: x[0][0].offset,
         end: x[2].end,
       }) %}
+	| expdot {% id %}
+
+expdot ->
+	  expdot _ "." _ expcomb
+      {% x => ({
+        type: "combine",
+        dot: true,
+        args: [
+          ...(x[0].type === "combine" && x[0].dot ? x[0].args : [x[0]]),
+          x[4]
+        ],
+        start: x[0].start,
+        end: x[4].end,
+      }) %}
 	| expcomb {% id %}
 
 expcomb ->
 	  expcomb _ atom
       {% x => ({
         type: "combine",
+        space: [...(x[0].type === "combine" ? x[0].space : []), !!x[1]],
         args: [...(x[0].type === "combine" ? x[0].args : [x[0]]), x[2]],
         start: x[0].start,
         end: x[2].end,

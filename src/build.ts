@@ -34,7 +34,9 @@ const build = (config, create, indexer, context, node) => {
       const result = build(config, create, subIndexer, subContext, node.output);
       return [result, subContext.current[0]];
     };
-    const other = otherMap([{ type: 'nil' }]);
+    const other = otherMap([
+      { type: 'list', value: { indices: [], values: {} } },
+    ]);
     context.current[0] = streamMap(current => ({
       type: 'list',
       value: {
@@ -92,7 +94,10 @@ const build = (config, create, indexer, context, node) => {
         values: {},
         other: (index, value) => {
           const subIndexer = createIndexer(index);
-          const subContext = { scope: [value], current: [{ type: 'nil' }] };
+          const subContext = {
+            scope: [value],
+            current: [{ type: 'list', value: { indices: [], values: {} } }],
+          };
           let parsed = { type: 'nil' };
           try {
             parsed = parse(code.type === 'value' ? code.value : '');
@@ -128,7 +133,12 @@ const build = (config, create, indexer, context, node) => {
     context.scope.unshift(
       core.clearIndices(create, indexer(), [context.scope[0]]),
     );
-    context.current.unshift(core.constant(create, indexer(), { type: 'nil' }));
+    context.current.unshift(
+      core.constant(create, indexer(), {
+        type: 'list',
+        value: { indices: [], values: {} },
+      }),
+    );
     node.values.forEach(n =>
       build(config, create, indexer, context, { type: 'set', args: [n] }),
     );
@@ -138,7 +148,13 @@ const build = (config, create, indexer, context, node) => {
   if (node.type === 'combine') {
     const args = node.args.map(n => build(config, create, indexer, context, n));
     return args.reduce(
-      (a1, a2) => combine(create, indexer(), [a1, a2], node.tight)[0],
+      (a1, a2, i) =>
+        combine(
+          create,
+          indexer(),
+          [a1, a2],
+          node.space && node.space[i - 1],
+        )[0],
     );
   }
   if (node.type === 'value') {

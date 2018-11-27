@@ -50,7 +50,10 @@ export default (config, source, output) => {
             createdConfig,
             create,
             subIndexer,
-            { scope: [scope], current: [{ type: 'nil' }] },
+            {
+              scope: [scope],
+              current: [{ type: 'list', value: { indices: [], values: {} } }],
+            },
             parsed[value.value],
           );
         })(create, index, [value]),
@@ -61,7 +64,10 @@ export default (config, source, output) => {
     createdConfig,
     create,
     indexer,
-    { scope: [scope], current: [{ type: 'nil' }] },
+    {
+      scope: [scope],
+      current: [{ type: 'list', value: { indices: [], values: {} } }],
+    },
     parsed[index],
   );
   const result = create(

@@ -1,4 +1,4 @@
-import { compare, listOrNull, toData, toTypedValue } from './data';
+import { toData, toTypedValue } from './data';
 import fuzzy from './fuzzy';
 
 export const streamMap = map => (create, index, args) =>
@@ -22,9 +22,10 @@ export default {
       const set = v => output({ ...v, set });
       return { initial: { ...value, set } };
     }),
-  clearIndices: streamMap(({ type, value }) =>
-    type === 'list' ? listOrNull({ ...value, indices: [] }) : { type: 'nil' },
-  ),
+  clearIndices: streamMap(({ value }) => ({
+    type: 'list',
+    value: { ...value, indices: [] },
+  })),
   '~': streamMap((a, b) => ({ ...b, id: a })),
   '==': dataMap((a, b) => a.type === b.type && a.value === b.value),
   '=': dataMap((a, b) => {
@@ -36,19 +37,19 @@ export default {
     if (!b) return a.type === 'nil' ? 1 : null;
     return a.type !== b.type || a.value !== b.value;
   }),
-  '<': dataMap((a, b) => compare(a, b) === -1),
-  '>': dataMap((a, b) => compare(a, b) === 1),
-  '<=': dataMap((a, b) => compare(a, b) !== 1),
-  '>=': dataMap((a, b) => compare(a, b) !== -1),
+  '<': numericMap((a, b) => a < b),
+  '>': numericMap((a, b) => a > b),
+  '<=': numericMap((a, b) => a <= b),
+  '>=': numericMap((a, b) => a >= b),
   '+': numericMap((a, b) => a + b),
   '-': dataMap((a, b) => {
     if (!b) return a.type === 'value' ? `-${a.value}` : null;
     const v1 = toTypedValue(a);
     const v2 = toTypedValue(b);
     if (v1.type !== v2.type) return null;
-    if (['integer', 'number'].includes(v1.type)) return v1.value - v2.value;
+    if (v1.type === 'number') return v1.value - v2.value;
     if (v1.type === 'time') {
-      return (v1.value.getTime() - v2.value.getTime()) / 60000;
+      return v1.value.getTime() - v2.value.getTime();
     }
     if (v1.type === 'location') {
       const p = 0.017453292519943295;

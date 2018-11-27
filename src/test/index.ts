@@ -21,7 +21,7 @@ const config = create => ({
       const run = () => {
         let count = 0;
         const inc = toTypedValue(get(arg));
-        if (['integer', 'number'].includes(inc.type)) {
+        if (inc.type === 'number') {
           interval = setInterval(() => output(toData(count++)), inc.value);
           return toData(count++);
         }

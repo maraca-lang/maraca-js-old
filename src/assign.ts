@@ -1,17 +1,23 @@
 import { streamMap } from './core';
-import { listGet, listOrNull, toData, toKey } from './data';
+import { listGet, toData, toKey } from './data';
 import { createIndexer } from './process';
 
-const getType = (args, unpack, setNil, get) => {
-  const [list, value, key] = args.map(a => a && get(a));
+const getType = ([l, v, k], unpack, setNil, get) => {
+  const list = get(l);
   if (list.type === 'value') return 'none';
-  if (!key) {
+  if (!k) {
+    const value = get(v);
     if (value.type === 'nil') return 'none';
     if (!unpack || value.type === 'value') return 'append';
     return 'merge';
   }
-  if (!setNil && value.type === 'nil') return 'none';
+  const key = get(k);
+  if (!setNil) {
+    const value = get(v);
+    if (value.type === 'nil') return 'none';
+  }
   if (unpack && key.type === 'list') {
+    const value = get(v);
     if (value.type !== 'list') return 'none';
     return 'destructure';
   }
@@ -25,17 +31,23 @@ const run = (create, indexer, type, [l, v, k]) => {
   if (type === 'append') {
     return streamMap(list => {
       const listValue = list.value || { indices: [], values: {} };
-      return listOrNull({ ...listValue, indices: [...listValue.indices, v] });
+      return {
+        type: 'list',
+        value: { ...listValue, indices: [...listValue.indices, v] },
+      };
     })(create, indexer(), [l]);
   }
   if (type === 'merge') {
     return streamMap((list, value) => {
       const listValue = list.value || { indices: [], values: {} };
-      return listOrNull({
-        ...listValue,
-        indices: [...listValue.indices, ...value.value.indices],
-        values: { ...listValue.values, ...value.value.values },
-      });
+      return {
+        type: 'list',
+        value: {
+          ...listValue,
+          indices: [...listValue.indices, ...value.value.indices],
+          values: { ...listValue.values, ...value.value.values },
+        },
+      };
     })(create, indexer(), [l, v]);
   }
   if (type === 'destructure') {
@@ -69,7 +81,7 @@ const run = (create, indexer, type, [l, v, k]) => {
       res.values = { ...res.values };
       res.values[objKey] = { key, value: v };
     }
-    return listOrNull(res);
+    return { type: 'list', value: res };
   })(create, indexer(), [l, k]);
 };
 
