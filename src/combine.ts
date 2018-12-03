@@ -109,19 +109,22 @@ const run = (
               if (typeof v !== 'function') return v;
               return {
                 type: 'list',
-                value: { indices: [], values: {}, other: v(res, k) },
+                value: { indices: [], values: {}, other: v(...res, k) },
               };
             });
-          const [v, l] = combine(
+          const [v, scope, current] = combine(
             create,
             indexer(),
             reverse ? [s, b] : [b, s],
             space,
           );
-          return assign(create, indexer(), [l, v, k], false, false);
+          return [
+            scope,
+            assign(create, indexer(), [current, v, k], false, false),
+          ];
         },
-        { type: 'list', value: { indices: [], values: {} } },
-      ),
+        [undefined, { type: 'list', value: { indices: [], values: {} } }],
+      )[1],
     ]),
   };
 };
@@ -157,7 +160,7 @@ const combine = (create, index, args, space) => {
       },
     };
   });
-  return [0, 1].map(i =>
+  return [0, 1, 2].map(i =>
     streamMap(b => b.value.indices[i] || { type: 'nil' })(create, indexer(), [
       base,
     ]),

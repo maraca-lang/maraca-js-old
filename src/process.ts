@@ -48,7 +48,7 @@ export default () => {
     }
   };
 
-  return (index, value, onChange?) => {
+  return (index, run, onChange?) => {
     const stream = createStream(index, null, () => {
       let active = new Set();
       const get = s => {
@@ -56,7 +56,7 @@ export default () => {
         s.observe(stream);
         return s.value;
       };
-      const { initial, update, stop } = value({
+      const { initial, update, stop } = run({
         get: (s, deep = false) => resolve(s, get, deep),
         output: v => {
           stream.value = v;

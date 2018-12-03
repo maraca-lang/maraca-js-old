@@ -155,7 +155,7 @@ exppow ->
   | expdyn {% id %}
 
 expdyn ->
-    ("@@@" | "@@" | "@") _ expdot
+    ("@@@" | "@@" | "@") _ expsep
       {% x => ({
         type: "dynamic",
         level: x[0][0].text.length,
@@ -163,10 +163,10 @@ expdyn ->
         start: x[0][0].offset,
         end: x[2].end,
       }) %}
-	| expdot {% id %}
+	| expsep {% id %}
 
-expdot ->
-	  expdot _ "." _ expcomb
+expsep ->
+	  expsep _ "." _ expcomb
       {% x => ({
         type: "combine",
         dot: true,
@@ -180,7 +180,7 @@ expdot ->
 	| expcomb {% id %}
 
 expcomb ->
-	  expcomb _ atom
+	  expcomb _ eval
       {% x => ({
         type: "combine",
         space: [...(x[0].type === "combine" ? x[0].space : []), !!x[1]],
@@ -188,9 +188,20 @@ expcomb ->
         start: x[0].start,
         end: x[2].end,
       }) %}
+  | eval {% id %}
+
+eval ->
+    ("#" | "##") _ atom 
+      {% x => ({
+        type: "eval",
+        mode: x[0][0].text,
+        code: x[2],
+        start: x[0][0].offset,
+        end: x[2].end,
+      }) %}
   | atom {% id %}
 
-atom -> (list | eval | value | context) {% x => x[0][0] %}
+atom -> (list | value | context) {% x => x[0][0] %}
 
 list ->
     (("[" body "]") | ("(" body ")") | ("{" body "}"))
@@ -223,18 +234,8 @@ line ->
     _ exp _ {% x => ({ ...x[1], break: x[0] && x[0].lineBreaks > 0 }) %}
   | _ {% x => ({ type: "nil" }) %}
 
-eval ->
-    ("#" | "##") _ atom 
-      {% x => ({
-        type: "eval",
-        mode: x[0][0].text,
-        code: x[2],
-        start: x[0][0].offset,
-        end: x[2].end,
-      }) %}
-
 value ->
-    (%value | %string)
+    (%char | %value | %string)
       {% x => ({
         ...x[0][0].value,
         start: x[0][0].offset,

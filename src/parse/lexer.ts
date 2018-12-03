@@ -10,6 +10,10 @@ export default moo.compile({
   comparison: ['<', '>', '='],
   arithmetic: ['+', '-', '*', '/', '%', '^'],
   misc: [',', '?', ':', '~', '!', '#', '@', '.'],
+  char: {
+    match: /\\\S/,
+    value: s => toData(s[1]),
+  },
   value: {
     match: /(?:\d*\.\d+)|(?:[a-zA-Z0-9]+)/,
     value: s => toData(s),

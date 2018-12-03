@@ -16,10 +16,14 @@ const build = (config, create, indexer, context, node) => {
     const keys = [node.key, node.value].map(
       n => n && build(config, create, indexer, context, n),
     );
-    const otherMap = (list, key?) => (index, value) => {
+    const otherMap = (
+      otherScope = scope,
+      otherCurrent = { type: 'list', value: { indices: [], values: {} } },
+      key?,
+    ) => (index, value) => {
       const values = [key, value];
       const subIndexer = createIndexer(index);
-      const subContext = { scope: [scope], current: [list] };
+      const subContext = { scope: [otherScope], current: [otherCurrent] };
       keys.forEach((key, i) => {
         if (key) {
           subContext.scope[0] = assign(
@@ -32,11 +36,9 @@ const build = (config, create, indexer, context, node) => {
         }
       });
       const result = build(config, create, subIndexer, subContext, node.output);
-      return [result, subContext.current[0]];
+      return [result, subContext.scope[0], subContext.current[0]];
     };
-    const other = otherMap([
-      { type: 'list', value: { indices: [], values: {} } },
-    ]);
+    const other = otherMap();
     context.current[0] = streamMap(current => ({
       type: 'list',
       value: {
@@ -116,7 +118,8 @@ const build = (config, create, indexer, context, node) => {
         args: [
           toData(
             node.bracket === '('
-              ? node.values.filter(n => n.type !== 'other').length
+              ? node.values.filter(n => !['other', 'set'].includes(n.type))
+                  .length
               : 1,
           ),
           {
