@@ -1,5 +1,5 @@
 import assign from './assign';
-import { compare, listGet, toData } from './data';
+import { compare, listGet, toData, toKey } from './data';
 import { streamMap } from './core';
 import { createIndexer } from './process';
 
@@ -84,34 +84,80 @@ const run = (
         info.type === 'get' && listGet(info.big, info.small) === value,
     };
   }
+  const keys = [
+    ...Array.from({
+      length: Math.max(big.value.indices.length, small.value.indices.length),
+    }).map((_, i) => toData(i + 1)),
+    ...Array.from(
+      new Set([
+        ...Object.keys(big.value.values),
+        ...Object.keys(small.value.values),
+      ]),
+    )
+      .map(k => (big.value.values[k] || small.value.values[k]).key)
+      .sort(compare),
+  ];
+  const pairs = keys
+    .map(k => [big, small].map(v => listGet(v, k, true)))
+    .filter(([b, s]) => {
+      if (typeof b === 'function') return s.type !== 'nil';
+      if (typeof s === 'function') return b.type !== 'nil';
+      return b.type !== 'nil' || s.type !== 'nil';
+    });
+  if (
+    big.value.otherMap === 'pure' &&
+    pairs.every(([b]) => b === big.value.other)
+  ) {
+    return {
+      result: toList([
+        {
+          type: 'list',
+          value: pairs.reduce(
+            (res, [b, s], i) => {
+              const next = { ...res };
+              const objKey = toKey(keys[i]);
+              const value = combine(
+                create,
+                indexer(),
+                [
+                  {
+                    type: 'list',
+                    value: {
+                      indices: [],
+                      values: {},
+                      other: b(undefined, undefined, keys[i]),
+                    },
+                  },
+                  s,
+                ],
+                space,
+              )[0];
+              if (typeof objKey === 'number') {
+                next.indices = [...next.indices];
+                next.indices[objKey] = value;
+              } else {
+                next.values = { ...next.values };
+                next.values[objKey] = { key: keys[i], value };
+              }
+              return next;
+            },
+            { indices: [], values: {} } as any,
+          ),
+        },
+      ]),
+    };
+  }
   return {
     result: toList([
-      [
-        ...Array.from({
-          length: Math.max(
-            big.value.indices.length,
-            small.value.indices.length,
-          ),
-        }).map((_, i) => toData(i + 1)),
-        ...Array.from(
-          new Set([
-            ...Object.keys(big.value.values),
-            ...Object.keys(small.value.values),
-          ]),
-        )
-          .map(k => (big.value.values[k] || small.value.values[k]).key)
-          .sort(compare),
-      ].reduce(
-        (res, k) => {
-          const [b, s] = [big, small]
-            .map(v => listGet(v, k, true))
-            .map(v => {
-              if (typeof v !== 'function') return v;
-              return {
-                type: 'list',
-                value: { indices: [], values: {}, other: v(...res, k) },
-              };
-            });
+      pairs.reduce(
+        (res, p, i) => {
+          const [b, s] = p.map(v => {
+            if (typeof v !== 'function') return v;
+            return {
+              type: 'list',
+              value: { indices: [], values: {}, other: v(...res, keys[i]) },
+            };
+          });
           const [v, scope, current] = combine(
             create,
             indexer(),
@@ -120,7 +166,7 @@ const run = (
           );
           return [
             scope,
-            assign(create, indexer(), [current, v, k], false, false),
+            assign(create, indexer(), [current, v, keys[i]], false, false),
           ];
         },
         [undefined, { type: 'list', value: { indices: [], values: {} } }],

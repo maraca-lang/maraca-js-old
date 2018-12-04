@@ -15,7 +15,7 @@ export default moo.compile({
     value: s => toData(s[1]),
   },
   value: {
-    match: /(?:\d*\.\d+)|(?:[a-zA-Z0-9]+)/,
+    match: /(?:\d+\.\d+)|(?:[a-zA-Z0-9]+)/,
     value: s => toData(s),
   },
   string: {

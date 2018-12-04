@@ -10,6 +10,24 @@ const evalInContext = (library, code) =>
     ...Object.values(library),
   );
 
+const structure = {
+  other: ['key', 'value', 'output'],
+  set: ['args'],
+  dynamic: ['arg'],
+  core: ['args'],
+  eval: ['code'],
+  list: ['values'],
+  combine: ['args'],
+};
+
+const isPure = node => {
+  if (['set', 'other'].includes(node.type)) return false;
+  if (node.type === 'list') return true;
+  return (structure[node.type] || []).every(k =>
+    Array.isArray(node[k]) ? node[k].every(isPure) : isPure(node[k]),
+  );
+};
+
 const build = (config, create, indexer, context, node) => {
   if (node.type === 'other') {
     const scope = context.scope[0];
@@ -44,7 +62,7 @@ const build = (config, create, indexer, context, node) => {
       value: {
         ...(current.value || { indices: [], values: {} }),
         other: node.map ? otherMap : other,
-        otherMap: node.map,
+        otherMap: node.map && (isPure(node.output) ? 'pure' : true),
       },
     }))(create, indexer(), [context.current[0]]);
     return { type: 'nil' };
