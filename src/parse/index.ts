@@ -9,5 +9,6 @@ export default script => {
   parser.feed(script);
   // if (parser.results.length > 1) console.log('AMBIGUOUS!');
   // console.log(JSON.stringify(parser.results, null, 2));
-  return parser.results[0] || { type: 'nil' };
+  if (parser.results.length === 0) throw new Error('Parser error');
+  return parser.results[0];
 };

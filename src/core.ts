@@ -34,7 +34,7 @@ export default {
     return res < 0.3 ? null : 2 - res;
   }),
   '!': dataMap((a, b) => {
-    if (!b) return a.type === 'nil' ? 1 : null;
+    if (!b) return a.type === 'nil';
     return a.type !== b.type || a.value !== b.value;
   }),
   '<': numericMap((a, b) => a < b),

@@ -24,11 +24,15 @@ const getType = (big, small) => {
   return 'join';
 };
 
-const getInfo = ([s1, s2], get) => {
+const getInfo = ([s1, s2], get, dot) => {
   const v1 = get(s1);
   const v2 = get(s2);
-  const [big, small] = sortTypes(v1, v2);
-  return { type: getType(big, small), reverse: big !== v1, big, small };
+  const [b, s] = sortTypes(v1, v2);
+  const [big, small] =
+    dot && b.type === 'value' && s.type === 'nil'
+      ? [{ type: 'list', value: { indices: [], values: {} } }, b]
+      : [b, s];
+  return { type: getType(big, small), reverse: small === v1, big, small };
 };
 
 const toList = indices => ({
@@ -47,6 +51,7 @@ const run = (
   indexer,
   { type, reverse, big, small },
   [s1, s2],
+  dot,
   space,
 ) => {
   if (type === 'nil') {
@@ -130,6 +135,7 @@ const run = (
                   },
                   s,
                 ],
+                dot,
                 space,
               )[0];
               if (typeof objKey === 'number') {
@@ -162,6 +168,7 @@ const run = (
             create,
             indexer(),
             reverse ? [s, b] : [b, s],
+            dot,
             space,
           );
           return [
@@ -175,21 +182,22 @@ const run = (
   };
 };
 
-const combine = (create, index, args, space) => {
+const combine = (create, index, args, dot, space) => {
   const indexer = createIndexer(index);
   const baseIndex = indexer();
   const base = create(baseIndex, ({ get, output }) => {
     let { result, canContinue } = run(
       create,
       createIndexer(baseIndex),
-      getInfo(args, get),
+      getInfo(args, get, dot),
       args,
+      dot,
       space,
     );
     return {
       initial: result,
       update: () => {
-        const info = getInfo(args, get);
+        const info = getInfo(args, get, dot);
         if (!canContinue || !canContinue(info)) {
           result.value.indices.forEach(s => {
             if (s.type === 'stream') s.value.stop();
@@ -199,6 +207,7 @@ const combine = (create, index, args, space) => {
             createIndexer(baseIndex),
             info,
             args,
+            dot,
             space,
           ));
           output(result);

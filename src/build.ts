@@ -5,10 +5,15 @@ import { toData } from './data';
 import parse from './parse';
 import { createIndexer } from './process';
 
-const evalInContext = (library, code) =>
-  new Function(...Object.keys(library), `return ${code}`)(
-    ...Object.values(library),
-  );
+const evalInContext = (library, code) => {
+  try {
+    return new Function(...Object.keys(library), `return ${code}`)(
+      ...Object.values(library),
+    );
+  } catch {
+    return { type: 'nil' };
+  }
+};
 
 const structure = {
   other: ['key', 'value', 'output'],
@@ -174,6 +179,7 @@ const build = (config, create, indexer, context, node) => {
           create,
           indexer(),
           [a1, a2],
+          node.dot,
           node.space && node.space[i - 1],
         )[0],
     );
