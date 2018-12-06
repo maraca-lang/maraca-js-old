@@ -23,17 +23,14 @@ export const createMethod = (create, map, deep = false) => ({
   },
 });
 
-export default (config, source, output) => {
+export default (config, code, output) => {
   const create = process();
   const indexer = createIndexer();
   const createdConfig = config(create, indexer);
-  const { modules, index } =
-    typeof source === 'string'
-      ? { modules: { index: source }, index: 'index' }
-      : source;
+  const modules = typeof code === 'string' ? { start: code } : code;
   const parsed = Object.keys(modules).reduce(
     (res, k) => ({ ...res, [k]: parse(modules[k]) }),
-    {},
+    {} as any,
   );
   const scope = {
     type: 'list',
@@ -68,7 +65,7 @@ export default (config, source, output) => {
       scope: [scope],
       current: [{ type: 'list', value: { indices: [], values: {} } }],
     },
-    parsed[index],
+    parsed.start,
   );
   const result = create(
     indexer(),

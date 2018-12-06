@@ -11,7 +11,7 @@ export default moo.compile({
   arithmetic: ['+', '-', '*', '/', '%', '^'],
   misc: [',', '?', ':', '~', '!', '#', '@', '.'],
   char: {
-    match: /\\\S/,
+    match: /'\S/,
     value: s => toData(s[1]),
   },
   value: {
@@ -19,16 +19,8 @@ export default moo.compile({
     value: s => toData(s),
   },
   string: {
-    match: /"(?:\\["\\]|[^"\\])*"/,
-    value: s =>
-      toData(
-        dedent(
-          s
-            .slice(1, -1)
-            .replace(/\\\\/g, '\\')
-            .replace(/\\"/g, '"'),
-        ),
-      ),
+    match: /"(?:""|[^"])*"/,
+    value: s => toData(dedent(s.slice(1, -1).replace(/""/g, '"'))),
   },
   _: { match: /\s+/, lineBreaks: true },
 });

@@ -2,11 +2,8 @@ import { toData, toTypedValue } from '../data';
 import maraca, { createMethod } from '../index';
 
 const source = {
-  modules: {
-    index: `test? (@1000)`,
-    test: '#size [a, b, c]',
-  },
-  index: 'index',
+  start: `test? (@1000)`,
+  test: '#size [a, b, c]',
 };
 
 const map = m => ({ initial, output }) => ({
