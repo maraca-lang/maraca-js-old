@@ -64,42 +64,42 @@ expother ->
 expset ->
     expset _ ":=?"
       {% x => ({
-        type: "set",
+        type: "assign",
         args: [{ type: "combine", args: [x[0], { type: "context" }] }, x[0]],
         start: x[0].start,
         end: x[2].offset + x[2].text.length,
       }) %}
   | expset _ ":="
       {% x => ({
-        type: "set",
+        type: "assign",
         args: [x[0], x[0]],
         start: x[0].start,
         end: x[2].offset + x[2].text.length,
       }) %}
   | expid _ ":" _ expset
       {% x => ({
-        type: "set",
+        type: "assign",
         args: [x[4], x[0]],
         start: x[0].start,
         end: x[4].end,
       }) %}
   | expset _ ":"
       {% x => ({
-        type: "set",
+        type: "assign",
         args: [{ type: "nil" }, x[0]],
         start: x[0].start,
         end: x[2].offset + x[2].text.length,
       }) %}
   | ":" _ expset
       {% x => ({
-        type: "set",
+        type: "assign",
         args: [x[2], { type: "nil" }],
         start: x[0].offset,
         end: x[2].end,
       }) %}
   | expid _ "::" _ expset
       {% x => ({
-        type: "set",
+        type: "assign",
         unpack: true,
         args: [x[4], x[0]],
         start: x[0].start,
@@ -107,7 +107,7 @@ expset ->
       }) %}
   | "::" _ expset
       {% x => ({
-        type: "set",
+        type: "assign",
         unpack: true,
         args: [x[2]],
         start: x[0].offset,

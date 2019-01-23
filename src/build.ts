@@ -17,7 +17,7 @@ const evalInContext = (library, code) => {
 
 const structure = {
   other: ['key', 'value', 'output'],
-  set: ['args'],
+  assign: ['args'],
   dynamic: ['arg'],
   core: ['args'],
   eval: ['code'],
@@ -26,7 +26,7 @@ const structure = {
 };
 
 const isPure = node => {
-  if (['set', 'other'].includes(node.type)) return false;
+  if (['assign', 'other'].includes(node.type)) return false;
   if (node.type === 'list') return true;
   return (structure[node.type] || []).every(k =>
     Array.isArray(node[k]) ? node[k].every(isPure) : isPure(node[k]),
@@ -72,28 +72,17 @@ const build = (config, create, indexer, context, node) => {
     }))(create, indexer(), [context.current[0]]);
     return { type: 'nil' };
   }
-  if (node.type === 'set') {
+  if (node.type === 'assign') {
     if (
       !node.args[1] &&
-      (node.args[0].type === 'set' || node.args[0].type === 'other')
+      (node.args[0].type === 'assign' || node.args[0].type === 'other')
     ) {
       return build(config, create, indexer, context, node.args[0]);
     }
     const args = node.args.map(n => build(config, create, indexer, context, n));
-    context.scope[0] = assign(
-      create,
-      indexer(),
-      [context.scope[0], ...args],
-      node.unpack,
-      true,
-    );
-    context.current[0] = assign(
-      create,
-      indexer(),
-      [context.current[0], ...args],
-      node.unpack,
-      true,
-    );
+    [context.scope, context.current].forEach(l => {
+      l[0] = assign(create, indexer(), [l[0], ...args], node.unpack, true);
+    });
     return { type: 'nil' };
   }
   if (node.type === 'dynamic') {
@@ -138,21 +127,14 @@ const build = (config, create, indexer, context, node) => {
     if (node.bracket !== '[') {
       return build(config, create, indexer, context, {
         type: 'combine',
+        dot: true,
         args: [
           toData(
             node.bracket === '('
-              ? node.values.filter(n => !['other', 'set'].includes(n.type))
-                  .length
+              ? node.values.filter(n => n.type !== 'other').length
               : 1,
           ),
-          {
-            type: 'list',
-            bracket: '[',
-            values: [
-              { type: 'other', key: true, output: { type: 'nil' } },
-              ...node.values,
-            ],
-          },
+          { type: 'list', bracket: '[', values: node.values },
         ],
       });
     }
@@ -166,7 +148,7 @@ const build = (config, create, indexer, context, node) => {
       }),
     );
     node.values.forEach(n =>
-      build(config, create, indexer, context, { type: 'set', args: [n] }),
+      build(config, create, indexer, context, { type: 'assign', args: [n] }),
     );
     context.scope.shift();
     return context.current.shift();

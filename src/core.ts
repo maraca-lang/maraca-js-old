@@ -73,21 +73,4 @@ export default {
   '/': numericMap((a, b) => a / b),
   '%': numericMap((a, b) => ((a % b) + b) % b),
   '^': numericMap((a, b) => a ** b),
-  '&': (create, index, args) => {
-    const revArgs = [...args].reverse();
-    return create(index, ({ get, output }) => {
-      let prev = [] as any[];
-      const run = () => {
-        const values = revArgs.map(a => get(a));
-        const changed = values.findIndex((v, i) => v !== prev[i]);
-        const setters = values.filter(v => v.set);
-        prev = values;
-        return {
-          ...values[changed],
-          ...(setters.length === 1 ? { set: setters[0].set } : {}),
-        };
-      };
-      return { initial: run(), update: () => output(run()) };
-    });
-  },
 };
