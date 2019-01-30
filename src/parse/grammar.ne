@@ -76,7 +76,7 @@ expset ->
         start: x[0].start,
         end: x[2].offset + x[2].text.length,
       }) %}
-  | expid _ ":" _ expset
+  | expcopy _ ":" _ expset
       {% x => ({
         type: "assign",
         args: [x[4], x[0]],
@@ -97,7 +97,7 @@ expset ->
         start: x[0].offset,
         end: x[2].end,
       }) %}
-  | expid _ "::" _ expset
+  | expcopy _ "::" _ expset
       {% x => ({
         type: "assign",
         unpack: true,
@@ -113,10 +113,24 @@ expset ->
         start: x[0].offset,
         end: x[2].end,
       }) %}
+  | expcopy {% id %}
+
+expcopy ->
+    expid _ ";" _ expcopy
+      {% x => ({
+        type: "copy",
+        args: [x[4], x[0]],
+        start: x[0].start,
+        end: x[4].end,
+      }) %}
   | expid {% id %}
 
 expid ->
-    expid _ ("~") _ expnot {% core %}
+    expid _ ("~") _ exptrigger {% core %}
+  | exptrigger {% id %}
+
+exptrigger ->
+    exptrigger _ ("&") _ expnot {% core %}
   | expnot {% id %}
 
 expnot ->

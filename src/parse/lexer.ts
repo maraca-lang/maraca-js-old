@@ -9,9 +9,9 @@ export default moo.compile({
   brackets: ['[', ']', '(', ')', '{', '}'],
   comparison: ['<', '>', '='],
   arithmetic: ['+', '-', '*', '/', '%', '^'],
-  misc: [',', '?', ':', '~', '!', '#', '@', '.'],
+  misc: [',', '?', ':', ';', '~', '!', '#', '@', '.', '&'],
   char: {
-    match: /'\S/,
+    match: /'(?:\S|\n)/,
     value: s => toData(s[1]),
   },
   value: {

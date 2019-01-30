@@ -73,4 +73,16 @@ export default {
   '/': numericMap((a, b) => a / b),
   '%': numericMap((a, b) => ((a % b) + b) % b),
   '^': numericMap((a, b) => a ** b),
+  '&': (create, index, args) =>
+    create(index, ({ get, output }) => {
+      let values = args.map(get);
+      return {
+        initial: values[1],
+        update: () => {
+          const newValues = args.map(get);
+          if (values[0] !== newValues[0]) output({ ...newValues[1] });
+          values = newValues;
+        },
+      };
+    }),
 };

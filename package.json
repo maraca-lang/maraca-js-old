@@ -1,6 +1,6 @@
 {
   "name": "maraca",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "license": "MIT",
   "main": "lib/index.js",
   "types": "./lib/index.d.ts",
@@ -19,7 +19,7 @@
     "nearley": "^2.16.0"
   },
   "devDependencies": {
-    "prettier": "^1.16.1",
+    "prettier": "^1.16.2",
     "rimraf": "^2.6.3",
     "typescript": "^3.2.4"
   }

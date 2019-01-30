@@ -1,7 +1,7 @@
 import assign from './assign';
 import combine from './combine';
 import core, { streamMap } from './core';
-import { toData } from './data';
+import { toData, toKey } from './data';
 import parse from './parse';
 import { createIndexer } from './process';
 
@@ -18,6 +18,7 @@ const evalInContext = (library, code) => {
 const structure = {
   other: ['key', 'value', 'output'],
   assign: ['args'],
+  copy: ['args'],
   dynamic: ['arg'],
   core: ['args'],
   eval: ['code'],
@@ -84,6 +85,21 @@ const build = (config, create, indexer, context, node) => {
       l[0] = assign(create, indexer(), [l[0], ...args], node.unpack, true);
     });
     return { type: 'nil' };
+  }
+  if (node.type === 'copy') {
+    const args = node.args.map(n => build(config, create, indexer, context, n));
+    return create(indexer(), ({ get }) => {
+      const dest = get(args[1]);
+      let source = get(args[0]);
+      return {
+        initial: { type: 'nil' },
+        update: () => {
+          const newSource = get(args[0]);
+          if (dest.set && source !== newSource) dest.set(newSource);
+          source = newSource;
+        },
+      };
+    });
   }
   if (node.type === 'dynamic') {
     if (!config.dynamics[node.level - 1]) return { type: 'nil' };
@@ -155,16 +171,36 @@ const build = (config, create, indexer, context, node) => {
   }
   if (node.type === 'combine') {
     const args = node.args.map(n => build(config, create, indexer, context, n));
-    return args.reduce(
-      (a1, a2, i) =>
-        combine(
-          create,
-          indexer(),
-          [a1, a2],
-          node.dot,
-          node.space && node.space[i - 1],
-        )[0],
-    );
+    return args.reduce((a1, a2, i) => {
+      const argPair = [a1, a2];
+      if (argPair.includes(context.scope[0])) {
+        const v = core.constant(create, indexer(), { type: 'nil' });
+        const k = argPair[argPair[0] === context.scope[0] ? 1 : 0];
+        [context.scope, context.current].forEach(l => {
+          l[0] = streamMap((list, key) => {
+            if (list.other) return list;
+            const listValue = list.value || { indices: [], values: {} };
+            const res = { ...listValue };
+            if (key.type !== 'list') {
+              const objKey = toKey(key);
+              if (typeof objKey === 'string' && !res.values[objKey]) {
+                res.values = { ...res.values };
+                res.values[objKey] = { key, value: v };
+              }
+            }
+            return { type: 'list', value: res };
+          })(create, indexer(), [l[0], k]);
+        });
+        argPair[argPair[0] === context.scope[0] ? 0 : 1] = context.scope[0];
+      }
+      return combine(
+        create,
+        indexer(),
+        argPair,
+        node.dot,
+        node.space && node.space[i - 1],
+      )[0];
+    });
   }
   if (node.type === 'value') {
     return core.constant(create, indexer(), {

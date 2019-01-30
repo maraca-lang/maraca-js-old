@@ -1,7 +1,8 @@
 import build from './build';
+import { toData } from './data';
 import parse from './parse';
 import process, { createIndexer } from './process';
-import { streamMap } from './core';
+// import { streamMap } from './core';
 
 export { toData, toTypedValue } from './data';
 export { default as parse } from './parse';
@@ -36,25 +37,30 @@ export default (config, code, output) => {
     type: 'list',
     value: {
       indices: [],
-      values: {},
-      other: (index, value) => [
-        streamMap(value => {
-          const subIndexer = createIndexer(index);
-          if (value.type !== 'value' || !parsed[value.value]) {
-            return { type: 'nil' };
-          }
-          return build(
-            createdConfig,
-            create,
-            subIndexer,
-            {
-              scope: [scope],
-              current: [{ type: 'list', value: { indices: [], values: {} } }],
-            },
-            parsed[value.value],
-          );
-        })(create, index, [value]),
-      ],
+      values: Object.keys(modules).reduce((res, k) => {
+        const index = indexer();
+        const subIndexer = createIndexer(index);
+        return {
+          ...res,
+          [k]: {
+            key: toData(k),
+            value: create(index, () => ({
+              initial: build(
+                createdConfig,
+                create,
+                subIndexer,
+                {
+                  scope: [scope],
+                  current: [
+                    { type: 'list', value: { indices: [], values: {} } },
+                  ],
+                },
+                parse(modules[k]),
+              ),
+            })),
+          },
+        };
+      }, {}),
     },
   };
   const stream = build(
