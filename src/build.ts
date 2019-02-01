@@ -21,7 +21,7 @@ const structure = {
   copy: ['args'],
   dynamic: ['arg'],
   core: ['args'],
-  eval: ['code'],
+  lib: ['arg'],
   list: ['values'],
   combine: ['args'],
 };
@@ -108,36 +108,44 @@ const build = (config, create, indexer, context, node) => {
   }
   if (node.type === 'core') {
     const args = node.args.map(n => build(config, create, indexer, context, n));
-    return core[node.func](create, indexer(), args);
-  }
-  if (node.type === 'eval') {
-    if (node.mode === '#') {
-      return node.code.type === 'value'
-        ? evalInContext(config.library, node.code.value)
-        : { type: 'nil' };
+    const index = indexer();
+    if (node.func === '$') {
+      return streamMap(code => {
+        const subIndexer = createIndexer(index);
+        const subContext = {
+          scope: [args[1]],
+          current: [{ type: 'list', value: { indices: [], values: {} } }],
+        };
+        let parsed = { type: 'nil' };
+        try {
+          parsed = parse(code.type === 'value' ? code.value : '');
+        } catch (e) {
+          console.log(e.message);
+        }
+        return build(config, create, subIndexer, subContext, parsed);
+      })(create, index, [args[0]]);
     }
-    const code = build(config, create, indexer, context, node.code);
-    return streamMap(code => ({
-      type: 'list',
-      value: {
-        indices: [],
-        values: {},
-        other: (index, value) => {
-          const subIndexer = createIndexer(index);
-          const subContext = {
-            scope: [value],
-            current: [{ type: 'list', value: { indices: [], values: {} } }],
-          };
-          let parsed = { type: 'nil' };
-          try {
-            parsed = parse(code.type === 'value' ? code.value : '');
-          } catch (e) {
-            console.log(e.message);
-          }
-          return [build(config, create, subIndexer, subContext, parsed)];
-        },
-      },
-    }))(create, indexer(), [code]);
+    return core[node.func](create, index, args);
+  }
+  if (node.type === 'lib') {
+    const arg = build(config, create, indexer, context, node.arg);
+    return create(indexer(), ({ get, output }) => {
+      const run = () => {
+        const value = get(arg);
+        if (value.type !== 'list') {
+          return value.type === 'nil'
+            ? { type: 'nil' }
+            : evalInContext(config.library, value.value);
+        }
+        const { indices, values } = get(arg, true).value;
+        return toData(
+          indices.filter(x => x).length +
+            Object.keys(values).filter(k => values[k].value.type !== 'nil')
+              .length,
+        );
+      };
+      return { initial: run(), update: () => output(run()) };
+    });
   }
   if (node.type === 'list') {
     if (node.bracket !== '[') {
@@ -213,6 +221,9 @@ const build = (config, create, indexer, context, node) => {
   }
   if (node.type === 'context') {
     return context.scope[0];
+  }
+  if (node.type === 'comment') {
+    return { type: 'nil' };
   }
 };
 

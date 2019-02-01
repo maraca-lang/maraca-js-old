@@ -126,7 +126,11 @@ expcopy ->
   | expid {% id %}
 
 expid ->
-    expid _ ("~") _ exptrigger {% core %}
+    expid _ ("~") _ expeval {% core %}
+  | expeval {% id %}
+
+expeval ->
+    expeval _ ("$") _ exptrigger {% core %}
   | exptrigger {% id %}
 
 exptrigger ->
@@ -194,7 +198,7 @@ expsep ->
 	| expcomb {% id %}
 
 expcomb ->
-	  expcomb _ eval
+	  expcomb _ lib
       {% x => ({
         type: "combine",
         space: [...(x[0].type === "combine" ? x[0].space : []), !!x[1]],
@@ -202,20 +206,19 @@ expcomb ->
         start: x[0].start,
         end: x[2].end,
       }) %}
-  | eval {% id %}
+  | lib {% id %}
 
-eval ->
-    ("#" | "##") _ atom 
+lib ->
+    "#" _ atom 
       {% x => ({
-        type: "eval",
-        mode: x[0][0].text,
-        code: x[2],
-        start: x[0][0].offset,
+        type: "lib",
+        arg: x[2],
+        start: x[0].offset,
         end: x[2].end,
       }) %}
   | atom {% id %}
 
-atom -> (list | value | context) {% x => x[0][0] %}
+atom -> (list | value | space | context) {% x => x[0][0] %}
 
 list ->
     (("[" body "]") | ("(" body ")") | ("{" body "}"))
@@ -236,32 +239,42 @@ list ->
       } %}
 
 body ->
-    body "," line {% x => [...x[0], {
-      ...x[2],
-      break: false,
-      start: x[2].start || x[1].offset,
-      end: x[2].end || (x[1].offset + x[1].text.length),
-    }] %}
+    body "," line
+      {% x => [...x[0], {
+        ...x[2],
+        start: x[2].start || x[1].offset,
+        end: x[2].end || (x[1].offset + x[1].text.length),
+      }] %}
   | line {% x => [x[0]] %}
 
 line ->
-    _ exp _ {% x => ({ ...x[1], break: x[0] && x[0].lineBreaks > 0 }) %}
+    _ exp _ {% x => x[1] %}
   | _ {% x => ({ type: "nil" }) %}
 
 value ->
-    (%char | %value | %string)
+    (%char | %value | %string | %comment)
       {% x => ({
         ...x[0][0].value,
         start: x[0][0].offset,
         end: x[0][0].offset + x[0][0].text.length,
       }) %}
 
+space ->
+    "_"
+      {% x => ({
+        type: "value",
+        value: " ",
+        start: x[0].offset,
+        end: x[0].offset + x[0].text.length,
+      }) %}
+
 context ->
-    "?" {% x => ({
-      type: "context",
-      start: x[0].offset,
-      end: x[0].offset + x[0].text.length,
-    }) %}
+    "?"
+      {% x => ({
+        type: "context",
+        start: x[0].offset,
+        end: x[0].offset + x[0].text.length,
+      }) %}
 
 _ ->
   %_:? {% id %}

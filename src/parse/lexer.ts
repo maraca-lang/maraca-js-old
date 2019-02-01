@@ -5,11 +5,11 @@ import dedent from './dedent';
 const toData = s => (s ? { type: 'value', value: s } : { type: 'nil' });
 
 export default moo.compile({
-  multi: ['=>>', '=>', '<=', '>=', '==', ':=?', ':=', '::', '##', '@@', '@@@'],
+  multi: ['=>>', '=>', '<=', '>=', '==', ':=?', ':=', '::', '@@', '@@@'],
   brackets: ['[', ']', '(', ')', '{', '}'],
   comparison: ['<', '>', '='],
   arithmetic: ['+', '-', '*', '/', '%', '^'],
-  misc: [',', '?', ':', ';', '~', '!', '#', '@', '.', '&'],
+  misc: [',', '?', ':', ';', '~', '!', '#', '@', '.', '&', '$', '_'],
   char: {
     match: /'(?:\S|\n)/,
     value: s => toData(s[1]),
@@ -21,6 +21,10 @@ export default moo.compile({
   string: {
     match: /"(?:""|[^"])*"/,
     value: s => toData(dedent(s.slice(1, -1).replace(/""/g, '"'))),
+  },
+  comment: {
+    match: /`[^`]*`/,
+    value: s => ({ type: 'comment', value: dedent(s.slice(1, -1)) }),
   },
   _: { match: /\s+/, lineBreaks: true },
 });

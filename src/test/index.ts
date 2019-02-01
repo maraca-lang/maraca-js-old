@@ -3,7 +3,7 @@ import maraca, { createMethod } from '../index';
 
 const source = {
   start: `test? (@1000)`,
-  test: '#size [a, b, c]',
+  test: '#[a, b, _, c, `hello`]',
 };
 
 const map = m => ({ initial, output }) => ({

@@ -98,10 +98,8 @@ const run = (
         ...Object.keys(big.value.values),
         ...Object.keys(small.value.values),
       ]),
-    )
-      .map(k => (big.value.values[k] || small.value.values[k]).key)
-      .sort(compare),
-  ];
+    ).map(k => (big.value.values[k] || small.value.values[k]).key),
+  ].sort(compare);
   const pairs = keys
     .map(k => [big, small].map(v => listGet(v, k, true)))
     .filter(([b, s]) => {

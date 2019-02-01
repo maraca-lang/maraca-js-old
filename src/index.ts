@@ -2,9 +2,8 @@ import build from './build';
 import { toData } from './data';
 import parse from './parse';
 import process, { createIndexer } from './process';
-// import { streamMap } from './core';
 
-export { toData, toTypedValue } from './data';
+export { compare, toData, toTypedValue } from './data';
 export { default as parse } from './parse';
 
 export const createMethod = (create, map, deep = false) => ({

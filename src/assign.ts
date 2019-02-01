@@ -1,5 +1,5 @@
 import { streamMap } from './core';
-import { listGet, toData, toKey } from './data';
+import { toData, toKey } from './data';
 import { createIndexer } from './process';
 
 const getType = ([l, v, k], unpack, setNil, get) => {
@@ -54,20 +54,45 @@ const run = (create, indexer, type, [l, v, k]) => {
     const index = indexer();
     return streamMap((value, key) => {
       const subIndexer = createIndexer(index);
-      return [
+      const rest = {
+        indices: [...value.value.indices],
+        values: { ...value.value.values },
+      };
+      const removed = [] as any[];
+      const result = [
         ...key.value.indices.map((v, i) => ({ key: toData(i + 1), value: v })),
         ...Object.keys(key.value.values).map(k => key.value.values[k]),
-      ].reduce(
-        (res, d) =>
-          assign(
-            create,
-            subIndexer(),
-            [res, listGet(value, d.key), d.value],
-            true,
-            true,
-          ),
-        l,
-      );
+      ].reduce((res, d) => {
+        const k = toKey(d.key);
+        let v;
+        if (typeof k === 'number') {
+          v = value.value.indices[k];
+          removed.push(k);
+        } else {
+          v = value.value.values[k] && value.value.values[k].value;
+          delete rest.values[k];
+        }
+        return assign(
+          create,
+          subIndexer(),
+          [res, v || { type: 'nil' }, d.value],
+          true,
+          true,
+        );
+      }, l);
+      if (key.value.other && !key.value.otherMap) {
+        removed.sort((a, b) => b - a);
+        removed.forEach(k => rest.indices.splice(k, 1));
+        const k = key.value.other(subIndexer(), { type: 'nil' })[0];
+        return assign(
+          create,
+          subIndexer(),
+          [result, { type: 'list', value: rest }, k],
+          true,
+          true,
+        );
+      }
+      return result;
     })(create, indexer(), [v, k]);
   }
   return streamMap((list, key) => {
