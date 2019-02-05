@@ -1,6 +1,5 @@
-import { streamMap } from './core';
+import core, { streamMap } from './core';
 import { toData, toKey } from './data';
-import { createIndexer } from './process';
 
 const getType = ([l, v, k], unpack, setNil, get) => {
   const list = get(l);
@@ -24,21 +23,21 @@ const getType = ([l, v, k], unpack, setNil, get) => {
   return 'set';
 };
 
-const run = (create, indexer, type, [l, v, k]) => {
+const run = (type, [l, v, k]) => {
   if (type === 'none') {
-    return l;
+    return core.constant(l);
   }
   if (type === 'append') {
-    return streamMap(list => {
+    return streamMap(([list]) => {
       const listValue = list.value || { indices: [], values: {} };
       return {
         type: 'list',
         value: { ...listValue, indices: [...listValue.indices, v] },
       };
-    })(create, indexer(), [l]);
+    })([l]);
   }
   if (type === 'merge') {
-    return streamMap((list, value) => {
+    return streamMap(([list, value]) => {
       const listValue = list.value || { indices: [], values: {} };
       return {
         type: 'list',
@@ -48,12 +47,10 @@ const run = (create, indexer, type, [l, v, k]) => {
           values: { ...listValue.values, ...value.value.values },
         },
       };
-    })(create, indexer(), [l, v]);
+    })([l, v]);
   }
   if (type === 'destructure') {
-    const index = indexer();
-    return streamMap((value, key) => {
-      const subIndexer = createIndexer(index);
+    return streamMap(([value, key], create) => {
       const rest = {
         indices: [...value.value.indices],
         values: { ...value.value.values },
@@ -72,30 +69,20 @@ const run = (create, indexer, type, [l, v, k]) => {
           v = value.value.values[k] && value.value.values[k].value;
           delete rest.values[k];
         }
-        return assign(
-          create,
-          subIndexer(),
-          [res, v || { type: 'nil' }, d.value],
-          true,
-          true,
-        );
+        return create(assign([res, v || { type: 'nil' }, d.value], true, true));
       }, l);
       if (key.value.other && !key.value.otherMap) {
         removed.sort((a, b) => b - a);
         removed.forEach(k => rest.indices.splice(k, 1));
-        const k = key.value.other(subIndexer(), { type: 'nil' })[0];
-        return assign(
-          create,
-          subIndexer(),
-          [result, { type: 'list', value: rest }, k],
-          true,
-          true,
+        const k = key.value.other(create, { type: 'nil' })[0];
+        return create(
+          assign([result, { type: 'list', value: rest }, k], true, true),
         );
       }
       return result;
-    })(create, indexer(), [v, k]);
+    })([v, k]);
   }
-  return streamMap((list, key) => {
+  return streamMap(([list, key]) => {
     const listValue = list.value || { indices: [], values: {} };
     const res = { ...listValue };
     const objKey = toKey(key);
@@ -107,25 +94,25 @@ const run = (create, indexer, type, [l, v, k]) => {
       res.values[objKey] = { key, value: v };
     }
     return { type: 'list', value: res };
-  })(create, indexer(), [l, k]);
+  })([l, k]);
 };
 
-const assign = (create, index, args, unpack, setNil) =>
-  create(index, ({ get, output }) => {
-    let type = getType(args, unpack, setNil, get);
-    let prev = run(create, createIndexer(index), type, args);
-    return {
-      initial: prev,
-      update: () => {
-        const nextType = getType(args, unpack, setNil, get);
-        if (nextType !== type) {
-          type = nextType;
-          if (!args.includes(prev)) prev.value.stop();
-          prev = run(create, createIndexer(index), type, args);
-          output(prev);
-        }
-      },
-    };
-  });
+const assign = (args, unpack, setNil) => ({ get, output, create }) => {
+  let type = getType(args, unpack, setNil, get);
+  let prev = create(run(type, args));
+  return {
+    initial: prev,
+    update: () => {
+      const nextType = getType(args, unpack, setNil, get);
+      if (nextType !== type) {
+        type = nextType;
+        if (!args.includes(prev)) prev.value.stop();
+        create();
+        prev = create(run(type, args));
+        output(prev);
+      }
+    },
+  };
+};
 
 export default assign;

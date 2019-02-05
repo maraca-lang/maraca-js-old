@@ -2,8 +2,8 @@ import { toData, toTypedValue } from '../data';
 import maraca, { createMethod } from '../index';
 
 const source = {
-  start: `test? (@1000)`,
-  test: '#[a, b, _, c, `hello`]',
+  start: `test? (@1)`,
+  test: '#size.[a, b, _, c, `hello`]',
 };
 
 const map = m => ({ initial, output }) => ({
@@ -11,15 +11,18 @@ const map = m => ({ initial, output }) => ({
   update: value => output(toData(m(value))),
 });
 
-const config = create => ({
-  dynamics: [
+const config = {
+  '@': [
     arg => ({ get, output }) => {
       let interval;
       const run = () => {
         let count = 0;
         const inc = toTypedValue(get(arg));
         if (inc.type === 'number') {
-          interval = setInterval(() => output(toData(count++)), inc.value);
+          interval = setInterval(
+            () => output(toData(count++)),
+            inc.value * 1000,
+          );
           return toData(count++);
         }
         return toData(null);
@@ -34,17 +37,18 @@ const config = create => ({
       };
     },
   ],
-  library: {
+  '#': {
     size: createMethod(
-      create,
       map(x =>
         x.type === 'list'
           ? x.value.indices.filter(x => x).length +
-            Object.keys(x.value.values).length
+            Object.keys(x.value.values).filter(
+              k => x.value.values[k].value.type !== 'nil',
+            ).length
           : '0',
       ),
     ),
   },
-});
+};
 
 maraca(config, source, data => console.log(JSON.stringify(data, null, 2)));

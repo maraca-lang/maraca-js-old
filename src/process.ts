@@ -1,10 +1,5 @@
 import { resolve, sortMultiple } from './data';
 
-export const createIndexer = (base = [] as number[]) => {
-  let index = 0;
-  return () => [...base, index++];
-};
-
 const createStream = (index, value, run) => {
   let stop;
   const stream = {
@@ -38,7 +33,7 @@ export default () => {
   const runNext = () => {
     if (queue.size > 0) {
       const next = [...queue].sort((a, b) =>
-        sortMultiple(a.index, b.index, (x, y) => x - y),
+        sortMultiple(a.index, b.index, (x, y) => x - y, true),
       )[0];
       queue.delete(next);
       next.update();
@@ -48,7 +43,7 @@ export default () => {
     }
   };
 
-  return (index, run, onChange?) => {
+  const create = (index, run, onChange?) => {
     const stream = createStream(index, null, () => {
       let active = new Set();
       const get = s => {
@@ -68,6 +63,7 @@ export default () => {
           }
           if (first) setTimeout(runNext);
         },
+        create: buildCreate(index),
       });
       stream.value = initial;
       stream.update = () => {
@@ -87,4 +83,18 @@ export default () => {
     });
     return { type: 'stream', value: stream };
   };
+
+  const buildCreate = base => {
+    let counter = 0;
+    return (run?, onChange?) => {
+      if (!run) {
+        counter = 0;
+      } else {
+        const index = [...base, counter++];
+        return create(index, run, onChange);
+      }
+    };
+  };
+
+  return buildCreate([]);
 };

@@ -1,94 +1,73 @@
 import assign from './assign';
 import combine from './combine';
 import core, { streamMap } from './core';
-import { toData, toKey } from './data';
+import { toData, toKey, toTypedValue } from './data';
 import parse from './parse';
-import { createIndexer } from './process';
 
-const evalInContext = (library, code) => {
-  try {
-    return new Function(...Object.keys(library), `return ${code}`)(
-      ...Object.values(library),
-    );
-  } catch {
-    return { type: 'nil' };
-  }
+const isPure = ({ type, nodes = [] }) => {
+  if (['assign', 'other'].includes(type)) return false;
+  if (type === 'list') return true;
+  return nodes.every(isPure);
 };
 
-const structure = {
-  other: ['key', 'value', 'output'],
-  assign: ['args'],
-  copy: ['args'],
-  dynamic: ['arg'],
-  core: ['args'],
-  lib: ['arg'],
-  list: ['values'],
-  combine: ['args'],
-};
-
-const isPure = node => {
-  if (['assign', 'other'].includes(node.type)) return false;
-  if (node.type === 'list') return true;
-  return (structure[node.type] || []).every(k =>
-    Array.isArray(node[k]) ? node[k].every(isPure) : isPure(node[k]),
-  );
-};
-
-const build = (config, create, indexer, context, node) => {
-  if (node.type === 'other') {
+const build = (
+  config,
+  create,
+  context,
+  { type, nodes = [] as any[], info = {} as any },
+) => {
+  if (type === 'other') {
+    const [keyNode, valueNode, outputNode] = nodes;
     const scope = context.scope[0];
-    const keys = [node.key, node.value].map(
-      n => n && build(config, create, indexer, context, n),
+    const keys = [keyNode, valueNode].map(
+      n => n && build(config, create, context, n),
     );
     const otherMap = (
       otherScope = scope,
       otherCurrent = { type: 'list', value: { indices: [], values: {} } },
       key?,
-    ) => (index, value) => {
+    ) => (subCreate, value) => {
       const values = [key, value];
-      const subIndexer = createIndexer(index);
       const subContext = { scope: [otherScope], current: [otherCurrent] };
       keys.forEach((key, i) => {
         if (key) {
-          subContext.scope[0] = assign(
-            create,
-            subIndexer(),
-            [subContext.scope[0], values[i], key],
-            true,
-            true,
+          subContext.scope[0] = create(
+            assign([subContext.scope[0], values[i], key], true, true),
           );
         }
       });
-      const result = build(config, create, subIndexer, subContext, node.output);
+      const result = build(config, subCreate, subContext, outputNode);
       return [result, subContext.scope[0], subContext.current[0]];
     };
     const other = otherMap();
-    context.current[0] = streamMap(current => ({
-      type: 'list',
-      value: {
-        ...(current.value || { indices: [], values: {} }),
-        other: node.map ? otherMap : other,
-        otherMap: node.map && (isPure(node.output) ? 'pure' : true),
-      },
-    }))(create, indexer(), [context.current[0]]);
+    context.current[0] = create(
+      streamMap(([current]) => ({
+        type: 'list',
+        value: {
+          ...(current.value || { indices: [], values: {} }),
+          other: info.map ? otherMap : other,
+          otherMap: info.map && (isPure(outputNode) ? 'pure' : true),
+        },
+      }))([context.current[0]]),
+    );
     return { type: 'nil' };
   }
-  if (node.type === 'assign') {
+  if (type === 'assign') {
     if (
-      !node.args[1] &&
-      (node.args[0].type === 'assign' || node.args[0].type === 'other')
+      !nodes[1] &&
+      (nodes[0].type === 'assign' || nodes[0].type === 'other')
     ) {
-      return build(config, create, indexer, context, node.args[0]);
+      return build(config, create, context, nodes[0]);
     }
-    const args = node.args.map(n => build(config, create, indexer, context, n));
+    const args = nodes.map(n => build(config, create, context, n));
     [context.scope, context.current].forEach(l => {
-      l[0] = assign(create, indexer(), [l[0], ...args], node.unpack, true);
+      l[0] = create(assign([l[0], ...args], info.unpack, true));
     });
     return { type: 'nil' };
   }
-  if (node.type === 'copy') {
-    const args = node.args.map(n => build(config, create, indexer, context, n));
-    return create(indexer(), ({ get }) => {
+  if (type === 'copy') {
+    const args = nodes.map(n => build(config, create, context, n));
+    return create(({ get }) => {
       const dest = get(args[1]);
       let source = get(args[0]);
       return {
@@ -101,41 +80,52 @@ const build = (config, create, indexer, context, node) => {
       };
     });
   }
-  if (node.type === 'dynamic') {
-    if (!config.dynamics[node.level - 1]) return { type: 'nil' };
-    const arg = build(config, create, indexer, context, node.arg);
-    return create(indexer(), config.dynamics[node.level - 1](arg));
+  if (type === 'interpret') {
+    const func = config['@'] && config['@'][info.level - 1];
+    if (!func) return { type: 'nil' };
+    const arg = build(config, create, context, nodes[0]);
+    return create(func(arg));
   }
-  if (node.type === 'core') {
-    const args = node.args.map(n => build(config, create, indexer, context, n));
-    const index = indexer();
-    if (node.func === '$') {
-      return streamMap(code => {
-        const subIndexer = createIndexer(index);
-        const subContext = {
-          scope: [args[1]],
-          current: [{ type: 'list', value: { indices: [], values: {} } }],
-        };
-        let parsed = { type: 'nil' };
-        try {
-          parsed = parse(code.type === 'value' ? code.value : '');
-        } catch (e) {
-          console.log(e.message);
-        }
-        return build(config, create, subIndexer, subContext, parsed);
-      })(create, index, [args[0]]);
+  if (type === 'core') {
+    const args = nodes.map(n => build(config, create, context, n));
+    if (info.func === '$') {
+      return create(
+        streamMap(([code], create) => {
+          const subContext = {
+            scope: [args[1]],
+            current: [{ type: 'list', value: { indices: [], values: {} } }],
+          };
+          let parsed = { type: 'nil' };
+          try {
+            parsed = parse(code.type === 'value' ? code.value : '');
+          } catch (e) {
+            console.log(e.message);
+          }
+          return build(config, create, subContext, parsed);
+        })([args[0]]),
+      );
     }
-    return core[node.func](create, index, args);
+    return create(core[info.func](args));
   }
-  if (node.type === 'lib') {
-    const arg = build(config, create, indexer, context, node.arg);
-    return create(indexer(), ({ get, output }) => {
+  if (type === 'library') {
+    const arg = build(config, create, context, nodes[0]);
+    return create(({ get, output }) => {
       const run = () => {
-        const value = get(arg);
-        if (value.type !== 'list') {
-          return value.type === 'nil'
-            ? { type: 'nil' }
-            : evalInContext(config.library, value.value);
+        const value = toTypedValue(get(arg));
+        if (value.integer) {
+          return {
+            type: 'list',
+            value: {
+              indices: Array.from({ length: value.value }).map((_, i) =>
+                toData(i + 1),
+              ),
+              values: {},
+            },
+          };
+        }
+        if (value.type === 'value') {
+          const func = config['#'] && config['#'][value.value];
+          return func ? create(func) : { type: 'nil' };
         }
         const { indices, values } = get(arg, true).value;
         return toData(
@@ -147,82 +137,82 @@ const build = (config, create, indexer, context, node) => {
       return { initial: run(), update: () => output(run()) };
     });
   }
-  if (node.type === 'list') {
-    if (node.bracket !== '[') {
-      return build(config, create, indexer, context, {
+  if (type === 'list') {
+    if (info.bracket !== '[') {
+      return build(config, create, context, {
         type: 'combine',
-        dot: true,
-        args: [
-          toData(
-            node.bracket === '('
-              ? node.values.filter(n => n.type !== 'other').length
-              : 1,
-          ),
-          { type: 'list', bracket: '[', values: node.values },
+        info: { dot: true },
+        nodes: [
+          {
+            type: 'value',
+            info: {
+              value: `${
+                info.bracket === '('
+                  ? nodes.filter(n => n.type !== 'other').length
+                  : 1
+              }`,
+            },
+          },
+          { type: 'list', info: { bracket: '[' }, nodes },
         ],
       });
     }
-    context.scope.unshift(
-      core.clearIndices(create, indexer(), [context.scope[0]]),
-    );
+    context.scope.unshift(create(core.clearIndices([context.scope[0]])));
     context.current.unshift(
-      core.constant(create, indexer(), {
-        type: 'list',
-        value: { indices: [], values: {} },
-      }),
+      create(
+        core.constant({ type: 'list', value: { indices: [], values: {} } }),
+      ),
     );
-    node.values.forEach(n =>
-      build(config, create, indexer, context, { type: 'assign', args: [n] }),
+    nodes.forEach(n =>
+      build(config, create, context, { type: 'assign', nodes: [n] }),
     );
     context.scope.shift();
     return context.current.shift();
   }
-  if (node.type === 'combine') {
-    const args = node.args.map(n => build(config, create, indexer, context, n));
+  if (type === 'combine') {
+    const args = nodes.map(n => build(config, create, context, n));
     return args.reduce((a1, a2, i) => {
       const argPair = [a1, a2];
       if (argPair.includes(context.scope[0])) {
-        const v = core.constant(create, indexer(), { type: 'nil' });
+        const v = create(core.constant({ type: 'nil' }));
         const k = argPair[argPair[0] === context.scope[0] ? 1 : 0];
         [context.scope, context.current].forEach(l => {
-          l[0] = streamMap((list, key) => {
-            if (list.other) return list;
-            const listValue = list.value || { indices: [], values: {} };
-            const res = { ...listValue };
-            if (key.type !== 'list') {
-              const objKey = toKey(key);
-              if (typeof objKey === 'string' && !res.values[objKey]) {
-                res.values = { ...res.values };
-                res.values[objKey] = { key, value: v };
+          l[0] = create(
+            streamMap(([list, key]) => {
+              if (list.other) return list;
+              const listValue = list.value || { indices: [], values: {} };
+              const res = { ...listValue };
+              if (key.type !== 'list') {
+                const objKey = toKey(key);
+                if (typeof objKey === 'string' && !res.values[objKey]) {
+                  res.values = { ...res.values };
+                  res.values[objKey] = { key, value: v };
+                }
               }
-            }
-            return { type: 'list', value: res };
-          })(create, indexer(), [l[0], k]);
+              return { type: 'list', value: res };
+            })([l[0], k]),
+          );
         });
         argPair[argPair[0] === context.scope[0] ? 0 : 1] = context.scope[0];
       }
       return combine(
         create,
-        indexer(),
         argPair,
-        node.dot,
-        node.space && node.space[i - 1],
+        info.dot,
+        info.space && info.space[i - 1],
       )[0];
     });
   }
-  if (node.type === 'value') {
-    return core.constant(create, indexer(), {
-      type: 'value',
-      value: node.value,
-    });
+  if (type === 'value') {
+    return create(core.constant({ type: 'value', value: info.value }));
   }
-  if (node.type === 'nil') {
-    return core.constant(create, indexer(), { type: 'nil' });
+  if (type === 'nil') {
+    return create(core.constant({ type: 'nil' }));
   }
-  if (node.type === 'context') {
+  if (type === 'context') {
     return context.scope[0];
   }
-  if (node.type === 'comment') {
+  if (type === 'comment') {
     return { type: 'nil' };
   }
 };

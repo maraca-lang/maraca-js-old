@@ -1,7 +1,6 @@
 import assign from './assign';
-import { compare, listGet, toData, toKey } from './data';
 import { streamMap } from './core';
-import { createIndexer } from './process';
+import { compare, toData, toKey } from './data';
 
 const sortTypes = (v1, v2) => {
   if (v2.type === 'nil') return [v1, v2];
@@ -40,20 +39,34 @@ const toList = indices => ({
   value: { indices, values: {} },
 });
 
-const copy = (create, index, stream) =>
-  create(index, ({ get, output }) => ({
-    initial: get(stream),
-    update: () => output(get(stream)),
-  }));
+const copy = stream => ({ get, output }) => ({
+  initial: get(stream),
+  update: () => output(get(stream)),
+});
 
-const run = (
-  create,
-  indexer,
-  { type, reverse, big, small },
-  [s1, s2],
-  dot,
-  space,
-) => {
+const listGet = ({ type, value }, key, withMap = false) => {
+  if (type !== 'list') return { type: 'nil' };
+  const k = toKey(key);
+  const v =
+    typeof k === 'number'
+      ? value.indices[k]
+      : value.values[k] && value.values[k].value;
+  return v || ((withMap || !value.otherMap) && value.other) || { type: 'nil' };
+};
+
+const runGet = (create, value, other, arg) => {
+  if (typeof value === 'function') return value(create, arg);
+  if (value.type !== 'stream' || !other) return [value];
+  return [
+    create(
+      streamMap(([v]) => (v.type === 'nil' ? other(create, arg)[0] : v))([
+        value,
+      ]),
+    ),
+  ];
+};
+
+const run = (create, { type, reverse, big, small }, [s1, s2], dot, space) => {
   if (type === 'nil') {
     return {
       result: toList([{ type: 'nil' }]),
@@ -63,30 +76,29 @@ const run = (
   if (type === 'join') {
     return {
       result: toList([
-        streamMap((v1, v2) =>
-          toData(
-            (v1.value || '') +
-              (v1.value && v2.value && space ? ' ' : '') +
-              (v2.value || ''),
-          ),
-        )(create, indexer(), [s1, s2]),
+        create(
+          streamMap(([v1, v2]) =>
+            toData(
+              (v1.value || '') +
+                (v1.value && v2.value && space ? ' ' : '') +
+                (v2.value || ''),
+            ),
+          )([s1, s2]),
+        ),
       ]),
       canContinue: info => info.type === 'join',
     };
   }
   if (type === 'get') {
     const value = listGet(big, small);
-    const result =
-      typeof value !== 'function'
-        ? [value]
-        : value(indexer(), reverse ? s1 : s2);
-    if (result[0].type === 'stream') {
-      result[0] = copy(create, indexer(), result[0]);
-    }
+    const result = runGet(create, value, big.value.other, reverse ? s1 : s2);
+    if (result[0].type === 'stream') result[0] = create(copy(result[0]));
     return {
       result: toList(result),
       canContinue: info =>
-        info.type === 'get' && listGet(info.big, info.small) === value,
+        info.type === 'get' &&
+        listGet(info.big, info.small) === value &&
+        info.big.other === big.other,
     };
   }
   const keys = [
@@ -121,7 +133,6 @@ const run = (
               const objKey = toKey(keys[i]);
               const value = combine(
                 create,
-                indexer(),
                 [
                   {
                     type: 'list',
@@ -164,15 +175,11 @@ const run = (
           });
           const [v, scope, current] = combine(
             create,
-            indexer(),
             reverse ? [s, b] : [b, s],
             dot,
             space,
           );
-          return [
-            scope,
-            assign(create, indexer(), [current, v, keys[i]], false, false),
-          ];
+          return [scope, create(assign([current, v, keys[i]], false, false))];
         },
         [undefined, { type: 'list', value: { indices: [], values: {} } }],
       )[1],
@@ -180,13 +187,10 @@ const run = (
   };
 };
 
-const combine = (create, index, args, dot, space) => {
-  const indexer = createIndexer(index);
-  const baseIndex = indexer();
-  const base = create(baseIndex, ({ get, output }) => {
+const combine = (create, args, dot, space) => {
+  const base = create(({ get, output, create }) => {
     let { result, canContinue } = run(
       create,
-      createIndexer(baseIndex),
       getInfo(args, get, dot),
       args,
       dot,
@@ -200,23 +204,15 @@ const combine = (create, index, args, dot, space) => {
           result.value.indices.forEach(s => {
             if (s.type === 'stream') s.value.stop();
           });
-          ({ result, canContinue } = run(
-            create,
-            createIndexer(baseIndex),
-            info,
-            args,
-            dot,
-            space,
-          ));
+          create();
+          ({ result, canContinue } = run(create, info, args, dot, space));
           output(result);
         }
       },
     };
   });
   return [0, 1, 2].map(i =>
-    streamMap(b => b.value.indices[i] || { type: 'nil' })(create, indexer(), [
-      base,
-    ]),
+    create(streamMap(([b]) => b.value.indices[i] || { type: 'nil' })([base])),
   );
 };
 

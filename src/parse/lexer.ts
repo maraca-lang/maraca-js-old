@@ -2,7 +2,8 @@ import * as moo from 'moo';
 
 import dedent from './dedent';
 
-const toData = s => (s ? { type: 'value', value: s } : { type: 'nil' });
+const toData = s =>
+  s ? { type: 'value', info: { value: s } } : { type: 'nil' };
 
 export default moo.compile({
   multi: ['=>>', '=>', '<=', '>=', '==', ':=?', ':=', '::', '@@', '@@@'],
@@ -24,7 +25,7 @@ export default moo.compile({
   },
   comment: {
     match: /`[^`]*`/,
-    value: s => ({ type: 'comment', value: dedent(s.slice(1, -1)) }),
+    value: s => ({ type: 'comment', info: { value: dedent(s.slice(1, -1)) } }),
   },
   _: { match: /\s+/, lineBreaks: true },
 });

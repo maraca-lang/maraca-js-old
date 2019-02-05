@@ -46,12 +46,12 @@ export const toTypedValue = ({ type, value }) => {
   return { type: 'value', value };
 };
 
-export const sortMultiple = (items1, items2, sortItems) =>
+export const sortMultiple = (items1, items2, sortItems, reverseUndef = false) =>
   Array.from({ length: Math.max(items1.length, items2.length) }).reduce(
     (res, _, i) => {
       if (res !== 0) return res;
-      if (items1[i] === undefined) return -1;
-      if (items2[i] === undefined) return 1;
+      if (items1[i] === undefined) return reverseUndef ? 1 : -1;
+      if (items2[i] === undefined) return reverseUndef ? -1 : 1;
       return sortItems(items1[i], items2[i]);
     },
     0,
@@ -165,14 +165,4 @@ export const resolve = (data, get, deep) => {
       }, {}),
     },
   };
-};
-
-export const listGet = ({ type, value }, key, withMap = false) => {
-  if (type !== 'list') return { type: 'nil' };
-  const k = toKey(key);
-  const v =
-    typeof k === 'number'
-      ? value.indices[k]
-      : value.values[k] && value.values[k].value;
-  return v || ((withMap || !value.otherMap) && value.other) || { type: 'nil' };
 };

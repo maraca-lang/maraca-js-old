@@ -2,8 +2,8 @@
 const lexer = require("./parse/lexer").default;
 const core = x => ({
   type: "core",
-  func: x[2][0].text,
-  args: [x[0], x[4]],
+  nodes: [x[0], x[4]],
+  info: { func: x[2][0].text },
   start: x[0].start,
   end: x[4].end,
 });
@@ -20,42 +20,38 @@ expother ->
     expset _ "=>" _ expset _ "=>" _ expset
       {% x => ({
         type: "other",
-        map: true,
-        key: x[0],
-        value: x[4],
-        output: x[8],
+        nodes: [x[0], x[4], x[8]],
+        info: { map: true },
         start: x[0].start,
         end: x[8].end,
       }) %}
   | expset _ "=>>" _ expset
       {% x => ({
         type: "other",
-        map: true,
-        value: x[0],
-        output: x[4],
+        nodes: [null, x[0], x[4]],
+        info: { map: true },
         start: x[0].start,
         end: x[4].end,
       }) %}
   | expset _ "=>" _ expset
       {% x => ({
         type: "other",
-        value: x[0],
-        output: x[4],
+        nodes: [null, x[0], x[4]],
         start: x[0].start,
         end: x[4].end,
       }) %}
   | "=>>" _ expset
       {% x => ({
         type: "other",
-        map: true,
-        output: x[2],
+        nodes: [null, null, x[2]],
+        info: { map: true },
         start: x[0].offset,
         end: x[2].end,
       }) %}
   | "=>" _ expset
       {% x => ({
         type: "other",
-        output: x[2],
+        nodes: [null, null, x[2]],
         start: x[0].offset,
         end: x[2].end,
       }) %}
@@ -65,51 +61,51 @@ expset ->
     expset _ ":=?"
       {% x => ({
         type: "assign",
-        args: [{ type: "combine", args: [x[0], { type: "context" }] }, x[0]],
+        nodes: [{ type: "combine", nodes: [x[0], { type: "context" }] }, x[0]],
         start: x[0].start,
         end: x[2].offset + x[2].text.length,
       }) %}
   | expset _ ":="
       {% x => ({
         type: "assign",
-        args: [x[0], x[0]],
+        nodes: [x[0], x[0]],
         start: x[0].start,
         end: x[2].offset + x[2].text.length,
       }) %}
   | expcopy _ ":" _ expset
       {% x => ({
         type: "assign",
-        args: [x[4], x[0]],
+        nodes: [x[4], x[0]],
         start: x[0].start,
         end: x[4].end,
       }) %}
   | expset _ ":"
       {% x => ({
         type: "assign",
-        args: [{ type: "nil" }, x[0]],
+        nodes: [{ type: "nil" }, x[0]],
         start: x[0].start,
         end: x[2].offset + x[2].text.length,
       }) %}
   | ":" _ expset
       {% x => ({
         type: "assign",
-        args: [x[2], { type: "nil" }],
+        nodes: [x[2], { type: "nil" }],
         start: x[0].offset,
         end: x[2].end,
       }) %}
   | expcopy _ "::" _ expset
       {% x => ({
         type: "assign",
-        unpack: true,
-        args: [x[4], x[0]],
+        nodes: [x[4], x[0]],
+        info: { unpack: true },
         start: x[0].start,
         end: x[4].end,
       }) %}
   | "::" _ expset
       {% x => ({
         type: "assign",
-        unpack: true,
-        args: [x[2]],
+        nodes: [x[2]],
+        info: { unpack: true },
         start: x[0].offset,
         end: x[2].end,
       }) %}
@@ -119,7 +115,7 @@ expcopy ->
     expid _ ";" _ expcopy
       {% x => ({
         type: "copy",
-        args: [x[4], x[0]],
+        nodes: [x[4], x[0]],
         start: x[0].start,
         end: x[4].end,
       }) %}
@@ -141,8 +137,8 @@ expnot ->
     "!" _ expcomp
       {% x => ({
         type: "core",
-        func: x[0].text,
-        args: [x[2]],
+        nodes: [x[2]],
+        info: { func: x[0].text },
         start: x[0].offset,
         end: x[2].end,
       }) %}
@@ -157,8 +153,8 @@ expsum ->
   | "-" _ expprod
       {% x => ({
         type: "core",
-        func: x[0].text,
-        args: [x[2]],
+        nodes: [x[2]],
+        info: { func: x[0].text },
         start: x[0].offset,
         end: x[2].end,
       }) %}
@@ -175,9 +171,9 @@ exppow ->
 expdyn ->
     ("@@@" | "@@" | "@") _ expsep
       {% x => ({
-        type: "dynamic",
-        level: x[0][0].text.length,
-        arg: x[2],
+        type: "interpret",
+        nodes: [x[2]],
+        info: { level: x[0][0].text.length },
         start: x[0][0].offset,
         end: x[2].end,
       }) %}
@@ -187,11 +183,11 @@ expsep ->
 	  expsep _ "." _ expcomb
       {% x => ({
         type: "combine",
-        dot: true,
-        args: [
-          ...(x[0].type === "combine" && x[0].dot ? x[0].args : [x[0]]),
+        nodes: [
+          ...(x[0].type === "combine" && x[0].info.dot ? x[0].nodes : [x[0]]),
           x[4]
         ],
+        info: { dot: true },
         start: x[0].start,
         end: x[4].end,
       }) %}
@@ -201,8 +197,10 @@ expcomb ->
 	  expcomb _ lib
       {% x => ({
         type: "combine",
-        space: [...(x[0].type === "combine" ? x[0].space : []), !!x[1]],
-        args: [...(x[0].type === "combine" ? x[0].args : [x[0]]), x[2]],
+        nodes: [...(x[0].type === "combine" ? x[0].nodes : [x[0]]), x[2]],
+        info: {
+          space: [...(x[0].type === "combine" ? x[0].info.space : []), !!x[1]]
+        },
         start: x[0].start,
         end: x[2].end,
       }) %}
@@ -211,8 +209,8 @@ expcomb ->
 lib ->
     "#" _ atom 
       {% x => ({
-        type: "lib",
-        arg: x[2],
+        type: "library",
+        nodes: [x[2]],
         start: x[0].offset,
         end: x[2].end,
       }) %}
@@ -231,8 +229,8 @@ list ->
         }
         return ({
           type: "list",
-          bracket: x[0][0][0].text,
-          values: x[0][0][1],
+          nodes: x[0][0][1],
+          info: { bracket: x[0][0][0].text },
           start: x[0][0][0].offset,
           end: x[0][0][2].offset + x[0][0][2].text.length,
         });
@@ -263,7 +261,7 @@ space ->
     "_"
       {% x => ({
         type: "value",
-        value: " ",
+        info: { value: " " },
         start: x[0].offset,
         end: x[0].offset + x[0].text.length,
       }) %}

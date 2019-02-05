@@ -1,32 +1,32 @@
 import build from './build';
 import { toData } from './data';
 import parse from './parse';
-import process, { createIndexer } from './process';
+import process from './process';
 
 export { compare, toData, toTypedValue } from './data';
 export { default as parse } from './parse';
 
-export const createMethod = (create, map, deep = false) => ({
-  type: 'list',
-  value: {
-    indices: [],
-    values: {},
-    other: (index, value) => [
-      create(createIndexer(index)(), ({ get, output }) => {
-        const { initial, update } = map({
-          initial: get(value, deep),
-          output: value => output(value),
-        });
-        return { initial, update: () => update(get(value, deep)) };
-      }),
-    ],
+export const createMethod = (map, deep = false) => () => ({
+  initial: {
+    type: 'list',
+    value: {
+      indices: [],
+      values: {},
+      other: (create, value) => [
+        create(({ get, output }) => {
+          const { initial, update } = map({
+            initial: get(value, deep),
+            output: value => output(value),
+          });
+          return { initial, update: () => update(get(value, deep)) };
+        }),
+      ],
+    },
   },
 });
 
 export default (config, code, output) => {
   const create = process();
-  const indexer = createIndexer();
-  const createdConfig = config(create, indexer);
   const modules = typeof code === 'string' ? { start: code } : code;
   const parsed = Object.keys(modules).reduce(
     (res, k) => ({ ...res, [k]: parse(modules[k]) }),
@@ -36,18 +36,15 @@ export default (config, code, output) => {
     type: 'list',
     value: {
       indices: [],
-      values: Object.keys(modules).reduce((res, k) => {
-        const index = indexer();
-        const subIndexer = createIndexer(index);
-        return {
+      values: Object.keys(modules).reduce(
+        (res, k) => ({
           ...res,
           [k]: {
             key: toData(k),
-            value: create(index, () => ({
+            value: create(({ create }) => ({
               initial: build(
-                createdConfig,
+                config,
                 create,
-                subIndexer,
                 {
                   scope: [scope],
                   current: [
@@ -58,14 +55,14 @@ export default (config, code, output) => {
               ),
             })),
           },
-        };
-      }, {}),
+        }),
+        {},
+      ),
     },
   };
   const stream = build(
-    createdConfig,
+    config,
     create,
-    indexer,
     {
       scope: [scope],
       current: [{ type: 'list', value: { indices: [], values: {} } }],
@@ -73,13 +70,12 @@ export default (config, code, output) => {
     parsed.start,
   );
   const result = create(
-    indexer(),
     ({ get, output }) => {
       const run = () => get(stream, true);
       return { initial: run(), update: () => output(run()) };
     },
     data => output(data),
-  );
+  )!;
   const obj = {};
   result.value.observe(obj);
   const initial = result.value.value;
