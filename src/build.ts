@@ -1,7 +1,7 @@
 import assign from './assign';
 import combine from './combine';
 import core, { streamMap } from './core';
-import { toData, toKey, toTypedValue } from './data';
+import { simpleStream, toData, toKey, toTypedValue } from './data';
 import parse from './parse';
 
 const isPure = ({ type, nodes = [] }) => {
@@ -84,7 +84,7 @@ const build = (
     const func = config['@'] && config['@'][info.level - 1];
     if (!func) return { type: 'nil' };
     const arg = build(config, create, context, nodes[0]);
-    return create(func(arg));
+    return create(simpleStream(arg, func, true));
   }
   if (type === 'core') {
     const args = nodes.map(n => build(config, create, context, n));
@@ -125,7 +125,22 @@ const build = (
         }
         if (value.type === 'value') {
           const func = config['#'] && config['#'][value.value];
-          return func ? create(func) : { type: 'nil' };
+          if (!func) {
+            return { type: 'nil' };
+          } else if (typeof func === 'function') {
+            return create(({ output }) => {
+              let first = true;
+              let initial = { type: 'nil' };
+              const emit = value => {
+                if (first) initial = value;
+                else output(value);
+              };
+              const stop = func(emit);
+              first = false;
+              return { initial, stop };
+            });
+          }
+          return create(() => ({ initial: func }));
         }
         const { indices, values } = get(arg, true).value;
         return toData(

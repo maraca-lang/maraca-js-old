@@ -1,9 +1,32 @@
+export const simpleStream = (arg, func, deep) => ({ get, output }) => {
+  let first = true;
+  let initial = { type: 'nil' };
+  const emit = value => {
+    if (first) initial = value;
+    else output(value);
+  };
+  const update = func(emit);
+  update(get(arg, deep));
+  first = false;
+  return { initial, update: () => update(get(arg, deep)), stop: () => update };
+};
+
 export const toData = value => {
   if (value === 0) return { type: 'value', value: '0' };
   if (!value) return { type: 'nil' };
   if (value === true) return { type: 'value', value: 'true' };
   if (typeof value === 'number') return { type: 'value', value: `${value}` };
   if (typeof value === 'string') return { type: 'value', value };
+  if (typeof value === 'function') {
+    return {
+      type: 'list',
+      value: {
+        indices: [],
+        values: {},
+        other: (create, arg) => [create(simpleStream(arg, value, true))],
+      },
+    };
+  }
   if (Object.prototype.toString.call(value) === '[object Date]') {
     return { type: 'value', value: value.toISOString() };
   }

@@ -6,25 +6,6 @@ import process from './process';
 export { compare, toData, toTypedValue } from './data';
 export { default as parse } from './parse';
 
-export const createMethod = (map, deep = false) => () => ({
-  initial: {
-    type: 'list',
-    value: {
-      indices: [],
-      values: {},
-      other: (create, value) => [
-        create(({ get, output }) => {
-          const { initial, update } = map({
-            initial: get(value, deep),
-            output: value => output(value),
-          });
-          return { initial, update: () => update(get(value, deep)) };
-        }),
-      ],
-    },
-  },
-});
-
 export default (config, code, output) => {
   const create = process();
   const modules = typeof code === 'string' ? { start: code } : code;

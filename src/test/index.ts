@@ -1,44 +1,37 @@
 import { toData, toTypedValue } from '../data';
-import maraca, { createMethod } from '../index';
+import maraca from '../index';
 
 const source = {
   start: `test? (@1)`,
   test: '#size.[a, b, _, c, `hello`]',
 };
 
-const map = m => ({ initial, output }) => ({
-  initial: toData(m(initial)),
-  update: value => output(toData(m(value))),
-});
+const map = m => emit => value => emit(toData(m(value)));
 
 const config = {
   '@': [
-    arg => ({ get, output }) => {
+    emit => {
+      let count = 0;
       let interval;
-      const run = () => {
-        let count = 0;
-        const inc = toTypedValue(get(arg));
-        if (inc.type === 'number') {
-          interval = setInterval(
-            () => output(toData(count++)),
-            inc.value * 1000,
-          );
-          return toData(count++);
+      return value => {
+        if (interval) clearInterval(interval);
+        if (value) {
+          const inc = toTypedValue(value);
+          if (inc.type === 'number') {
+            emit(toData(count++));
+            interval = setInterval(
+              () => emit(toData(count++)),
+              inc.value * 1000,
+            );
+          } else {
+            emit(toData(null));
+          }
         }
-        return toData(null);
-      };
-      return {
-        initial: run(),
-        update: () => {
-          clearInterval(interval);
-          output(run());
-        },
-        stop: () => clearInterval(interval),
       };
     },
   ],
   '#': {
-    size: createMethod(
+    size: toData(
       map(x =>
         x.type === 'list'
           ? x.value.indices.filter(x => x).length +
