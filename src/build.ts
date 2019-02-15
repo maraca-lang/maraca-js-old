@@ -4,12 +4,6 @@ import core, { streamMap } from './core';
 import { simpleStream, toData, toKey, toTypedValue } from './data';
 import parse from './parse';
 
-const isPure = ({ type, nodes = [] }) => {
-  if (['assign', 'other'].includes(type)) return false;
-  if (type === 'list') return true;
-  return nodes.every(isPure);
-};
-
 const build = (
   config,
   create,
@@ -46,7 +40,7 @@ const build = (
         value: {
           ...(current.value || { indices: [], values: {} }),
           other: info.map ? otherMap : other,
-          otherMap: info.map && (isPure(outputNode) ? 'pure' : true),
+          otherMap: info.map,
         },
       }))([context.current[0]]),
     );

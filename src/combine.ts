@@ -9,16 +9,12 @@ const sortTypes = (v1, v2) => {
   if (v1.type === 'value') return [v2, v1];
   if (!v2.value.other) return [v1, v2];
   if (!v1.value.other) return [v2, v1];
-  if (v2.value.otherMap) return [v1, v2];
-  if (v1.value.otherMap) return [v2, v1];
   return [null, null];
 };
 
 const getType = (big, small) => {
-  if (big === null && small === null) return 'nil';
-  if (small.type === 'list' && (!big.value.other || big.value.otherMap)) {
-    return 'multi';
-  }
+  if (big === 'nil' || (big === null && small === null)) return 'nil';
+  if (big.value.otherMap) return 'map';
   if (big.type === 'list') return 'get';
   return 'join';
 };
@@ -66,7 +62,7 @@ const runGet = (create, value, other, arg) => {
   ];
 };
 
-const run = (create, { type, reverse, big, small }, [s1, s2], dot, space) => {
+const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
   if (type === 'nil') {
     return {
       result: toList([{ type: 'nil' }]),
@@ -101,87 +97,27 @@ const run = (create, { type, reverse, big, small }, [s1, s2], dot, space) => {
         info.big.other === big.other,
     };
   }
-  const keys = [
-    ...Array.from({
-      length: Math.max(big.value.indices.length, small.value.indices.length),
-    }).map((_, i) => toData(i + 1)),
-    ...Array.from(
-      new Set([
-        ...Object.keys(big.value.values),
-        ...Object.keys(small.value.values),
-      ]),
-    ).map(k => (big.value.values[k] || small.value.values[k]).key),
-  ].sort(compare);
-  const pairs = keys
-    .map(k => [big, small].map(v => listGet(v, k, true)))
-    .filter(([b, s]) => {
-      if (typeof b === 'function') return s.type !== 'nil';
-      if (typeof s === 'function') return b.type !== 'nil';
-      return b.type !== 'nil' || s.type !== 'nil';
-    });
-  if (
-    big.value.otherMap === 'pure' &&
-    pairs.every(([b]) => b === big.value.other)
-  ) {
-    return {
-      result: toList([
-        {
-          type: 'list',
-          value: pairs.reduce(
-            (res, [b, s], i) => {
-              const next = { ...res };
-              const objKey = toKey(keys[i]);
-              const value = combine(
-                create,
-                [
-                  {
-                    type: 'list',
-                    value: {
-                      indices: [],
-                      values: {},
-                      other: b(undefined, undefined, keys[i]),
-                    },
-                  },
-                  s,
-                ],
-                dot,
-                space,
-              )[0];
-              if (typeof objKey === 'number') {
-                next.indices = [...next.indices];
-                next.indices[objKey] = value;
-              } else {
-                next.values = { ...next.values };
-                next.values[objKey] = { key: keys[i], value };
-              }
-              return next;
-            },
-            { indices: [], values: {} } as any,
-          ),
-        },
-      ]),
-    };
-  }
+  const pairs = [
+    ...small.value.indices.map((v, i) => ({ key: toData(i + 1), value: v })),
+    ...Object.keys(small.value.values)
+      .filter(k => small.value.values[k].value.type !== 'nil')
+      .map(k => small.value.values[k]),
+  ].sort((a, b) => compare(a.key, b.key));
   return {
     result: toList([
       pairs.reduce(
-        (res, p, i) => {
-          const [b, s] = p.map(v => {
-            if (typeof v !== 'function') return v;
-            return {
-              type: 'list',
-              value: { indices: [], values: {}, other: v(...res, keys[i]) },
-            };
-          });
-          const [v, scope, current] = combine(
-            create,
-            reverse ? [s, b] : [b, s],
-            dot,
-            space,
-          );
-          return [scope, create(assign([current, v, keys[i]], false, false))];
+        (res, { key, value }) => {
+          const map = big.value.other(...res, key);
+          const [result, scope, current] = map(create, value);
+          return [scope, create(assign([current, result, key], false, false))];
         },
-        [undefined, { type: 'list', value: { indices: [], values: {} } }],
+        [
+          undefined,
+          {
+            type: 'list',
+            value: { indices: big.value.indices, values: big.value.values },
+          },
+        ],
       )[1],
     ]),
   };
@@ -193,7 +129,6 @@ const combine = (create, args, dot, space) => {
       create,
       getInfo(args, get, dot),
       args,
-      dot,
       space,
     );
     return {
@@ -205,7 +140,7 @@ const combine = (create, args, dot, space) => {
             if (s.type === 'stream') s.value.stop();
           });
           create();
-          ({ result, canContinue } = run(create, info, args, dot, space));
+          ({ result, canContinue } = run(create, info, args, space));
           output(result);
         }
       },
