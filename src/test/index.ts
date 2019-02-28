@@ -1,9 +1,11 @@
-import { toData, toTypedValue } from '../data';
+import { fromJs, toJs } from '../data';
 import maraca from '../index';
+import { Source } from '../typings';
 
-const source = [`test? (@1)`, { test: '#size.[a, b, _, c, `hello`]' }];
-
-const map = m => emit => value => emit(toData(m(value)));
+const source = [
+  'test? (@1)',
+  { test: '#size.[a, b, _, c, `hello`]' },
+] as Source;
 
 const config = {
   '@': [
@@ -13,32 +15,31 @@ const config = {
       return value => {
         if (interval) clearInterval(interval);
         if (value) {
-          const inc = toTypedValue(value);
-          if (inc.type === 'number') {
-            emit(toData(count++));
-            interval = setInterval(
-              () => emit(toData(count++)),
-              inc.value * 1000,
-            );
+          const inc = toJs(value);
+          if (typeof inc === 'number') {
+            emit(fromJs(count++));
+            interval = setInterval(() => emit(fromJs(count++)), inc * 1000);
           } else {
-            emit(toData(null));
+            emit(fromJs(null));
           }
         }
       };
     },
   ],
   '#': {
-    size: toData(
-      map(x =>
-        x.type === 'list'
-          ? x.value.indices.filter(x => x).length +
-            Object.keys(x.value.values).filter(
-              k => x.value.values[k].value.type !== 'nil',
-            ).length
-          : '0',
+    size: fromJs(emit => x =>
+      emit(
+        fromJs(
+          x.type === 'list'
+            ? x.value.indices.filter(x => x).length +
+                Object.keys(x.value.values).filter(
+                  k => x.value.values[k].value.type !== 'nil',
+                ).length
+            : '0',
+        ),
       ),
     ),
   },
 };
 
-maraca(config, source, data => console.log(JSON.stringify(data, null, 2)));
+maraca(source, config, data => console.log(JSON.stringify(data, null, 2)));

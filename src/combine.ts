@@ -1,6 +1,6 @@
 import assign from './assign';
 import { streamMap } from './core';
-import { compare, toData, toKey } from './data';
+import { compare, fromJs, toKey } from './data';
 
 const sortTypes = (v1, v2) => {
   if (v2.type === 'nil') return [v1, v2];
@@ -74,7 +74,7 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
       result: toList([
         create(
           streamMap(([v1, v2]) =>
-            toData(
+            fromJs(
               (v1.value || '') +
                 (v1.value && v2.value && space ? ' ' : '') +
                 (v2.value || ''),
@@ -98,7 +98,7 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
     };
   }
   const pairs = [
-    ...small.value.indices.map((v, i) => ({ key: toData(i + 1), value: v })),
+    ...small.value.indices.map((v, i) => ({ key: fromJs(i + 1), value: v })),
     ...Object.keys(small.value.values)
       .filter(k => small.value.values[k].value.type !== 'nil')
       .map(k => small.value.values[k]),

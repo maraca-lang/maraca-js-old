@@ -1,3 +1,5 @@
+import { Data } from './typings';
+
 export const simpleStream = (arg, func, deep) => ({ get, output }) => {
   let first = true;
   let initial = { type: 'nil' };
@@ -11,7 +13,7 @@ export const simpleStream = (arg, func, deep) => ({ get, output }) => {
   return { initial, update: () => update(get(arg, deep)), stop: () => update };
 };
 
-export const toData = value => {
+export const fromJs = (value: any): Data => {
   if (value === 0) return { type: 'value', value: '0' };
   if (!value) return { type: 'nil' };
   if (value === true) return { type: 'value', value: 'true' };
@@ -39,13 +41,13 @@ export const toData = value => {
     return { type: 'value', value: JSON.stringify(value) };
   }
   if (Array.isArray(value)) {
-    return { type: 'list', value: { indices: value.map(toData), values: {} } };
+    return { type: 'list', value: { indices: value.map(fromJs), values: {} } };
   }
   const result = { indices: [], values: {} } as any;
   Object.keys(value).forEach((k: any) => {
     const n = !isNaN(k) && !isNaN(parseFloat(k)) && parseFloat(k);
-    if (n && Math.floor(n) === n) result.indices[n] = toData(value[k]);
-    else result.values[k] = { key: toData(k), value: toData(value[k]) };
+    if (n && Math.floor(n) === n) result.indices[n] = fromJs(value[k]);
+    else result.values[k] = { key: fromJs(k), value: fromJs(value[k]) };
   });
   return { type: 'list', value: result };
 };
@@ -54,19 +56,23 @@ const regexs = {
   time: /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
   location: /{"lat":[0-9\.-]+,"lng":[0-9\.-]+}/,
 };
-export const toTypedValue = ({ type, value }) => {
-  if (type !== 'value') return { type, value };
-  if (!isNaN(value) && !isNaN(parseFloat(value))) {
-    const v = parseFloat(value);
-    return { type: 'number', integer: Math.floor(v) === v, value: v };
+export const toJs = (data: Data): any => {
+  if (data.type === 'nil') return null;
+  if (data.type === 'value') {
+    const s = data.value;
+    if (!isNaN(s as any) && !isNaN(parseFloat(s))) return parseFloat(s);
+    if (regexs.time.test(s)) return new Date(s);
+    if (regexs.location.test(s)) return JSON.parse(s);
+    return s;
   }
-  if (regexs.time.test(value)) {
-    return { type: 'time', value: new Date(value) };
-  }
-  if (regexs.location.test(value)) {
-    return { type: 'location', value: JSON.parse(value) };
-  }
-  return { type: 'value', value };
+  const { indices, values } = data.value;
+  return [
+    ...indices.map((v, i) => ({ key: fromJs(i + 1), value: v })),
+    ...Object.keys(values).map(k => values[k]),
+  ]
+    .filter(v => v.value.type !== 'nil')
+    .sort((a, b) => compare(a.key, b.key))
+    .map(({ key, value }) => ({ key: toJs(key), value: toJs(value) }));
 };
 
 export const sortMultiple = (items1, items2, sortItems, reverseUndef = false) =>
@@ -89,7 +95,7 @@ const getMinus = v => {
   return { minus, value: typeof v === 'number' ? -v : v.slice(1) };
 };
 
-const sortStrings = (s1, s2) => {
+const sortStrings = (s1, s2): -1 | 0 | 1 => {
   if (s1 === s2) return 0;
   if (!s1) return -1;
   if (!s2) return 1;
@@ -102,13 +108,15 @@ const sortStrings = (s1, s2) => {
   const t1 = typeof m1.value;
   const t2 = typeof m2.value;
   if (t1 === t2) {
-    if (t1 === 'string') return dir * m1.value.localeCompare(m2.value);
-    return dir * (m1.value < m2.value ? -1 : 1);
+    if (t1 === 'string') {
+      return (dir * m1.value.localeCompare(m2.value)) as -1 | 0 | 1;
+    }
+    return (dir * (m1.value < m2.value ? -1 : 1)) as -1 | 0 | 1;
   }
-  return dir * (t1 === 'number' ? -1 : 1);
+  return (dir * (t1 === 'number' ? -1 : 1)) as -1 | 0 | 1;
 };
 
-export const compare = (v1, v2) => {
+export const compare = (v1: Data, v2: Data): -1 | 0 | 1 => {
   if (v1.type !== v2.type) {
     return v1.type === 'value' || v2.type === 'list' ? -1 : 1;
   }
@@ -116,17 +124,20 @@ export const compare = (v1, v2) => {
   if (v1.type === 'value') return sortStrings(v1.value, v2.value);
   const keys = [
     ...Array.from({
-      length: Math.max(v1.value.indices.length, v2.value.indices.length),
+      length: Math.max(
+        v1.value.indices.length,
+        (v2 as any).value.indices.length,
+      ),
     }).map((_, i) => i),
     ...Array.from(
       new Set([
         ...Object.keys(v1.value.values),
-        ...Object.keys(v2.value.values),
+        ...Object.keys((v2 as any).value.values),
       ]),
     ).sort((a, b) =>
       compare(
-        (v1.value.values[a] || v2.value.values[a]).key,
-        (v1.value.values[b] || v2.value.values[b]).key,
+        (v1.value.values[a] || (v2 as any).value.values[a]).key,
+        (v1.value.values[b] || (v2 as any).value.values[b]).key,
       ),
     ),
   ];
@@ -140,8 +151,9 @@ export const compare = (v1, v2) => {
     keys.map(
       k =>
         (typeof k === 'number'
-          ? v2.value.indices[k]
-          : v2.value.values[k] && v2.value.values[k].value) || { type: 'nil' },
+          ? (v2 as any).value.indices[k]
+          : (v2 as any).value.values[k] &&
+            (v2 as any).value.values[k].value) || { type: 'nil' },
     ),
     compare,
   );

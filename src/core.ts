@@ -1,4 +1,4 @@
-import { toData, toTypedValue } from './data';
+import { fromJs, toJs } from './data';
 import fuzzy from './fuzzy';
 
 export const streamMap = map => args => ({ get, output, create }) => {
@@ -9,11 +9,11 @@ export const streamMap = map => args => ({ get, output, create }) => {
   return { initial: run(), update: () => output(run()) };
 };
 
-const dataMap = map => streamMap(args => toData(map(args)));
+const dataMap = map => streamMap(args => fromJs(map(args)));
 
 const numericMap = map =>
   dataMap(args => {
-    const values = args.map(a => toTypedValue(a).value);
+    const values = args.map(a => toJs(a));
     if (values.some(v => typeof v !== 'number')) return null;
     return map(values);
   });
@@ -45,24 +45,24 @@ export default {
   '+': numericMap(([a, b]) => a + b),
   '-': dataMap(([a, b]) => {
     if (!b) return a.type === 'value' ? `-${a.value}` : null;
-    const v1 = toTypedValue(a);
-    const v2 = toTypedValue(b);
-    if (v1.type !== v2.type) return null;
-    if (v1.type === 'number') return v1.value - v2.value;
-    if (v1.type === 'time') {
-      return v1.value.getTime() - v2.value.getTime();
-    }
-    if (v1.type === 'location') {
+    const v1 = toJs(a);
+    const v2 = toJs(b);
+    const t1 = Object.prototype.toString.call(v1);
+    const t2 = Object.prototype.toString.call(v2);
+    if (t1 != t2) return null;
+    if (t1 === '[object Number]') return v1 - v2;
+    if (t1 === '[object Date]') return v1.getTime() - v2.getTime();
+    if (t1 === '[object Object]') {
       const p = 0.017453292519943295;
       return (
         12742 *
         Math.asin(
           Math.sqrt(
             0.5 -
-              Math.cos((v2.value.lat - v1.value.lat) * p) / 2 +
-              (Math.cos(v1.value.lat * p) *
-                Math.cos(v2.value.lat * p) *
-                (1 - Math.cos((v2.value.lng - v1.value.lng) * p))) /
+              Math.cos((v2.lat - v1.lat) * p) / 2 +
+              (Math.cos(v1.lat * p) *
+                Math.cos(v2.lat * p) *
+                (1 - Math.cos((v2.lng - v1.lng) * p))) /
                 2,
           ),
         )

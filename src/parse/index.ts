@@ -1,9 +1,11 @@
 import { Grammar, Parser } from 'nearley';
 
+import { AST } from '../typings';
+
 import * as grammar from '../../lib/grammar';
 import lexer from './lexer';
 
-export default script => {
+export default (script: string): AST => {
   lexer.reset(script);
   const parser = new Parser(Grammar.fromCompiled(grammar));
   parser.feed(script);

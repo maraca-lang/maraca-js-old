@@ -1,5 +1,5 @@
 import core, { streamMap } from './core';
-import { toData, toKey } from './data';
+import { fromJs, toKey } from './data';
 
 const getType = ([l, v, k], unpack, setNil, get) => {
   const list = get(l);
@@ -57,7 +57,7 @@ const run = (type, [l, v, k]) => {
       };
       const removed = [] as any[];
       const result = [
-        ...key.value.indices.map((v, i) => ({ key: toData(i + 1), value: v })),
+        ...key.value.indices.map((v, i) => ({ key: fromJs(i + 1), value: v })),
         ...Object.keys(key.value.values).map(k => key.value.values[k]),
       ].reduce((res, d) => {
         const k = toKey(d.key);

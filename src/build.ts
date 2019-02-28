@@ -1,7 +1,7 @@
 import assign from './assign';
 import combine from './combine';
 import core, { streamMap } from './core';
-import { simpleStream, toData, toKey, toTypedValue } from './data';
+import { fromJs, simpleStream, toJs, toKey } from './data';
 import parse from './parse';
 
 const build = (
@@ -105,20 +105,18 @@ const build = (
     const arg = build(config, create, context, nodes[0]);
     return create(({ get, output }) => {
       const run = () => {
-        const value = toTypedValue(get(arg));
-        if (value.integer) {
+        const v = toJs(get(arg));
+        if (typeof v === 'number' && Math.floor(v) === v) {
           return {
             type: 'list',
             value: {
-              indices: Array.from({ length: value.value }).map((_, i) =>
-                toData(i + 1),
-              ),
+              indices: Array.from({ length: v }).map((_, i) => fromJs(i + 1)),
               values: {},
             },
           };
         }
-        if (value.type === 'value') {
-          const func = config['#'] && config['#'][value.value];
+        if (typeof v === 'string') {
+          const func = config['#'] && config['#'][v];
           if (!func) {
             return { type: 'nil' };
           } else if (typeof func === 'function') {
@@ -137,7 +135,7 @@ const build = (
           return create(() => ({ initial: func }));
         }
         const { indices, values } = get(arg, true).value;
-        return toData(
+        return fromJs(
           indices.filter(x => x).length +
             Object.keys(values).filter(k => values[k].value.type !== 'nil')
               .length,
