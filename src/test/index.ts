@@ -1,10 +1,7 @@
 import { toData, toTypedValue } from '../data';
 import maraca from '../index';
 
-const source = {
-  start: `test? (@1)`,
-  test: '#size.[a, b, _, c, `hello`]',
-};
+const source = [`test? (@1)`, { test: '#size.[a, b, _, c, `hello`]' }];
 
 const map = m => emit => value => emit(toData(m(value)));
 

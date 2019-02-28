@@ -6,13 +6,19 @@ import process from './process';
 export { compare, toData, toTypedValue } from './data';
 export { default as parse } from './parse';
 
-export default (config, code, output) => {
+export default (config, source, output) => {
   const create = process();
-  const modules = typeof code === 'string' ? { start: code } : code;
-  const parsed = Object.keys(modules).reduce(
-    (res, k) => ({ ...res, [k]: parse(modules[k]) }),
-    {} as any,
-  );
+  const [start, modules] = Array.isArray(source) ? source : [source, {}];
+  const buildModule = (create, code) =>
+    build(
+      config,
+      create,
+      {
+        scope: [scope],
+        current: [{ type: 'list', value: { indices: [], values: {} } }],
+      },
+      typeof code === 'string' ? parse(code) : code,
+    );
   const scope = {
     type: 'list',
     value: {
@@ -22,19 +28,13 @@ export default (config, code, output) => {
           ...res,
           [k]: {
             key: toData(k),
-            value: create(({ create }) => ({
-              initial: build(
-                config,
-                create,
-                {
-                  scope: [scope],
-                  current: [
-                    { type: 'list', value: { indices: [], values: {} } },
-                  ],
-                },
-                parse(modules[k]),
-              ),
-            })),
+            value: create(({ output, create }) => {
+              if (typeof modules[k] === 'function') {
+                modules[k]().then(code => output(buildModule(create, code)));
+                return { initial: toData(null) };
+              }
+              return { initial: buildModule(create, modules[k]) };
+            }),
           },
         }),
         {},
@@ -48,7 +48,7 @@ export default (config, code, output) => {
       scope: [scope],
       current: [{ type: 'list', value: { indices: [], values: {} } }],
     },
-    parsed.start,
+    typeof start === 'string' ? parse(start) : start,
   );
   const result = create(
     ({ get, output }) => {
