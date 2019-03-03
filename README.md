@@ -21,9 +21,6 @@ Full documentation for the Maraca language itself can be found at https://maraca
 ## Table of contents
 
 - [API](#api)
-  - [source](#api)
-  - [config (optional)](#config-optional)
-  - [callback (optional)](#callback-optional)
 - [Utilities](#utilities)
 - [Full example](#full-example)
 
@@ -57,9 +54,9 @@ The Maraca source can be provided in any of the following formats:
   string
 | ast
 | [
-  start: string | ast,
-  modules: { [key]: string | ast | () => Promise<string | ast> },
-]
+    start: string | ast,
+    modules: { [key]: string | ast | () => Promise<string | ast> },
+  ]
 ```
 
 If the object form is used, evaluation starts with the 'start' script, which can then access the modules via the context list (i.e. `[key]?`).
@@ -88,6 +85,37 @@ For `#`, you either directly provide a Maraca data value, or another map as for 
 ### output (optional)
 
 If provided, the runtime will run in stream mode, outputting the results to the given callback.
+
+## Data format
+
+**Nil**
+
+```ts
+{
+  type: 'nil',
+  set: (value: data) => void,
+}
+```
+
+**Value**
+
+```ts
+{
+  type: 'value',
+  value: string,
+  set: (value: data) => void,
+}
+```
+
+**List**
+
+```ts
+{
+  type: 'list',
+  value: { key: data, value: data }[],
+  set: (value: data) => void,
+}
+```
 
 ## Utilities
 

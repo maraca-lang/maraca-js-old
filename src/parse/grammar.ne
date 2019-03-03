@@ -14,12 +14,12 @@ main ->
     _ exp _ {% x => x[1] %}
 
 exp ->
-    expother {% id %}
+    expfunc {% id %}
 
-expother ->
+expfunc ->
     expset _ "=>" _ expset _ "=>" _ expset
       {% x => ({
-        type: "other",
+        type: "func",
         nodes: [x[0], x[4], x[8]],
         info: { map: true },
         start: x[0].start,
@@ -27,7 +27,7 @@ expother ->
       }) %}
   | expset _ "=>>" _ expset
       {% x => ({
-        type: "other",
+        type: "func",
         nodes: [null, x[0], x[4]],
         info: { map: true },
         start: x[0].start,
@@ -35,14 +35,14 @@ expother ->
       }) %}
   | expset _ "=>" _ expset
       {% x => ({
-        type: "other",
+        type: "func",
         nodes: [null, x[0], x[4]],
         start: x[0].start,
         end: x[4].end,
       }) %}
   | "=>>" _ expset
       {% x => ({
-        type: "other",
+        type: "func",
         nodes: [null, null, x[2]],
         info: { map: true },
         start: x[0].offset,
@@ -50,7 +50,7 @@ expother ->
       }) %}
   | "=>" _ expset
       {% x => ({
-        type: "other",
+        type: "func",
         nodes: [null, null, x[2]],
         start: x[0].offset,
         end: x[2].end,

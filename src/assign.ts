@@ -1,5 +1,5 @@
 import core, { streamMap } from './core';
-import { fromJs, toKey } from './data';
+import listUtils from './list';
 
 const getType = ([l, v, k], unpack, setNil, get) => {
   const list = get(l);
@@ -25,76 +25,34 @@ const getType = ([l, v, k], unpack, setNil, get) => {
 
 const run = (type, [l, v, k]) => {
   if (type === 'none') {
-    return core.constant(l);
+    return core.settable(l);
   }
   if (type === 'append') {
-    return streamMap(([list]) => {
-      const listValue = list.value || { indices: [], values: {} };
-      return {
-        type: 'list',
-        value: { ...listValue, indices: [...listValue.indices, v] },
-      };
-    })([l]);
+    return streamMap(([list]) => listUtils.append(list, v))([l]);
   }
   if (type === 'merge') {
-    return streamMap(([list, value]) => {
-      const listValue = list.value || { indices: [], values: {} };
-      return {
-        type: 'list',
-        value: {
-          ...listValue,
-          indices: [...listValue.indices, ...value.value.indices],
-          values: { ...listValue.values, ...value.value.values },
-        },
-      };
-    })([l, v]);
+    return streamMap(([list, value]) => listUtils.merge(list, value))([l, v]);
   }
   if (type === 'destructure') {
     return streamMap(([value, key], create) => {
-      const rest = {
-        indices: [...value.value.indices],
-        values: { ...value.value.values },
-      };
-      const removed = [] as any[];
-      const result = [
-        ...key.value.indices.map((v, i) => ({ key: fromJs(i + 1), value: v })),
-        ...Object.keys(key.value.values).map(k => key.value.values[k]),
-      ].reduce((res, d) => {
-        const k = toKey(d.key);
-        let v;
-        if (typeof k === 'number') {
-          v = value.value.indices[k];
-          removed.push(k);
-        } else {
-          v = value.value.values[k] && value.value.values[k].value;
-          delete rest.values[k];
-        }
-        return create(assign([res, v || { type: 'nil' }, d.value], true, true));
-      }, l);
-      if (key.value.other && !key.value.otherMap) {
-        removed.sort((a, b) => b - a);
-        removed.forEach(k => rest.indices.splice(k, 1));
-        const k = key.value.other(create, { type: 'nil' })[0];
-        return create(
-          assign([result, { type: 'list', value: rest }, k], true, true),
-        );
-      }
-      return result;
+      const keyPairs = listUtils.toPairs(key);
+      const { values, rest } = listUtils.extract(
+        value,
+        keyPairs.map(d => d.key),
+      );
+      const result = values.reduce(
+        (res, v, i) => create(assign([res, v, keyPairs[i].value], true, true)),
+        l,
+      );
+      const func = listUtils.getFunc(key);
+      if (!func || func.isMap) return result;
+      const k = listUtils.getFunc(key)(create, { type: 'nil' })[0];
+      return create(
+        assign([result, { type: 'list', value: rest }, k], true, true),
+      );
     })([v, k]);
   }
-  return streamMap(([list, key]) => {
-    const listValue = list.value || { indices: [], values: {} };
-    const res = { ...listValue };
-    const objKey = toKey(key);
-    if (typeof objKey === 'number') {
-      res.indices = [...res.indices];
-      res.indices[objKey] = v;
-    } else {
-      res.values = { ...res.values };
-      res.values[objKey] = { key, value: v };
-    }
-    return { type: 'list', value: res };
-  })([l, k]);
+  return streamMap(([list, key]) => listUtils.set(list, key, v))([l, k]);
 };
 
 const assign = (args, unpack, setNil) => ({ get, output, create }) => {

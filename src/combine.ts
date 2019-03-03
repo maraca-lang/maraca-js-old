@@ -1,22 +1,23 @@
 import assign from './assign';
 import { streamMap } from './core';
-import { compare, fromJs, toKey } from './data';
+import { fromJs } from './data';
+import listUtils from './list';
 
 const sortTypes = (v1, v2) => {
   if (v2.type === 'nil') return [v1, v2];
   if (v1.type === 'nil') return [v2, v1];
   if (v2.type === 'value') return [v1, v2];
   if (v1.type === 'value') return [v2, v1];
-  if (!v2.value.other) return [v1, v2];
-  if (!v1.value.other) return [v2, v1];
+  if (!listUtils.getFunc(v2)) return [v1, v2];
+  if (!listUtils.getFunc(v1)) return [v2, v1];
   return [null, null];
 };
 
 const getType = (big, small) => {
-  if (big === 'nil' || (big === null && small === null)) return 'nil';
-  if (big.value.otherMap) return 'map';
-  if (big.type === 'list') return 'get';
-  return 'join';
+  if (big.type === 'nil' || (big === null && small === null)) return 'nil';
+  if (big.type === 'value') return 'join';
+  const func = listUtils.getFunc(big);
+  return func && func.isMap ? 'map' : 'get';
 };
 
 const getInfo = ([s1, s2], get, dot) => {
@@ -25,37 +26,22 @@ const getInfo = ([s1, s2], get, dot) => {
   const [b, s] = sortTypes(v1, v2);
   const [big, small] =
     dot && b.type === 'value' && s.type === 'nil'
-      ? [{ type: 'list', value: { indices: [], values: {} } }, b]
+      ? [listUtils.empty(), b]
       : [b, s];
   return { type: getType(big, small), reverse: small === v1, big, small };
 };
-
-const toList = indices => ({
-  type: 'list',
-  value: { indices, values: {} },
-});
 
 const copy = stream => ({ get, output }) => ({
   initial: get(stream),
   update: () => output(get(stream)),
 });
 
-const listGet = ({ type, value }, key, withMap = false) => {
-  if (type !== 'list') return { type: 'nil' };
-  const k = toKey(key);
-  const v =
-    typeof k === 'number'
-      ? value.indices[k]
-      : value.values[k] && value.values[k].value;
-  return v || ((withMap || !value.otherMap) && value.other) || { type: 'nil' };
-};
-
-const runGet = (create, value, other, arg) => {
+const runGet = (create, value, func, arg) => {
   if (typeof value === 'function') return value(create, arg);
-  if (value.type !== 'stream' || !other) return [value];
+  if (value.type !== 'stream' || !func) return [value];
   return [
     create(
-      streamMap(([v]) => (v.type === 'nil' ? other(create, arg)[0] : v))([
+      streamMap(([v]) => (v.type === 'nil' ? func(create, arg)[0] : v))([
         value,
       ]),
     ),
@@ -65,13 +51,13 @@ const runGet = (create, value, other, arg) => {
 const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
   if (type === 'nil') {
     return {
-      result: toList([{ type: 'nil' }]),
+      result: listUtils.fromArray([{ type: 'nil' }]),
       canContinue: info => info.type === 'nil',
     };
   }
   if (type === 'join') {
     return {
-      result: toList([
+      result: listUtils.fromArray([
         create(
           streamMap(([v1, v2]) =>
             fromJs(
@@ -86,38 +72,32 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
     };
   }
   if (type === 'get') {
-    const value = listGet(big, small);
-    const result = runGet(create, value, big.value.other, reverse ? s1 : s2);
+    const value = listUtils.get(big, small);
+    const result = runGet(
+      create,
+      value,
+      listUtils.getFunc(big),
+      reverse ? s1 : s2,
+    );
     if (result[0].type === 'stream') result[0] = create(copy(result[0]));
     return {
-      result: toList(result),
+      result: listUtils.fromArray(result),
       canContinue: info =>
         info.type === 'get' &&
-        listGet(info.big, info.small) === value &&
-        info.big.other === big.other,
+        listUtils.get(info.big, info.small) === value &&
+        listUtils.getFunc(info.big) === listUtils.getFunc(big),
     };
   }
-  const pairs = [
-    ...small.value.indices.map((v, i) => ({ key: fromJs(i + 1), value: v })),
-    ...Object.keys(small.value.values)
-      .filter(k => small.value.values[k].value.type !== 'nil')
-      .map(k => small.value.values[k]),
-  ].sort((a, b) => compare(a.key, b.key));
+  const pairs = listUtils.toPairs(small).filter(d => d.value.type !== 'nil');
   return {
-    result: toList([
+    result: listUtils.fromArray([
       pairs.reduce(
         (res, { key, value }) => {
-          const map = big.value.other(...res, key);
+          const map = listUtils.getFunc(big)(...res, key);
           const [result, scope, current] = map(create, value);
           return [scope, create(assign([current, result, key], false, false))];
         },
-        [
-          undefined,
-          {
-            type: 'list',
-            value: { indices: big.value.indices, values: big.value.values },
-          },
-        ],
+        [undefined, listUtils.cloneValues(big)],
       )[1],
     ]),
   };
@@ -136,8 +116,8 @@ const combine = (create, args, dot, space) => {
       update: () => {
         const info = getInfo(args, get, dot);
         if (!canContinue || !canContinue(info)) {
-          result.value.indices.forEach(s => {
-            if (s.type === 'stream') s.value.stop();
+          listUtils.toPairs(result).forEach(s => {
+            if (s.value.type === 'stream') s.value.value.stop();
           });
           create();
           ({ result, canContinue } = run(create, info, args, space));
@@ -146,8 +126,12 @@ const combine = (create, args, dot, space) => {
       },
     };
   });
-  return [0, 1, 2].map(i =>
-    create(streamMap(([b]) => b.value.indices[i] || { type: 'nil' })([base])),
+  return [1, 2, 3].map(i =>
+    create(
+      streamMap(([b]) => listUtils.get(b, fromJs(i)) || { type: 'nil' })([
+        base,
+      ]),
+    ),
   );
 };
 

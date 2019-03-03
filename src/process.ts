@@ -1,4 +1,17 @@
-import { resolve, sortMultiple } from './data';
+import { fromValue } from './data';
+import listUtils from './list';
+import { sortMultiple } from './utils';
+
+const resolve = (data, get, deep, asData) => {
+  if (data.type === 'stream') {
+    return resolve(get(data.value), get, deep, asData);
+  }
+  if (!deep || data.type !== 'list') return data;
+  const result = listUtils.map(data, value =>
+    resolve(value, get, deep, asData),
+  );
+  return asData ? fromValue(result) : result;
+};
 
 const createStream = (index, value, run) => {
   let stop;
@@ -52,7 +65,7 @@ export default () => {
         return s.value;
       };
       const { initial, update, stop } = run({
-        get: (s, deep = false) => resolve(s, get, deep),
+        get: (s, deep = false, asData = false) => resolve(s, get, deep, asData),
         output: v => {
           stream.value = v;
           if (onChange) onChange(v);

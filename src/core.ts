@@ -1,4 +1,4 @@
-import { fromJs, toJs } from './data';
+import { fromJs, isEqual, toJs, toValue } from './data';
 import fuzzy from './fuzzy';
 
 export const streamMap = map => args => ({ get, output, create }) => {
@@ -19,16 +19,15 @@ const numericMap = map =>
   });
 
 export default {
-  constant: value => ({ output }) => {
-    const set = v => output({ ...v, set });
-    return { initial: { ...value, set } };
+  settable: arg => ({ get, output }) => {
+    const set = v => output({ ...toValue(v), set });
+    return {
+      initial: { set, ...get(arg) },
+      update: () => output({ set, ...get(arg) }),
+    };
   },
-  clearIndices: streamMap(([{ value }]) => ({
-    type: 'list',
-    value: { ...value, indices: [] },
-  })),
   '~': streamMap(([a, b]) => ({ ...b, id: a })),
-  '==': dataMap(([a, b]) => a.type === b.type && a.value === b.value),
+  '==': dataMap(([a, b]) => isEqual(a, b)),
   '=': dataMap(([a, b]) => {
     if (a.type !== 'value' || b.type !== 'value') return null;
     const res = fuzzy(a.value, b.value);

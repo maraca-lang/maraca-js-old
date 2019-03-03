@@ -31,10 +31,7 @@ const config = {
       emit(
         fromJs(
           x.type === 'list'
-            ? x.value.indices.filter(x => x).length +
-                Object.keys(x.value.values).filter(
-                  k => x.value.values[k].value.type !== 'nil',
-                ).length
+            ? x.value.filter(v => v.value.type !== 'nil').length
             : '0',
         ),
       ),

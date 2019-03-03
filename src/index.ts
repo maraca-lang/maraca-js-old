@@ -1,10 +1,11 @@
 import build from './build';
 import { fromJs } from './data';
+import listUtils from './list';
 import parse from './parse';
 import process from './process';
 import { Config, Data, Source } from './typings';
 
-export { compare, fromJs, toJs } from './data';
+export { fromJs, toJs } from './data';
 export { default as parse } from './parse';
 export { Data, Source } from './typings';
 
@@ -25,46 +26,30 @@ function maraca(...args) {
     build(
       config,
       create,
-      {
-        scope: [scope],
-        current: [{ type: 'list', value: { indices: [], values: {} } }],
-      },
+      { scope: [scope], current: [listUtils.empty()] },
       typeof code === 'string' ? parse(code) : code,
     );
-  const scope = {
-    type: 'list',
-    value: {
-      indices: [],
-      values: Object.keys(modules).reduce(
-        (res, k) => ({
-          ...res,
-          [k]: {
-            key: fromJs(k),
-            value: create(({ output, create }) => {
-              if (typeof modules[k] === 'function') {
-                modules[k]().then(code => output(buildModule(create, code)));
-                return { initial: fromJs(null) };
-              }
-              return { initial: buildModule(create, modules[k]) };
-            }),
-          },
-        }),
-        {},
-      ),
-    },
-  };
+  const scope = listUtils.fromPairs(
+    Object.keys(modules).map(k => ({
+      key: fromJs(k),
+      value: create(({ output, create }) => {
+        if (typeof modules[k] === 'function') {
+          modules[k]().then(code => output(buildModule(create, code)));
+          return { initial: fromJs(null) };
+        }
+        return { initial: buildModule(create, modules[k]) };
+      }),
+    })),
+  );
   const stream = build(
     config,
     create,
-    {
-      scope: [scope],
-      current: [{ type: 'list', value: { indices: [], values: {} } }],
-    },
+    { scope: [scope], current: [listUtils.empty()] },
     typeof start === 'string' ? parse(start) : start,
   );
   const result = create(
     ({ get, output }) => {
-      const run = () => get(stream, true);
+      const run = () => get(stream, true, true);
       return { initial: run(), update: () => output(run()) };
     },
     data => output(data),

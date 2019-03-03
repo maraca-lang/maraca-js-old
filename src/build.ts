@@ -1,28 +1,30 @@
 import assign from './assign';
 import combine from './combine';
 import core, { streamMap } from './core';
-import { fromJs, simpleStream, toJs, toKey } from './data';
+import { fromJs, toJs, toValue } from './data';
+import listUtils from './list';
 import parse from './parse';
+import { simpleStream, toIndex } from './utils';
 
-const build = (
+const buildBase = (
   config,
   create,
   context,
   { type, nodes = [] as any[], info = {} as any },
 ) => {
-  if (type === 'other') {
+  if (type === 'func') {
     const [keyNode, valueNode, outputNode] = nodes;
     const scope = context.scope[0];
     const keys = [keyNode, valueNode].map(
       n => n && build(config, create, context, n),
     );
-    const otherMap = (
-      otherScope = scope,
-      otherCurrent = { type: 'list', value: { indices: [], values: {} } },
+    const funcMap = (
+      funcScope = scope,
+      funcCurrent = listUtils.empty(),
       key?,
     ) => (subCreate, value) => {
       const values = [key, value];
-      const subContext = { scope: [otherScope], current: [otherCurrent] };
+      const subContext = { scope: [funcScope], current: [funcCurrent] };
       keys.forEach((key, i) => {
         if (key) {
           subContext.scope[0] = create(
@@ -33,24 +35,20 @@ const build = (
       const result = build(config, subCreate, subContext, outputNode);
       return [result, subContext.scope[0], subContext.current[0]];
     };
-    const other = otherMap();
+    const func = funcMap();
     context.current[0] = create(
-      streamMap(([current]) => ({
-        type: 'list',
-        value: {
-          ...(current.value || { indices: [], values: {} }),
-          other: info.map ? otherMap : other,
-          otherMap: info.map,
-        },
-      }))([context.current[0]]),
+      streamMap(([current]) =>
+        listUtils.setFunc(
+          current || listUtils.empty(),
+          info.map ? funcMap : func,
+          info.map,
+        ),
+      )([context.current[0]]),
     );
     return { type: 'nil' };
   }
   if (type === 'assign') {
-    if (
-      !nodes[1] &&
-      (nodes[0].type === 'assign' || nodes[0].type === 'other')
-    ) {
+    if (!nodes[1] && (nodes[0].type === 'assign' || nodes[0].type === 'func')) {
       return build(config, create, context, nodes[0]);
     }
     const args = nodes.map(n => build(config, create, context, n));
@@ -87,7 +85,7 @@ const build = (
         streamMap(([code], create) => {
           const subContext = {
             scope: [args[1]],
-            current: [{ type: 'list', value: { indices: [], values: {} } }],
+            current: [listUtils.empty()],
           };
           let parsed = { type: 'nil' };
           try {
@@ -107,38 +105,32 @@ const build = (
       const run = () => {
         const v = toJs(get(arg));
         if (typeof v === 'number' && Math.floor(v) === v) {
-          return {
-            type: 'list',
-            value: {
-              indices: Array.from({ length: v }).map((_, i) => fromJs(i + 1)),
-              values: {},
-            },
-          };
+          return listUtils.fromArray(
+            Array.from({ length: v }).map((_, i) => fromJs(i + 1)),
+          );
         }
         if (typeof v === 'string') {
           const func = config['#'] && config['#'][v];
-          if (!func) {
-            return { type: 'nil' };
-          } else if (typeof func === 'function') {
-            return create(({ output }) => {
-              let first = true;
-              let initial = { type: 'nil' };
-              const emit = value => {
-                if (first) initial = value;
-                else output(value);
-              };
-              const stop = func(emit);
-              first = false;
-              return { initial, stop };
-            });
+          if (!func) return { type: 'nil' };
+          if (typeof func !== 'function') {
+            return create(() => ({ initial: func }));
           }
-          return create(() => ({ initial: func }));
+          return create(({ output }) => {
+            let first = true;
+            let initial = { type: 'nil' };
+            const emit = data => {
+              const value = toValue(data);
+              if (first) initial = value;
+              else output(value);
+            };
+            const stop = func(emit);
+            first = false;
+            return { initial, stop };
+          });
         }
-        const { indices, values } = get(arg, true).value;
+        const list = get(arg, true).value;
         return fromJs(
-          indices.filter(x => x).length +
-            Object.keys(values).filter(k => values[k].value.type !== 'nil')
-              .length,
+          listUtils.toPairs(list).filter(d => d.value.type !== 'nil').length,
         );
       };
       return { initial: run(), update: () => output(run()) };
@@ -155,7 +147,7 @@ const build = (
             info: {
               value: `${
                 info.bracket === '('
-                  ? nodes.filter(n => n.type !== 'other').length
+                  ? nodes.filter(n => n.type !== 'func').length
                   : 1
               }`,
             },
@@ -164,12 +156,14 @@ const build = (
         ],
       });
     }
-    context.scope.unshift(create(core.clearIndices([context.scope[0]])));
-    context.current.unshift(
+    context.scope.unshift(
       create(
-        core.constant({ type: 'list', value: { indices: [], values: {} } }),
+        streamMap(([value]) => listUtils.clearIndices(value))([
+          context.scope[0],
+        ]),
       ),
     );
+    context.current.unshift(listUtils.empty());
     nodes.forEach(n =>
       build(config, create, context, { type: 'assign', nodes: [n] }),
     );
@@ -181,22 +175,17 @@ const build = (
     return args.reduce((a1, a2, i) => {
       const argPair = [a1, a2];
       if (argPair.includes(context.scope[0])) {
-        const v = create(core.constant({ type: 'nil' }));
+        const v = create(core.settable({ type: 'nil' }));
         const k = argPair[argPair[0] === context.scope[0] ? 1 : 0];
         [context.scope, context.current].forEach(l => {
           l[0] = create(
             streamMap(([list, key]) => {
-              if (list.other) return list;
-              const listValue = list.value || { indices: [], values: {} };
-              const res = { ...listValue };
-              if (key.type !== 'list') {
-                const objKey = toKey(key);
-                if (typeof objKey === 'string' && !res.values[objKey]) {
-                  res.values = { ...res.values };
-                  res.values[objKey] = { key, value: v };
-                }
+              if (listUtils.getFunc(list)) return list;
+              const res = listUtils.cloneValues(list);
+              if (key.type !== 'list' && !toIndex(key.value)) {
+                return listUtils.set(res, key, v);
               }
-              return { type: 'list', value: res };
+              return res;
             })([l[0], k]),
           );
         });
@@ -211,10 +200,10 @@ const build = (
     });
   }
   if (type === 'value') {
-    return create(core.constant({ type: 'value', value: info.value }));
+    return { type: 'value', value: info.value };
   }
   if (type === 'nil') {
-    return create(core.constant({ type: 'nil' }));
+    return { type: 'nil' };
   }
   if (type === 'context') {
     return context.scope[0];
@@ -223,5 +212,8 @@ const build = (
     return { type: 'nil' };
   }
 };
+
+const build = (config, create, context, node) =>
+  create(core.settable(buildBase(config, create, context, node)));
 
 export default build;

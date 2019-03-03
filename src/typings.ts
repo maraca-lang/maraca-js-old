@@ -16,15 +16,16 @@ export type Source =
   | [string | AST, Obj<string | AST | (() => Promise<string | AST>)>];
 
 export type Data =
-  | { type: 'nil'; value?: undefined }
-  | { type: 'value'; value: string }
+  | { type: 'nil'; value?: undefined; set?: any }
+  | { type: 'value'; value: string; set?: any }
   | {
       type: 'list';
       value: {
-        indices: Data[];
         values: Obj<{ key: Data; value: Data }>;
+        indices: number[];
         other?: any;
       };
+      set?: any;
     };
 
 export interface Config {
