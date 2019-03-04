@@ -29,7 +29,7 @@ Full documentation for the Maraca language itself can be found at https://maraca
 The core runtime API parses and runs Maraca source code.
 
 ```ts
-maraca(source, [config], [output]);
+maraca(source, config?, output?);
 ```
 
 The config parameter can be provided to setup the `@` and `#` Maraca language features, and the output parameter can be provided to enable streaming.

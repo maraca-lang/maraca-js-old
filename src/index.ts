@@ -1,13 +1,20 @@
 import build from './build';
-import { fromJs } from './data';
+import {
+  fromJs as fromJsBase,
+  fromValue,
+  toJs as toJsBase,
+  toValue,
+} from './data';
 import listUtils from './list';
 import parse from './parse';
 import process from './process';
 import { Config, Data, Source } from './typings';
 
-export { fromJs, toJs } from './data';
 export { default as parse } from './parse';
 export { Data, Source } from './typings';
+
+export const fromJs = (value: any): Data => fromValue(fromJsBase(value));
+export const toJs = (data: Data): any => toJsBase(toValue(data));
 
 function maraca(source: Source): Data;
 function maraca(source: Source, output: (data: Data) => void): void;
@@ -31,11 +38,11 @@ function maraca(...args) {
     );
   const scope = listUtils.fromPairs(
     Object.keys(modules).map(k => ({
-      key: fromJs(k),
+      key: fromJsBase(k),
       value: create(({ output, create }) => {
         if (typeof modules[k] === 'function') {
           modules[k]().then(code => output(buildModule(create, code)));
-          return { initial: fromJs(null) };
+          return { initial: fromJsBase(null) };
         }
         return { initial: buildModule(create, modules[k]) };
       }),
@@ -49,10 +56,10 @@ function maraca(...args) {
   );
   const result = create(
     ({ get, output }) => {
-      const run = () => get(stream, true, true);
+      const run = () => get(stream, true);
       return { initial: run(), update: () => output(run()) };
     },
-    data => output(data),
+    data => output(fromValue(data)),
   )!;
   const obj = {};
   result.value.observe(obj);
@@ -60,9 +67,9 @@ function maraca(...args) {
   const stop = () => result.value.unobserve(obj);
   if (!output) {
     stop();
-    return initial;
+    return fromValue(initial);
   }
-  output(initial);
+  output(fromValue(initial));
   return stop;
 }
 

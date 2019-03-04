@@ -2,10 +2,7 @@ import { fromJs, toJs } from '../data';
 import maraca from '../index';
 import { Source } from '../typings';
 
-const source = [
-  'test? (@1)',
-  { test: '#size.[a, b, _, c, `hello`]' },
-] as Source;
+const source = ['test? (@1)', { test: '#[a, b, _, c, `hello`]' }] as Source;
 
 const config = {
   '@': [

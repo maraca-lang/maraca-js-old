@@ -1,16 +1,14 @@
-import { fromJs } from './data';
+import { fromJs, sortMultiple, toIndex } from './data';
 import { Data } from './typings';
-import { sortMultiple, toIndex } from './utils';
 
 const toKey = ({ type, value }) => {
   if (type !== 'list') return value;
-  return JSON.stringify({
-    indices: value.indices.map(toKey),
-    values: Object.keys(value.values).reduce(
+  return JSON.stringify(
+    Object.keys(value.values).reduce(
       (res, k) => ({ ...res, [k]: toKey(value.values[k].value) }),
       {},
     ),
-  });
+  );
 };
 
 const tryNumber = s => {
@@ -73,9 +71,10 @@ const listUtils = {
   fromPairs: pairs => {
     const result = { values: {}, indices: [] as number[] };
     pairs.forEach(({ key, value }) => {
-      const i = toIndex(key);
+      const k = toKey(key);
+      const i = toIndex(k);
       if (!i || value.type !== 'nil') {
-        result.values[toKey(key)] = { key, value };
+        result.values[k] = { key, value };
         if (i) result.indices.push(i);
       }
     });
@@ -114,9 +113,10 @@ const listUtils = {
     },
   }),
 
-  toData: list => ({ ...list, value: listUtils.toPairs(list) }),
-  fromData: list => ({ ...list, value: listUtils.fromPairs(list.value) }),
-
+  has: (list, key) => {
+    const k = toKey(key);
+    return !!(list.value.values[k] && list.value.values[k].value);
+  },
   get: (list, key) => {
     const k = toKey(key);
     const v = list.value.values[k] && list.value.values[k].value;
@@ -135,11 +135,12 @@ const listUtils = {
       if (i) rest.indices = rest.indices.filter(x => x !== i);
       return v;
     });
-    const first = rest.indices[0] - 1;
-    rest.indices.forEach((i, j) => {
-      rest.values[i - first] = rest.values[i];
-      delete rest.values[i];
-      rest.indices[j] = i - first;
+    const offset = rest.indices[0] - 1;
+    rest.indices.forEach((index, i) => {
+      rest.values[index - offset] = rest.values[index];
+      rest.values[index - offset].key = fromJs(index - offset);
+      delete rest.values[index];
+      rest.indices[i] = index - offset;
     });
     return { values, rest };
   },
@@ -190,11 +191,23 @@ const listUtils = {
       },
     };
   },
-  merge: (list1, list2) =>
-    listUtils.fromPairs([
+  merge: (list1, list2) => {
+    const offset = list1.value.indices[list1.value.indices.length - 1] || 0;
+    const temp = listUtils.cloneValues(list2);
+    if (offset) {
+      for (let i = temp.value.indices.length - 1; i >= 0; i--) {
+        const index = temp.value.indices[i];
+        temp.value.values[index + offset] = temp.value.values[index];
+        temp.value.values[index + offset].key = fromJs(index + offset);
+        delete temp.value.values[index];
+        temp.value.indices[i] = index + offset;
+      }
+    }
+    return listUtils.fromPairs([
       ...listUtils.toPairs(list1),
-      ...listUtils.toPairs(list2),
-    ]),
+      ...listUtils.toPairs(temp),
+    ]);
+  },
   setFunc: (list, func, isMap?) => ({
     ...list,
     value: { ...list.value, func: Object.assign(func, { isMap }) },
@@ -202,15 +215,3 @@ const listUtils = {
 };
 
 export default listUtils;
-
-// const listValue = list.value || { indices: [], values: {} };
-// const res = { ...listValue };
-// const objKey = toKey(key);
-// if (typeof objKey === 'number') {
-//   res.indices = [...res.indices];
-//   res.indices[objKey] = v;
-// } else {
-//   res.values = { ...res.values };
-//   res.values[objKey] = { key, value: v };
-// }
-// return { type: 'list', value: res };

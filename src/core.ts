@@ -1,10 +1,14 @@
-import { fromJs, isEqual, toJs, toValue } from './data';
+import { fromJs, isEqual, toJs } from './data';
 import fuzzy from './fuzzy';
 
-export const streamMap = map => args => ({ get, output, create }) => {
+export const streamMap = map => (args, deeps = [] as boolean[]) => ({
+  get,
+  output,
+  create,
+}) => {
   const run = () => {
     create();
-    return map(args.map(a => get(a)), create);
+    return map(args.map((a, i) => get(a, deeps[i] || false)), create);
   };
   return { initial: run(), update: () => output(run()) };
 };
@@ -20,7 +24,7 @@ const numericMap = map =>
 
 export default {
   settable: arg => ({ get, output }) => {
-    const set = v => output({ ...toValue(v), set });
+    const set = v => output({ ...v, set, wasSet: true });
     return {
       initial: { set, ...get(arg) },
       update: () => output({ set, ...get(arg) }),

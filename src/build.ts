@@ -1,10 +1,9 @@
 import assign from './assign';
 import combine from './combine';
 import core, { streamMap } from './core';
-import { fromJs, toJs, toValue } from './data';
+import { fromJs, fromJsFunc, toIndex, toJs, toValue } from './data';
 import listUtils from './list';
 import parse from './parse';
-import { simpleStream, toIndex } from './utils';
 
 const buildBase = (
   config,
@@ -76,7 +75,7 @@ const buildBase = (
     const func = config['@'] && config['@'][info.level - 1];
     if (!func) return { type: 'nil' };
     const arg = build(config, create, context, nodes[0]);
-    return create(simpleStream(arg, func, true));
+    return create(fromJsFunc(arg, func, true));
   }
   if (type === 'core') {
     const args = nodes.map(n => build(config, create, context, n));
@@ -103,7 +102,8 @@ const buildBase = (
     const arg = build(config, create, context, nodes[0]);
     return create(({ get, output }) => {
       const run = () => {
-        const v = toJs(get(arg));
+        const resolved = get(arg);
+        const v = resolved.type !== 'list' && toJs(resolved);
         if (typeof v === 'number' && Math.floor(v) === v) {
           return listUtils.fromArray(
             Array.from({ length: v }).map((_, i) => fromJs(i + 1)),
@@ -113,7 +113,7 @@ const buildBase = (
           const func = config['#'] && config['#'][v];
           if (!func) return { type: 'nil' };
           if (typeof func !== 'function') {
-            return create(() => ({ initial: func }));
+            return create(() => ({ initial: toValue(func) }));
           }
           return create(({ output }) => {
             let first = true;
@@ -128,7 +128,7 @@ const buildBase = (
             return { initial, stop };
           });
         }
-        const list = get(arg, true).value;
+        const list = get(arg, true);
         return fromJs(
           listUtils.toPairs(list).filter(d => d.value.type !== 'nil').length,
         );
@@ -174,15 +174,19 @@ const buildBase = (
     const args = nodes.map(n => build(config, create, context, n));
     return args.reduce((a1, a2, i) => {
       const argPair = [a1, a2];
-      if (argPair.includes(context.scope[0])) {
+      if (nodes[i - 1].type === 'context' || nodes[i].type === 'context') {
         const v = create(core.settable({ type: 'nil' }));
-        const k = argPair[argPair[0] === context.scope[0] ? 1 : 0];
+        const k = argPair[nodes[i].type === 'context' ? 0 : 1];
         [context.scope, context.current].forEach(l => {
           l[0] = create(
             streamMap(([list, key]) => {
               if (listUtils.getFunc(list)) return list;
               const res = listUtils.cloneValues(list);
-              if (key.type !== 'list' && !toIndex(key.value)) {
+              if (
+                key.type !== 'list' &&
+                !toIndex(key.value) &&
+                !listUtils.has(list, key)
+              ) {
                 return listUtils.set(res, key, v);
               }
               return res;

@@ -50,9 +50,12 @@ const run = (type, [l, v, k]) => {
       return create(
         assign([result, { type: 'list', value: rest }, k], true, true),
       );
-    })([v, k]);
+    })([v, k], [false, true]);
   }
-  return streamMap(([list, key]) => listUtils.set(list, key, v))([l, k]);
+  return streamMap(([list, key]) => listUtils.set(list, key, v))(
+    [l, k],
+    [false, true],
+  );
 };
 
 const assign = (args, unpack, setNil) => ({ get, output, create }) => {

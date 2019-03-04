@@ -1,8 +1,24 @@
 import listUtils from './list';
-import { Data } from './typings';
-import { simpleStream } from './utils';
 
-export const fromJs = (value: any): Data => {
+export const fromJsFunc = (arg, func, deep) => ({ get, output }) => {
+  let first = true;
+  let initial = { type: 'nil' };
+  const emit = data => {
+    const value = toValue(data);
+    if (first) initial = value;
+    else output(value);
+  };
+  const update = func(emit);
+  update(fromValue(get(arg, deep)));
+  first = false;
+  return {
+    initial,
+    update: () => update(fromValue(get(arg, deep))),
+    stop: () => update(),
+  };
+};
+
+export const fromJs = value => {
   if (value === 0) return { type: 'value', value: '0' };
   if (!value) return { type: 'nil' };
   if (value === true) return { type: 'value', value: 'true' };
@@ -10,7 +26,7 @@ export const fromJs = (value: any): Data => {
   if (typeof value === 'string') return { type: 'value', value };
   if (typeof value === 'function') {
     return listUtils.fromFunc((create, arg) => [
-      create(simpleStream(arg, value, true)),
+      create(fromJsFunc(arg, value, true)),
     ]);
   }
   if (Object.prototype.toString.call(value) === '[object Date]') {
@@ -38,7 +54,7 @@ const regexs = {
   time: /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
   location: /{"lat":[0-9\.-]+,"lng":[0-9\.-]+}/,
 };
-export const toJs = (data: Data): any => {
+export const toJs = data => {
   if (data.type === 'nil') return null;
   if (data.type === 'value') {
     const s = data.value;
@@ -53,15 +69,6 @@ export const toJs = (data: Data): any => {
     .map(({ key, value }) => ({ key: toJs(key), value: toJs(value) }));
 };
 
-export const toValue = data => {
-  if (data.type !== 'list') return data;
-  return listUtils.fromData(data);
-};
-export const fromValue = value => {
-  if (value.type !== 'list') return value;
-  return listUtils.toData(value);
-};
-
 export const isEqual = (v1, v2) => {
   if (v1.type !== v2.type) return false;
   if (v1.type !== 'list') return v1.value === v2.value;
@@ -74,3 +81,55 @@ export const isEqual = (v1, v2) => {
       isEqual(v1.value.values[k].value, v2.value.values[k].value),
   );
 };
+
+export const toValue = data => {
+  if (data.type !== 'list') {
+    return { ...data, set: data.set && (v => data.set(fromValue(v))) };
+  }
+  const result = {
+    ...data,
+    value: {
+      ...(listUtils.fromPairs(
+        data.value.map(({ key, value }) => ({
+          key: toValue(key),
+          value: toValue(value),
+        })),
+      ).value as any),
+      func: data.value.func,
+    },
+  };
+  return { ...result, set: result.set && (v => result.set(fromValue(v))) };
+};
+export const fromValue = value => {
+  if (value.type !== 'list') {
+    return { ...value, set: value.set && (v => value.set(toValue(v))) };
+  }
+  const result = { ...value, value: listUtils.toPairs(value) };
+  result.value = result.value.map(({ key, value }) => ({
+    key: fromValue(key),
+    value: fromValue(value),
+  }));
+  result.value.func = value.value.func;
+  return { ...result, set: result.set && (v => result.set(toValue(v))) };
+};
+
+export const toIndex = (v: string) => {
+  const n = parseFloat(v);
+  return !isNaN(v as any) && !isNaN(n) && n === Math.floor(n) && n > 0 && n;
+};
+
+export const sortMultiple = <T = any>(
+  items1: T[],
+  items2: T[],
+  sortItems: (a: T, b: T) => number,
+  reverseUndef = false,
+) =>
+  Array.from({ length: Math.max(items1.length, items2.length) }).reduce(
+    (res, _, i) => {
+      if (res !== 0) return res;
+      if (items1[i] === undefined) return reverseUndef ? 1 : -1;
+      if (items2[i] === undefined) return reverseUndef ? -1 : 1;
+      return sortItems(items1[i], items2[i]);
+    },
+    0,
+  ) as -1 | 0 | 1;
