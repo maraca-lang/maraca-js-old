@@ -84,7 +84,12 @@ export const isEqual = (v1, v2) => {
 
 export const toValue = data => {
   if (data.type !== 'list') {
-    return { ...data, set: data.set && (v => data.set(fromValue(v))) };
+    return {
+      ...data,
+      type: data.value ? 'value' : 'nil',
+      value: data.value || undefined,
+      set: data.set && (v => data.set(fromValue(v))),
+    };
   }
   const result = {
     ...data,
@@ -102,7 +107,12 @@ export const toValue = data => {
 };
 export const fromValue = value => {
   if (value.type !== 'list') {
-    return { ...value, set: value.set && (v => value.set(toValue(v))) };
+    return {
+      ...value,
+      type: 'value',
+      value: value.value || '',
+      set: value.set && (v => value.set(toValue(v))),
+    };
   }
   const result = { ...value, value: listUtils.toPairs(value) };
   result.value = result.value.map(({ key, value }) => ({

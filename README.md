@@ -1,4 +1,4 @@
-# Maraca JavaScript Runtime
+# Maraca JavaScript runtime
 
 The JavaScript runtime for the Maraca language.
 
@@ -87,15 +87,6 @@ For `#`, you either directly provide a Maraca data value, or another map as for 
 If provided, the runtime will run in stream mode, outputting the results to the given callback.
 
 ## Data format
-
-**Nil**
-
-```ts
-{
-  type: 'nil',
-  set: (value: data) => void,
-}
-```
 
 **Value**
 
