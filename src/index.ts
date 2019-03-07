@@ -33,7 +33,7 @@ function maraca(...args) {
     build(
       config,
       create,
-      { scope: [scope], current: [listUtils.empty()] },
+      { scope: [scope], current: [listUtils.empty()], base: 0 },
       typeof code === 'string' ? parse(code) : code,
     );
   const scope = listUtils.fromPairs(
@@ -51,7 +51,7 @@ function maraca(...args) {
   const stream = build(
     config,
     create,
-    { scope: [scope], current: [listUtils.empty()] },
+    { scope: [scope], current: [listUtils.empty()], base: 0 },
     typeof start === 'string' ? parse(start) : start,
   );
   const result = create(

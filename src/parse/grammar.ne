@@ -130,7 +130,7 @@ expeval ->
   | exptrigger {% id %}
 
 exptrigger ->
-    exptrigger _ ("&") _ expnot {% core %}
+    exptrigger _ ("|") _ expnot {% core %}
   | expnot {% id %}
 
 expnot ->

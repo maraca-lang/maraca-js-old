@@ -23,7 +23,11 @@ const buildBase = (
       key?,
     ) => (subCreate, value) => {
       const values = [key, value];
-      const subContext = { scope: [funcScope], current: [funcCurrent] };
+      const subContext = {
+        scope: [funcScope],
+        current: [funcCurrent],
+        base: 0,
+      };
       keys.forEach((key, i) => {
         if (key) {
           subContext.scope[0] = create(
@@ -85,6 +89,7 @@ const buildBase = (
           const subContext = {
             scope: [args[1]],
             current: [listUtils.empty()],
+            base: 0,
           };
           let parsed = { type: 'nil' };
           try {
@@ -152,10 +157,12 @@ const buildBase = (
               }`,
             },
           },
-          { type: 'list', info: { bracket: '[' }, nodes },
+          { type: 'list', info: { bracket: '[', semi: true }, nodes },
         ],
       });
     }
+    const prevBase = context.base;
+    context.base = info.semi ? context.base + 1 : 0;
     context.scope.unshift(
       create(
         streamMap(([value]) => listUtils.clearIndices(value))([
@@ -167,6 +174,7 @@ const buildBase = (
     nodes.forEach(n =>
       build(config, create, context, { type: 'assign', nodes: [n] }),
     );
+    context.base = prevBase;
     context.scope.shift();
     return context.current.shift();
   }
@@ -174,26 +182,31 @@ const buildBase = (
     const args = nodes.map(n => build(config, create, context, n));
     return args.reduce((a1, a2, i) => {
       const argPair = [a1, a2];
-      if (nodes[i - 1].type === 'context' || nodes[i].type === 'context') {
+      if (
+        (i === 1 && nodes[0].type === 'context') !==
+        (nodes[i].type === 'context')
+      ) {
         const v = create(core.settable({ type: 'nil' }));
         const k = argPair[nodes[i].type === 'context' ? 0 : 1];
         [context.scope, context.current].forEach(l => {
-          l[0] = create(
-            streamMap(([list, key]) => {
-              if (listUtils.getFunc(list)) return list;
-              const res = listUtils.cloneValues(list);
-              if (
-                key.type !== 'list' &&
-                !toIndex(key.value) &&
-                !listUtils.has(list, key)
-              ) {
-                return listUtils.set(res, key, v);
-              }
-              return res;
-            })([l[0], k]),
-          );
+          for (let j = 0; j <= context.base; j++) {
+            l[j] = create(
+              streamMap(([list, key]) => {
+                if (listUtils.getFunc(list)) return list;
+                const res = listUtils.cloneValues(list);
+                if (
+                  key.type !== 'list' &&
+                  !toIndex(key.value) &&
+                  !listUtils.has(list, key)
+                ) {
+                  return listUtils.set(res, key, v);
+                }
+                return res;
+              })([l[j], k]),
+            );
+          }
         });
-        argPair[argPair[0] === context.scope[0] ? 0 : 1] = context.scope[0];
+        argPair[nodes[i].type === 'context' ? 1 : 0] = context.scope[0];
       }
       return combine(
         create,
