@@ -31,10 +31,10 @@ export default {
     };
   },
   '~': streamMap(([a, b]) => ({ ...b, id: a })),
-  '==': dataMap(([a, b]) => isEqual(a, b)),
+  '==': args => dataMap(([a, b]) => isEqual(a, b))(args, [true, true]),
   '=': dataMap(([a, b]) => {
-    if (a.type !== 'value' || b.type !== 'value') return null;
-    const res = fuzzy(a.value, b.value);
+    if (a.type === 'list' || b.type === 'list') return null;
+    const res = fuzzy(a.value || '', b.value || '');
     return res < 0.3 ? null : 2 - res;
   }),
   '!': dataMap(([a, b]) => {

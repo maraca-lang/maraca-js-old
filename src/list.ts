@@ -105,6 +105,7 @@ const listUtils = {
     Object.keys(list.value.values)
       .map(k => list.value.values[k])
       .sort((a, b) => compare(a.key, b.key)),
+  toObject: list => list.value.values,
   cloneValues: list => ({
     type: 'list',
     value: {

@@ -1,5 +1,17 @@
 import listUtils from './list';
 
+const memoMap = new WeakMap();
+const memoize = func => {
+  return arg => {
+    if (memoMap.has(arg)) {
+      return memoMap.get(arg);
+    }
+    const result = func(arg);
+    memoMap.set(arg, result);
+    return result;
+  };
+};
+
 export const fromJsFunc = (arg, func, deep) => ({ get, output }) => {
   let first = true;
   let initial = { type: 'nil' };
@@ -72,14 +84,22 @@ export const toJs = data => {
 export const isEqual = (v1, v2) => {
   if (v1.type !== v2.type) return false;
   if (v1.type !== 'list') return v1.value === v2.value;
-  const keys1 = Object.keys(v1.value.values);
-  const keys2 = Object.keys(v2.value.values);
-  if (keys1.length !== keys2.length) return false;
-  return keys1.every(
-    k =>
-      v2.value.values[k] &&
-      isEqual(v1.value.values[k].value, v2.value.values[k].value),
+  const fullObj1 = listUtils.toObject(v1);
+  const fullObj2 = listUtils.toObject(v2);
+  const obj1 = Object.keys(fullObj1).reduce(
+    (res, k) =>
+      fullObj1[k].type === 'nil' ? res : { ...res, [k]: fullObj1[k] },
+    {},
   );
+  const obj2 = Object.keys(fullObj2).reduce(
+    (res, k) =>
+      fullObj2[k].type === 'nil' ? res : { ...res, [k]: fullObj2[k] },
+    {},
+  );
+  const keys1 = Object.keys(obj1);
+  const keys2 = Object.keys(obj2);
+  if (keys1.length !== keys2.length) return false;
+  return keys1.every(k => obj2[k] && isEqual(obj1[k].value, obj2[k].value));
 };
 
 export const toValue = data => {
@@ -105,7 +125,7 @@ export const toValue = data => {
   };
   return { ...result, set: result.set && (v => result.set(fromValue(v))) };
 };
-export const fromValue = value => {
+const fromValueInner = value => {
   if (value.type !== 'list') {
     return {
       ...value,
@@ -116,12 +136,13 @@ export const fromValue = value => {
   }
   const result = { ...value, value: listUtils.toPairs(value) };
   result.value = result.value.map(({ key, value }) => ({
-    key: fromValue(key),
-    value: fromValue(value),
+    key: fromValueInner(key),
+    value: fromValueInner(value),
   }));
   result.value.func = value.value.func;
   return { ...result, set: result.set && (v => result.set(toValue(v))) };
 };
+export const fromValue = memoize(fromValueInner);
 
 export const toIndex = (v: string) => {
   const n = parseFloat(v);

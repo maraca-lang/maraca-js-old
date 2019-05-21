@@ -20,7 +20,7 @@ expfunc ->
     expset _ "=>" _ expset _ "=>" _ expset
       {% x => ({
         type: "func",
-        nodes: [x[0], x[4], x[8]],
+        nodes: [x[4], x[0], x[8]],
         info: { map: true },
         start: x[0].start,
         end: x[8].end,
