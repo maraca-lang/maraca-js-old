@@ -5,6 +5,19 @@ import { fromJs, fromJsFunc, toIndex, toJs, toValue } from './data';
 import listUtils from './list';
 import parse from './parse';
 
+const snapshot = (create, { set, ...value }, index?) => {
+  const result =
+    value.type !== 'list'
+      ? value
+      : listUtils.fromPairs(
+          listUtils.toPairs(value).map(({ key, value }, i) => ({
+            key,
+            value: snapshot(create, value, [...(index || [0]), i]),
+          })),
+        );
+  return index ? create(core.settable(result), null, index) : result;
+};
+
 const buildBase = (
   config,
   create,
@@ -63,13 +76,15 @@ const buildBase = (
   if (type === 'copy') {
     const args = nodes.map(n => build(config, create, context, n));
     return create(({ get }) => {
-      const dest = get(args[1]);
       let source = get(args[0]);
       return {
         initial: { type: 'nil' },
         update: () => {
+          const dest = get(args[1]);
           const newSource = get(args[0]);
-          if (dest.set && source !== newSource) dest.set(newSource);
+          if (dest.set && source !== newSource) {
+            dest.set(snapshot(create, get(args[0], true)));
+          }
           source = newSource;
         },
       };
@@ -188,21 +203,22 @@ const buildBase = (
       ) {
         const v = create(core.settable({ type: 'nil' }));
         const k = argPair[nodes[i].type === 'context' ? 0 : 1];
+        const scopes = [...context.scope];
         [context.scope, context.current].forEach(l => {
           for (let j = 0; j <= context.base; j++) {
             l[j] = create(
-              streamMap(([list, key]) => {
+              streamMap(([list, key, scope]) => {
                 if (listUtils.getFunc(list)) return list;
                 const res = listUtils.cloneValues(list);
                 if (
                   key.type !== 'list' &&
                   !toIndex(key.value) &&
-                  !listUtils.has(list, key)
+                  !listUtils.has(scope, key)
                 ) {
                   return listUtils.set(res, key, v);
                 }
                 return res;
-              })([l[j], k]),
+              })([l[j], k, scopes[j]]),
             );
           }
         });

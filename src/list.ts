@@ -74,7 +74,9 @@ const listUtils = {
       const k = toKey(key);
       const i = toIndex(k);
       if (!i || value.type !== 'nil') {
-        result.values[k] = { key, value };
+        if (!result.values[k] || value.type !== 'nil') {
+          result.values[k] = { key, value };
+        }
         if (i) result.indices.push(i);
       }
     });

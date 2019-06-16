@@ -14,7 +14,7 @@ const createStream = (index, value, run) => {
   const stream = {
     index,
     value,
-    listeners: new Set(),
+    listeners: new Set<any>(),
     observe(x) {
       if (stream.listeners.size === 0) stop = run();
       stream.listeners.add(x);
@@ -54,7 +54,7 @@ export default () => {
 
   const create = (index, run, onChange?) => {
     const stream = createStream(index, null, () => {
-      let active = new Set();
+      let active = new Set<any>();
       const get = s => {
         active.add(s);
         s.observe(stream);
@@ -95,11 +95,11 @@ export default () => {
 
   const buildCreate = base => {
     let counter = 0;
-    return (run?, onChange?) => {
+    return (run?, onChange?, forceIndex?) => {
       if (!run) {
         counter = 0;
       } else {
-        const index = [...base, counter++];
+        const index = forceIndex || [...base, counter++];
         return create(index, run, onChange);
       }
     };
