@@ -1,19 +1,11 @@
 import { sortMultiple } from './data';
 import listUtils from './list';
 
-const resolve = (data, get, deep) => {
-  if (data.type === 'stream') {
-    return resolve(get(data.value), get, deep);
-  }
-  if (!deep || data.type !== 'list') return data;
-  return listUtils.map(data, value => resolve(value, get, deep));
-};
-
-const createStream = (index, value, run) => {
+const createStream = (index, run) => {
   let stop;
   const stream = {
     index,
-    value,
+    value: null,
     listeners: new Set<any>(),
     observe(x) {
       if (stream.listeners.size === 0) stop = run();
@@ -53,15 +45,45 @@ export default () => {
   };
 
   const create = (index, run, onChange?) => {
-    const stream = createStream(index, null, () => {
+    const stream = createStream(index, () => {
       let active = new Set<any>();
-      const get = s => {
-        active.add(s);
-        s.observe(stream);
-        return s.value;
+      let prevValues = new Map<any, any>();
+      let nextValues = new Map<any, any>();
+      const resolve = (data, deep) => {
+        if (!deep) {
+          if (data.type === 'stream') {
+            active.add(data.value);
+            data.value.observe(stream);
+            return resolve(data.value.value, false);
+          }
+          return { value: data, changed: false };
+        }
+
+        if (data.type === 'stream') {
+          active.add(data.value);
+          data.value.observe(stream);
+          const res = resolve(data.value.value, true);
+          nextValues.set(data, res.value);
+          return {
+            value: res.value,
+            changed:
+              !prevValues.has(data) || prevValues.get(data) !== res.value,
+          };
+        }
+        if (data.type !== 'list') return { value: data, changed: false };
+        let changed = false;
+        const value = listUtils.map(data, value => {
+          const r = resolve(value, true);
+          if (r.changed) changed = true;
+          return r.value;
+        });
+        const result =
+          !changed && prevValues.has(data) ? prevValues.get(data) : value;
+        nextValues.set(data, result);
+        return { value: result, changed };
       };
       const { initial, update, stop } = run({
-        get: (s, deep = false) => resolve(s, get, deep),
+        get: (s, deep = false) => resolve(s, deep).value,
         output: v => {
           stream.value = v;
           if (onChange) onChange(v);
@@ -78,7 +100,9 @@ export default () => {
       stream.update = () => {
         const prevActive = active;
         active = new Set();
-        update();
+        prevValues = nextValues;
+        nextValues = new Map<any, any>();
+        if (update) update();
         for (const s of prevActive) {
           if (!active.has(s)) s.unobserve(stream);
         }

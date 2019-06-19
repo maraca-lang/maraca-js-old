@@ -70,12 +70,12 @@ const listUtils = {
   empty: () => ({ type: 'list', value: { values: {}, indices: [] } } as Data),
   fromPairs: pairs => {
     const result = { values: {}, indices: [] as number[] };
-    pairs.forEach(({ key, value }) => {
-      const k = toKey(key);
+    pairs.forEach(pair => {
+      const k = toKey(pair.key);
       const i = toIndex(k);
-      if (!i || value.type !== 'nil') {
-        if (!result.values[k] || value.type !== 'nil') {
-          result.values[k] = { key, value };
+      if (!i || pair.value.type !== 'nil') {
+        if (!result.values[k] || pair.value.type !== 'nil') {
+          result.values[k] = pair;
         }
         if (i) result.indices.push(i);
       }
@@ -200,7 +200,7 @@ const listUtils = {
     if (offset) {
       for (let i = temp.value.indices.length - 1; i >= 0; i--) {
         const index = temp.value.indices[i];
-        temp.value.values[index + offset] = temp.value.values[index];
+        temp.value.values[index + offset] = { ...temp.value.values[index] };
         temp.value.values[index + offset].key = fromJs(index + offset);
         delete temp.value.values[index];
         temp.value.indices[i] = index + offset;

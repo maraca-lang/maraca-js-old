@@ -72,7 +72,7 @@ expset ->
         start: x[0].start,
         end: x[2].offset + x[2].text.length,
       }) %}
-  | expcopy _ ":" _ expset
+  | exppush _ ":" _ expset
       {% x => ({
         type: "assign",
         nodes: [x[4], x[0]],
@@ -93,7 +93,7 @@ expset ->
         start: x[0].offset,
         end: x[2].end,
       }) %}
-  | expcopy _ "::" _ expset
+  | exppush _ "::" _ expset
       {% x => ({
         type: "assign",
         nodes: [x[4], x[0]],
@@ -109,13 +109,13 @@ expset ->
         start: x[0].offset,
         end: x[2].end,
       }) %}
-  | expcopy {% id %}
+  | exppush {% id %}
 
-expcopy ->
-    expid _ ";" _ expcopy
+exppush ->
+    exppush _ "->" _ expid
       {% x => ({
-        type: "copy",
-        nodes: [x[4], x[0]],
+        type: "push",
+        nodes: [x[0], x[4]],
         start: x[0].start,
         end: x[4].end,
       }) %}

@@ -1,7 +1,7 @@
 import assign from './assign';
 import combine from './combine';
 import core, { streamMap } from './core';
-import { fromJs, fromJsFunc, toIndex, toJs, toValue } from './data';
+import { fromJs, fromJsFunc, fromValue, toIndex, toJs, toValue } from './data';
 import listUtils from './list';
 import parse from './parse';
 
@@ -73,7 +73,7 @@ const buildBase = (
     });
     return { type: 'nil' };
   }
-  if (type === 'copy') {
+  if (type === 'push') {
     const args = nodes.map(n => build(config, create, context, n));
     return create(({ get }) => {
       let source = get(args[0]);
@@ -120,7 +120,7 @@ const buildBase = (
   }
   if (type === 'library') {
     const arg = build(config, create, context, nodes[0]);
-    return create(({ get, output }) => {
+    return create(({ get, output, create }) => {
       const run = () => {
         const resolved = get(arg);
         const v = resolved.type !== 'list' && toJs(resolved);
@@ -135,11 +135,14 @@ const buildBase = (
           if (typeof func !== 'function') {
             return create(() => ({ initial: toValue(func) }));
           }
-          return create(({ output }) => {
+          return create(({ output, get }) => {
             let first = true;
             let initial = { type: 'nil' };
-            const emit = data => {
-              const value = toValue(data);
+            const emit = ({ set, ...data }) => {
+              const value = {
+                ...toValue(data),
+                set: set && (v => set(fromValue(get(v, true)))),
+              };
               if (first) initial = value;
               else output(value);
             };

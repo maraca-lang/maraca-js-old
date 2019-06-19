@@ -46,7 +46,7 @@ const data = maraca(source);
 maraca(source, data => console.log(data));
 ```
 
-### source
+### `source`
 
 The Maraca source can be provided in any of the following formats:
 
@@ -61,7 +61,7 @@ The Maraca source can be provided in any of the following formats:
 
 If the object form is used, evaluation starts with the 'start' script, which can then access the modules via the context list (i.e. `[key]?`).
 
-### config (optional)
+### `config` (optional)
 
 If provided, the config parameter sets up custom streams for the `@` and `#` Maraca features.
 

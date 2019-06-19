@@ -75,15 +75,15 @@ export default {
   }),
   '*': numericMap(([a, b]) => a * b),
   '/': numericMap(([a, b]) => a / b),
-  '%': numericMap(([a, b]) => ((a % b) + b) % b),
+  '%': numericMap(([a, b]) => ((((a - 1) % b) + b) % b) + 1),
   '^': numericMap(([a, b]) => a ** b),
   '|': args => ({ get, output }) => {
-    let values = [get(args[0]), get(args[1])];
+    let values = args.map(a => get(a));
     return {
-      initial: values[0],
+      initial: values[1],
       update: () => {
-        const newValues = [get(args[0]), get(args[1])];
-        if (values[1] !== newValues[1]) output({ ...newValues[0] });
+        const newValues = args.map(a => get(a));
+        if (values[0] !== newValues[0]) output({ ...newValues[1] });
         values = newValues;
       },
     };

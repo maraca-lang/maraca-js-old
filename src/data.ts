@@ -136,8 +136,8 @@ const fromValueInner = value => {
   }
   const result = { ...value, value: listUtils.toPairs(value) };
   result.value = result.value.map(({ key, value }) => ({
-    key: fromValueInner(key),
-    value: fromValueInner(value),
+    key: fromValue(key),
+    value: fromValue(value),
   }));
   result.value.func = value.value.func;
   return { ...result, set: result.set && (v => result.set(toValue(v))) };
