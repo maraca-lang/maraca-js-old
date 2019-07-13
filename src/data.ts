@@ -123,7 +123,10 @@ export const toValue = data => {
       func: data.value.func,
     },
   };
-  return { ...result, set: result.set && (v => result.set(fromValue(v))) };
+  return {
+    ...result,
+    set: result.set && ((...args) => result.set(...args.map(fromValue))),
+  };
 };
 const fromValueInner = value => {
   if (value.type !== 'list') {
@@ -140,7 +143,10 @@ const fromValueInner = value => {
     value: fromValue(value),
   }));
   result.value.func = value.value.func;
-  return { ...result, set: result.set && (v => result.set(toValue(v))) };
+  return {
+    ...result,
+    set: result.set && ((...args) => result.set(...args.map(toValue))),
+  };
 };
 export const fromValue = memoize(fromValueInner);
 

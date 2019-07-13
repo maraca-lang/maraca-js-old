@@ -206,10 +206,13 @@ const listUtils = {
         temp.value.indices[i] = index + offset;
       }
     }
-    return listUtils.fromPairs([
-      ...listUtils.toPairs(list1),
-      ...listUtils.toPairs(temp),
-    ]);
+    return {
+      ...list1,
+      ...listUtils.fromPairs([
+        ...listUtils.toPairs(list1),
+        ...listUtils.toPairs(temp),
+      ]),
+    };
   },
   setFunc: (list, func, isMap?) => ({
     ...list,
