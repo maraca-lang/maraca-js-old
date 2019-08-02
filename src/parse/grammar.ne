@@ -93,36 +93,16 @@ expset ->
         start: x[0].offset,
         end: x[2].end,
       }) %}
-  | exppush _ "::" _ expset
-      {% x => ({
-        type: "assign",
-        nodes: [x[4], x[0]],
-        info: { unpack: true },
-        start: x[0].start,
-        end: x[4].end,
-      }) %}
-  | "::" _ expset
-      {% x => ({
-        type: "assign",
-        nodes: [x[2]],
-        info: { unpack: true },
-        start: x[0].offset,
-        end: x[2].end,
-      }) %}
   | exppush {% id %}
 
 exppush ->
-    exppush _ "->" _ expid
+    exppush _ "->" _ expeval
       {% x => ({
         type: "push",
         nodes: [x[0], x[4]],
         start: x[0].start,
         end: x[4].end,
       }) %}
-  | expid {% id %}
-
-expid ->
-    expid _ ("~") _ expeval {% core %}
   | expeval {% id %}
 
 expeval ->

@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "moo": "^0.5.0",
-    "nearley": "^2.16.0"
+    "nearley": "^2.18.0"
   },
   "devDependencies": {
     "prettier": "^1.18.2",

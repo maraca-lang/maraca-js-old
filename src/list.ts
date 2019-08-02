@@ -125,7 +125,7 @@ const listUtils = {
     const v = list.value.values[k] && list.value.values[k].value;
     return v || list.value.func || { type: 'nil' };
   },
-  extract: (list, keys) => {
+  extract: (list, keys, doOffset) => {
     const rest = {
       values: { ...list.value.values },
       indices: [...list.value.indices],
@@ -139,12 +139,14 @@ const listUtils = {
       return v;
     });
     const offset = rest.indices[0] - 1;
-    rest.indices.forEach((index, i) => {
-      rest.values[index - offset] = rest.values[index];
-      rest.values[index - offset].key = fromJs(index - offset);
-      delete rest.values[index];
-      rest.indices[i] = index - offset;
-    });
+    if (doOffset && offset !== 0) {
+      rest.indices.forEach((index, i) => {
+        rest.values[index - offset] = rest.values[index];
+        rest.values[index - offset].key = fromJs(index - offset);
+        delete rest.values[index];
+        rest.indices[i] = index - offset;
+      });
+    }
     return { values, rest };
   },
   getFunc: list => list.value.func,
@@ -194,29 +196,9 @@ const listUtils = {
       },
     };
   },
-  merge: (list1, list2) => {
-    const offset = list1.value.indices[list1.value.indices.length - 1] || 0;
-    const temp = listUtils.cloneValues(list2);
-    if (offset) {
-      for (let i = temp.value.indices.length - 1; i >= 0; i--) {
-        const index = temp.value.indices[i];
-        temp.value.values[index + offset] = { ...temp.value.values[index] };
-        temp.value.values[index + offset].key = fromJs(index + offset);
-        delete temp.value.values[index];
-        temp.value.indices[i] = index + offset;
-      }
-    }
-    return {
-      ...list1,
-      ...listUtils.fromPairs([
-        ...listUtils.toPairs(list1),
-        ...listUtils.toPairs(temp),
-      ]),
-    };
-  },
-  setFunc: (list, func, isMap?) => ({
+  setFunc: (list, func, isMap?, hasArg?) => ({
     ...list,
-    value: { ...list.value, func: Object.assign(func, { isMap }) },
+    value: { ...list.value, func: Object.assign(func, { isMap, hasArg }) },
   }),
 };
 

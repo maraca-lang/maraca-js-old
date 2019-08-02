@@ -77,10 +77,10 @@ moo@^0.5.0:
   resolved "https://registry.yarnpkg.com/moo/-/moo-0.5.0.tgz#72f949e6735aeb27d07eb7c087ea5a70143c56e5"
   integrity sha512-AMv6iqhTEd5vT/cQlH6cammKS5ekyHhyqTRKi5zKMWl1RTyFnQ3ohPSBNSm8ySe2wlxSKwDonr9D5ZT44mdO3g==
 
-nearley@^2.16.0:
-  version "2.16.0"
-  resolved "https://registry.yarnpkg.com/nearley/-/nearley-2.16.0.tgz#77c297d041941d268290ec84b739d0ee297e83a7"
-  integrity sha512-Tr9XD3Vt/EujXbZBv6UAHYoLUSMQAxSsTnm9K3koXzjzNWY195NqALeyrzLZBKzAkL3gl92BcSogqrHjD8QuUg==
+nearley@^2.18.0:
+  version "2.18.0"
+  resolved "https://registry.yarnpkg.com/nearley/-/nearley-2.18.0.tgz#a9193612dd6d528a2e47e743b1dc694cfe105223"
+  integrity sha512-/zQOMCeJcioI0xJtd5RpBiWw2WP7wLe6vq8/3Yu0rEwgus/G/+pViX80oA87JdVgjRt2895mZSv2VfZmy4W1uw==
   dependencies:
     commander "^2.19.0"
     moo "^0.4.3"

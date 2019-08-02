@@ -6,7 +6,7 @@ const toData = s =>
   s ? { type: 'value', info: { value: s } } : { type: 'nil' };
 
 export default moo.compile({
-  multi: ['=>>', '=>', '->', '<=', '>=', '==', ':=?', ':=', '::', '@@', '@@@'],
+  multi: ['=>>', '=>', '->', '<=', '>=', '==', ':=?', ':=', '@@', '@@@'],
   brackets: ['[', ']', '(', ')', '{', '}'],
   comparison: ['<', '>', '='],
   arithmetic: ['+', '-', '*', '/', '%', '^'],

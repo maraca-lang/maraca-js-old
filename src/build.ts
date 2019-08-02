@@ -44,7 +44,7 @@ const buildBase = (
       keys.forEach((key, i) => {
         if (key) {
           subContext.scope[0] = create(
-            assign([subContext.scope[0], values[i], key], true, true),
+            assign([subContext.scope[0], values[i], key], true, false),
           );
         }
       });
@@ -58,18 +58,16 @@ const buildBase = (
           current || listUtils.empty(),
           info.map ? funcMap : func,
           info.map,
+          !!valueNode,
         ),
       )([context.current[0]]),
     );
     return { type: 'nil' };
   }
   if (type === 'assign') {
-    if (!nodes[1] && (nodes[0].type === 'assign' || nodes[0].type === 'func')) {
-      return build(config, create, context, nodes[0]);
-    }
     const args = nodes.map(n => build(config, create, context, n));
     [context.scope, context.current].forEach(l => {
-      l[0] = create(assign([l[0], ...args], info.unpack, true));
+      l[0] = create(assign([l[0], ...args], true, false));
     });
     return { type: 'nil' };
   }

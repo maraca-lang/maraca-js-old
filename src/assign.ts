@@ -1,24 +1,23 @@
 import core, { streamMap } from './core';
+import { fromJs, toIndex } from './data';
 import listUtils from './list';
 
-const getType = ([l, v, k], unpack, setNil, get) => {
+const getType = ([l, v, k], setNil, noDestructure, get) => {
   const list = get(l);
   if (list.type === 'value') return 'none';
   if (!k) {
     const value = get(v);
     if (value.type === 'nil') return 'none';
-    if (!unpack || value.type === 'value') return 'append';
-    return 'merge';
+    return 'append';
   }
   const key = get(k);
   if (!setNil) {
     const value = get(v);
     if (value.type === 'nil') return 'none';
   }
-  if (unpack && key.type === 'list') {
+  if (!noDestructure && key.type === 'list') {
     const value = get(v);
-    if (value.type !== 'list') return 'none';
-    return 'destructure';
+    if (value.type === 'list') return 'destructure';
   }
   return 'set';
 };
@@ -30,25 +29,60 @@ const run = (type, [l, v, k]) => {
   if (type === 'append') {
     return streamMap(([list]) => listUtils.append(list, v))([l]);
   }
-  if (type === 'merge') {
-    return streamMap(([list, value]) => listUtils.merge(list, value))([l, v]);
-  }
   if (type === 'destructure') {
     return streamMap(([value, key], create) => {
       const keyPairs = listUtils.toPairs(key);
+      const func = listUtils.getFunc(key);
       const { values, rest } = listUtils.extract(
         value,
         keyPairs.map(d => d.key),
+        func && !func.isMap && !func.hasArg,
       );
       const result = values.reduce(
-        (res, v, i) => create(assign([res, v, keyPairs[i].value], true, true)),
+        (res, v, i) => create(assign([res, v, keyPairs[i].value], true, false)),
         l,
       );
-      const func = listUtils.getFunc(key);
       if (!func || func.isMap) return result;
-      const k = listUtils.getFunc(key)(create, { type: 'nil' })[0];
+      if (func.hasArg) {
+        return create(
+          streamMap(([list], create) => {
+            const offset = list.value.indices[list.value.indices - 1] || 0;
+            return listUtils.toPairs({ type: 'list', value: rest }).reduce(
+              (res, { key: k, value: v }) =>
+                create(
+                  assign(
+                    [
+                      res,
+                      v,
+                      create(
+                        streamMap(([x]) => {
+                          if (x.type === 'value') {
+                            const index = toIndex(x.value);
+                            if (index) return fromJs(index + offset);
+                          }
+                          return x;
+                        })([func(create, k)[0]]),
+                      ),
+                    ],
+                    true,
+                    true,
+                  ),
+                ),
+              result,
+            );
+          })([l]),
+        );
+      }
       return create(
-        assign([result, { type: 'list', value: rest }, k], true, true),
+        assign(
+          [
+            result,
+            { type: 'list', value: rest },
+            func(create, { type: 'nil' })[0],
+          ],
+          true,
+          true,
+        ),
       );
     })([v, k], [false, true]);
   }
@@ -58,13 +92,13 @@ const run = (type, [l, v, k]) => {
   );
 };
 
-const assign = (args, unpack, setNil) => ({ get, output, create }) => {
-  let type = getType(args, unpack, setNil, get);
+const assign = (args, setNil, noDestructure) => ({ get, output, create }) => {
+  let type = getType(args, setNil, noDestructure, get);
   let prev = create(run(type, args));
   return {
     initial: prev,
     update: () => {
-      const nextType = getType(args, unpack, setNil, get);
+      const nextType = getType(args, setNil, noDestructure, get);
       if (nextType !== type) {
         type = nextType;
         if (!args.includes(prev)) prev.value.stop();
