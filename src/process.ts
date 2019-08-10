@@ -108,7 +108,7 @@ export default () => {
         }
       };
       return () => {
-        if (queue.has(stream)) queue.delete(stream);
+        if (queue && queue.has(stream)) queue.delete(stream);
         for (const s of active.values()) s.unobserve(stream);
         active = new Set();
         if (stop) stop();

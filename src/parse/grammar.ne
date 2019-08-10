@@ -218,24 +218,94 @@ list ->
 
 body ->
     body "," line
-      {% x => [...x[0], {
-        ...x[2],
-        start: x[2].start || x[1].offset,
-        end: x[2].end || (x[1].offset + x[1].text.length),
-      }] %}
-  | line {% x => [x[0]] %}
+      {% x => x[2].length === 1
+        ? [...x[0], {
+            ...x[2][0],
+            start: x[2][0].start || x[1].offset,
+            end: x[2][0].end || (x[1].offset + x[1].text.length),
+          }]
+        : [...x[0], ...x[2]] %}
+  | line {% x => x[0] %}
 
 line ->
-    _ exp _ {% x => x[1] %}
-  | _ {% x => ({ type: "nil" }) %}
+    _ string _ {% (x, _, reject) => {
+      if (x[1].length <= 1) return reject;
+      const result = x[1].map(y => {
+        y.info = y.info || {};
+        y.info.multi = true;
+        return y;
+      });
+      result[0].info.first = true;
+      result[result.length - 1].info.last = true;
+      return result;
+    } %}
+  | _ exp _ {% x => [x[1]] %}
+  | _ {% x => [{ type: "nil" }] %}
 
 value ->
-    (%char | %value | %string | %comment)
+    (valueitem | stringsingle)
+      {% x => x[0][0] %}
+
+valueitem ->
+    (%char | %value | %comment)
       {% x => ({
         ...x[0][0].value,
         start: x[0][0].offset,
         end: x[0][0].offset + x[0][0].text.length,
       }) %}
+
+stringsingle ->
+    string
+      {% (x, _, reject) => x[0].length === 1 ? x[0][0] : reject %}
+
+string ->
+    "\"" stringitem:* "\""
+      {% x => {
+        const combined = x[1].reduce((res, y) => {
+          if (y.type !== 'value') return [...res, y, ""];
+          res[res.length - 1] += y.info.value;
+          return res;
+        }, [""]);
+        return combined.reduce((res, y) => {
+          if (typeof y !== 'string') return [...res, y];
+          return [
+            ...res,
+            ...y.split(/￿/g).map((s, i) =>
+              ({ type: 'value', info: { value: s, split: i !== 0 } })
+            ),
+          ];
+        }, []);
+      } %}
+
+stringitem ->
+    (stringcontent | stringlist)
+      {% x => x[0][0] %}
+
+stringcontent ->
+    %content
+      {% x => ({
+        ...x[0].value,
+        start: x[0].offset,
+        end: x[0].offset + x[0].text.length,
+      }) %}
+
+stringlist ->
+    "<" body "/>"
+      {% x => {
+        const values = x[1];
+        let i = values.length - 1;
+        while (i >= 0 && values[i].type === "nil") {
+          values.pop();
+          i--;
+        }
+        return ({
+          type: "list",
+          nodes: x[1],
+          info: { bracket: "<" },
+          start: x[0].offset,
+          end: x[2].offset + x[2].text.length,
+        });
+      } %}
 
 space ->
     "_"

@@ -158,7 +158,7 @@ const buildBase = (
     });
   }
   if (type === 'list') {
-    if (info.bracket !== '[') {
+    if (!['[', '<'].includes(info.bracket)) {
       return build(config, create, context, {
         type: 'combine',
         info: { dot: true },
