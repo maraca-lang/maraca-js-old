@@ -1,7 +1,7 @@
 import assign from './assign';
 import combine from './combine';
 import core, { streamMap } from './core';
-import { fromJs, fromJsFunc, fromValue, toJs, toValue } from './data';
+import { fromJs, fromJsFunc, fromValue, toIndex, toJs, toValue } from './data';
 import listUtils from './list';
 import parse from './parse';
 
@@ -213,16 +213,71 @@ const buildBase = (
   }
   if (type === 'combine') {
     const args = nodes.map(n => build(config, create, context, n));
-    return args.reduce(
-      (a1, a2, i) =>
-        combine(create, [a1, a2], info.dot, info.space && info.space[i - 1])[0],
-    );
+    return args.reduce((a1, a2, i) => {
+      const argPair = [a1, a2];
+      if (
+        (i === 1 && nodes[0].type === 'context') !==
+        (nodes[i].type === 'context')
+      ) {
+        const v = create(core.settable({ type: 'nil' }));
+        const k = argPair[nodes[i].type === 'context' ? 0 : 1];
+        const scopes = [...context.scope];
+        [context.scope, context.current].forEach(l => {
+          for (let j = 0; j <= context.base; j++) {
+            l[j] = create(
+              streamMap(([list, key, scope]) => {
+                if (listUtils.getFunc(list)) return list;
+                const res = listUtils.cloneValues(list);
+                if (
+                  key.type !== 'list' &&
+                  !toIndex(key.value) &&
+                  !listUtils.has(scope, key)
+                ) {
+                  return listUtils.set(res, key, v);
+                }
+                return res;
+              })([l[j], k, scopes[j]]),
+            );
+          }
+        });
+        argPair[nodes[i].type === 'context' ? 1 : 0] = context.scope[0];
+      }
+      return combine(
+        create,
+        argPair,
+        info.dot,
+        info.space && info.space[i - 1],
+      )[0];
+    });
   }
   if (type === 'value') {
     return { type: 'value', value: info.value };
   }
   if (type === 'nil') {
     return { type: 'nil' };
+  }
+  if (type === 'identity') {
+    return buildBase(config, create, context, {
+      type: 'list',
+      nodes: [
+        {
+          type: 'func',
+          nodes: [
+            null,
+            { type: 'value', info: { value: 'v' } },
+            {
+              type: 'combine',
+              nodes: [
+                { type: 'value', info: { value: 'v' } },
+                { type: 'context' },
+              ],
+              info: { space: [false] },
+            },
+          ],
+        },
+      ],
+      info: { bracket: '[' },
+    });
   }
   if (type === 'context') {
     return context.scope[0];

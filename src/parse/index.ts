@@ -6,8 +6,7 @@ import * as grammar from '../../lib/grammar';
 import lexer from './lexer';
 
 export default (script: string): AST => {
-  const s = script.replace(/~/g, '[v=> v?]');
-  lexer.reset(s);
+  lexer.reset(script);
 
   // let done = false;
   // while (!done) {
@@ -16,9 +15,9 @@ export default (script: string): AST => {
   //   if (!x) done = true;
   // }
 
-  lexer.reset(s);
+  lexer.reset(script);
   const parser = new Parser(Grammar.fromCompiled(grammar));
-  parser.feed(s);
+  parser.feed(script);
   // if (parser.results.length > 1) console.log('AMBIGUOUS!');
   // console.log(JSON.stringify(parser.results, null, 2));
   if (parser.results.length === 0) throw new Error('Parser error');

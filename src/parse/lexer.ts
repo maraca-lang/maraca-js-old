@@ -5,6 +5,27 @@ import dedent from './dedent';
 const toData = s =>
   s ? { type: 'value', info: { value: s } } : { type: 'nil' };
 
+const parseString = (s, withDivider) => {
+  const clean = dedent(
+    withDivider ? s.replace(/>/g, '￿1').replace(/\\￿1/g, '>') : s,
+  )
+    .replace(/\n/g, '￿2')
+    .replace(/\\(￿2| )/g, '\n')
+    .replace(/\\(.)/g, (_, m) => m)
+    .replace(/(\s|￿2)*(\n|￿2)(\s|￿2)*(\n|￿2)/g, '\n\n')
+    .replace(/￿2/g, ' ')
+    .replace(/￿1/g, '￿');
+  return clean
+    .split('\n')
+    .map(s => {
+      const parts = s.split(/^(\s*)/g);
+      const [, indent, rest] =
+        parts.length < 3 ? ['', '', ...parts, ''] : parts;
+      return `${indent}${rest.replace(/\s+/g, ' ')}`;
+    })
+    .join('\n');
+};
+
 export default moo.states({
   main: {
     mainend: {
@@ -17,7 +38,7 @@ export default moo.states({
     arithmetic: ['+', '-', '*', '/', '%', '^'],
     misc: [',', '?', ':', '~', '!', '#', '@', '.', '|', '$', '_'],
     char: {
-      match: /'(?:\S|\n)/,
+      match: /\\(?:\S|\n)/,
       value: s => toData(s[1]),
     },
     value: {
@@ -32,7 +53,7 @@ export default moo.states({
       match: /`[^`]*`/,
       value: s => ({
         type: 'comment',
-        info: { value: dedent(s.slice(1, -1)) },
+        info: { value: parseString(s.slice(1, -1), false) },
       }),
     },
     _: { match: /\s+/, lineBreaks: true },
@@ -48,14 +69,7 @@ export default moo.states({
     },
     content: {
       match: /(?:(?:\\.)|[^<"])+/,
-      value: s =>
-        toData(
-          dedent(
-            s
-              .replace(/>/g, '￿')
-              .replace(/\\(.)/g, (_, m) => (m === '￿' ? '>' : m)),
-          ),
-        ),
+      value: s => toData(parseString(s, true)),
       lineBreaks: true,
     },
   },

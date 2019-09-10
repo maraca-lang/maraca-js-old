@@ -196,7 +196,7 @@ lib ->
       }) %}
   | atom {% id %}
 
-atom -> (list | value | space | context) {% x => x[0][0] %}
+atom -> (list | value | space | identity | context) {% x => x[0][0] %}
 
 list ->
     (("[" body "]") | ("(" body ")") | ("{" body "}"))
@@ -262,16 +262,16 @@ string ->
     "\"" stringitem:* "\""
       {% x => {
         const combined = x[1].reduce((res, y) => {
-          if (y.type !== 'value') return [...res, y, ""];
+          if (y.type !== "value") return [...res, y, ""];
           res[res.length - 1] += y.info.value;
           return res;
         }, [""]);
         return combined.reduce((res, y) => {
-          if (typeof y !== 'string') return [...res, y];
+          if (typeof y !== "string") return [...res, y];
           return [
             ...res,
             ...y.split(/￿/g).map((s, i) =>
-              ({ type: 'value', info: { value: s, split: i !== 0 } })
+              ({ type: "value", info: { value: s, split: i !== 0 } })
             ),
           ];
         }, []);
@@ -312,6 +312,14 @@ space ->
       {% x => ({
         type: "value",
         info: { value: " " },
+        start: x[0].offset,
+        end: x[0].offset + x[0].text.length,
+      }) %}
+
+identity ->
+    "~"
+      {% x => ({
+        type: "identity",
         start: x[0].offset,
         end: x[0].offset + x[0].text.length,
       }) %}

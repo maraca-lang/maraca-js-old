@@ -46,7 +46,8 @@ const run = (type, [l, v, k]) => {
       if (func.hasArg) {
         return create(
           streamMap(([list], create) => {
-            const offset = list.value.indices[list.value.indices - 1] || 0;
+            const offset =
+              list.value.indices[list.value.indices.length - 1] || 0;
             return listUtils.toPairs({ type: 'list', value: rest }).reduce(
               (res, { key: k, value: v }) =>
                 create(

@@ -30,7 +30,6 @@ export default {
       update: () => output({ set, ...get(arg) }),
     };
   },
-  '~': streamMap(([a, b]) => ({ ...b, id: a })),
   '==': args => dataMap(([a, b]) => isEqual(a, b))(args, [true, true]),
   '=': dataMap(([a, b]) => {
     if (a.type === 'list' || b.type === 'list') return null;
