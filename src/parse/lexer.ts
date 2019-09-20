@@ -5,26 +5,14 @@ import dedent from './dedent';
 const toData = s =>
   s ? { type: 'value', info: { value: s } } : { type: 'nil' };
 
-const parseString = (s, withDivider) => {
-  const clean = dedent(
-    withDivider ? s.replace(/>/g, '￿1').replace(/\\￿1/g, '>') : s,
-  )
+const parseString = (s, withDivider) =>
+  dedent(withDivider ? s.replace(/>/g, '￿1').replace(/\\￿1/g, '>') : s)
     .replace(/\n/g, '￿2')
     .replace(/\\(￿2| )/g, '\n')
     .replace(/\\(.)/g, (_, m) => m)
-    .replace(/(\s|￿2)*(\n|￿2)(\s|￿2)*(\n|￿2)/g, '\n\n')
-    .replace(/￿2/g, ' ')
+    .replace(/(\s|￿2)*(\n|￿2)(\s|￿2)*(\n|￿2)(\s|￿2)*/g, '\n\n')
+    .replace(/(￿2| |\t)+/g, ' ')
     .replace(/￿1/g, '￿');
-  return clean
-    .split('\n')
-    .map(s => {
-      const parts = s.split(/^(\s*)/g);
-      const [, indent, rest] =
-        parts.length < 3 ? ['', '', ...parts, ''] : parts;
-      return `${indent}${rest.replace(/\s+/g, ' ')}`;
-    })
-    .join('\n');
-};
 
 export default moo.states({
   main: {
@@ -46,8 +34,13 @@ export default moo.states({
       value: s => toData(s),
     },
     strstart: {
-      match: '"',
+      match: "'",
       push: 'str',
+    },
+    string: {
+      match: /"(?:\\[\s\S]|[^"\\])*"/,
+      value: s =>
+        toData(dedent(s.slice(1, -1).replace(/\\([\s\S])/g, (_, m) => m))),
     },
     comment: {
       match: /`[^`]*`/,
@@ -64,12 +57,21 @@ export default moo.states({
       push: 'main',
     },
     strend: {
-      match: '"',
+      match: "'",
       pop: true,
     },
     content: {
-      match: /(?:(?:\\.)|[^<"])+/,
-      value: s => toData(parseString(s, true)),
+      match: /(?:(?:\\.)|[^<'])+/,
+      value: s =>
+        toData(
+          parseString(s, true)
+            .replace(/[‘’]/g, "'")
+            .replace(/[“”]/g, '"')
+            .replace(/([^a-zA-Z.?!])'/g, (_, m) => `${m}‘`)
+            .replace(/'/g, '’')
+            .replace(/([^a-zA-Z.?!])"/g, (_, m) => `${m}“`)
+            .replace(/"/g, '”'),
+        ),
       lineBreaks: true,
     },
   },

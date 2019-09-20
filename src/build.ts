@@ -179,29 +179,12 @@ const buildBase = (
     }
     const prevBase = context.base;
     context.base = info.semi ? context.base + 1 : 0;
-    context.current.unshift(
-      create(({ output }) => {
-        let currentValue = listUtils.empty();
-        const set = (key, value) => {
-          if (value === undefined) {
-            const set = v => output({ ...v, set, wasSet: true });
-            output({ ...key, set, wasSet: true });
-          } else {
-            currentValue = listUtils.set(currentValue, key, value);
-            output({ set, ...currentValue });
-          }
-        };
-        return { initial: { set, ...currentValue } };
-      }),
-    );
+    context.current.unshift(listUtils.empty());
     context.scope.unshift(
       create(
-        streamMap(([s, c]) =>
-          listUtils.fromPairs([
-            ...listUtils.toPairs(listUtils.clearIndices(s)),
-            ...(c.type === 'list' ? listUtils.toPairs(c) : []),
-          ]),
-        )([context.scope[0], context.current[0]]),
+        streamMap(([value]) => listUtils.clearIndices(value))([
+          context.scope[0],
+        ]),
       ),
     );
     nodes.forEach(n =>

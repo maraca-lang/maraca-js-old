@@ -232,7 +232,6 @@ line ->
       if (x[1].length <= 1) return reject;
       const result = x[1].map(y => {
         y.info = y.info || {};
-        y.info.multi = true;
         return y;
       });
       result[0].info.first = true;
@@ -256,26 +255,32 @@ valueitem ->
 
 stringsingle ->
     string
-      {% (x, _, reject) => x[0].length === 1 ? x[0][0] : reject %}
+      {% (x, _, reject) => {
+        if (x[0].length > 1) return reject;
+        if (x[0].length === 0) return { type: "nil" };
+        return {
+          ...x[0][0],
+          info: { ...x[0][0].info, first: true, last: true },
+        };
+      } %}
+  | %string
+      {% x => ({
+        ...x[0].value,
+        start: x[0].offset,
+        end: x[0].offset + x[0].text.length,
+      }) %}
 
 string ->
-    "\"" stringitem:* "\""
-      {% x => {
-        const combined = x[1].reduce((res, y) => {
-          if (y.type !== "value") return [...res, y, ""];
-          res[res.length - 1] += y.info.value;
-          return res;
-        }, [""]);
-        return combined.reduce((res, y) => {
-          if (typeof y !== "string") return [...res, y];
-          return [
-            ...res,
-            ...y.split(/￿/g).map((s, i) =>
-              ({ type: "value", info: { value: s, split: i !== 0 } })
-            ),
-          ];
-        }, []);
-      } %}
+    "'" stringitem:* "'"
+      {% x => x[1].reduce((res, y) => {
+        if (y.type !== "value") return [...res, y];
+        return [
+          ...res,
+          ...y.info.value.split(/￿/g).map((s, i) =>
+            ({ type: "value", info: { value: s, split: i !== 0 } })
+          ),
+        ];
+      }, []) %}
 
 stringitem ->
     (stringcontent | stringlist)

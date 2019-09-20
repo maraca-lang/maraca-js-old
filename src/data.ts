@@ -108,7 +108,7 @@ export const toValue = data => {
       ...data,
       type: data.value ? 'value' : 'nil',
       value: data.value || undefined,
-      set: data.set && (v => data.set(fromValue(v))),
+      set: data.set && ((...args) => data.set(...args.map(fromValue))),
     };
   }
   const result = {
@@ -134,7 +134,7 @@ const fromValueInner = value => {
       ...value,
       type: 'value',
       value: value.value || '',
-      set: value.set && (v => value.set(toValue(v))),
+      set: value.set && ((...args) => value.set(...args.map(toValue))),
     };
   }
   const result = { ...value, value: listUtils.toPairs(value) };
