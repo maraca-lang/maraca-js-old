@@ -93,6 +93,13 @@ expset ->
         start: x[0].offset,
         end: x[2].end,
       }) %}
+  | ":"
+      {% x => ({
+        type: "assign",
+        nodes: [{ type: "nil" }, { type: "nil" }],
+        start: x[0].offset,
+        end: x[0].end,
+      }) %}
   | exppush {% id %}
 
 exppush ->
@@ -175,15 +182,23 @@ expsep ->
 
 expcomb ->
 	  expcomb _ lib
-      {% x => ({
-        type: "combine",
-        nodes: [...(x[0].type === "combine" ? x[0].nodes : [x[0]]), x[2]],
-        info: {
-          space: [...(x[0].type === "combine" ? x[0].info.space : []), !!x[1]]
-        },
-        start: x[0].start,
-        end: x[2].end,
-      }) %}
+      {% x => {
+        const nodes =
+          [...(x[0].type === "combine" ? x[0].nodes : [x[0]]), x[2]];
+        const [a, b] = nodes.slice(-2);
+        const space = !!x[1] &&
+          (a.type === 'value' ? /\S$/.test(a.info.value) : true) &&
+          (b.type === 'value' ? /^\S/.test(b.info.value) : true);
+        return {
+          type: "combine",
+          nodes,
+          info: {
+            space: [...(x[0].type === "combine" ? x[0].info.space : []), space]
+          },
+          start: x[0].start,
+          end: x[2].end,
+        };
+      } %}
   | lib {% id %}
 
 lib ->

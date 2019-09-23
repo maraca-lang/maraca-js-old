@@ -26,8 +26,8 @@ export default moo.states({
     arithmetic: ['+', '-', '*', '/', '%', '^'],
     misc: [',', '?', ':', '~', '!', '#', '@', '.', '|', '$', '_'],
     char: {
-      match: /\\(?:\S|\n)/,
-      value: s => toData(s[1]),
+      match: /\\(?:\S|\n| )/,
+      value: s => toData(s[1] === ' ' ? '\n' : s[1]),
     },
     value: {
       match: /(?:\d+\.\d+)|(?:[a-zA-Z0-9]+)/,
@@ -46,7 +46,9 @@ export default moo.states({
       match: /`[^`]*`/,
       value: s => ({
         type: 'comment',
-        info: { value: parseString(s.slice(1, -1), false) },
+        info: {
+          value: parseString(s.slice(1, -1).replace(/\\/g, '\\\\'), false),
+        },
       }),
     },
     _: { match: /\s+/, lineBreaks: true },
@@ -67,9 +69,9 @@ export default moo.states({
           parseString(s, true)
             .replace(/[‘’]/g, "'")
             .replace(/[“”]/g, '"')
-            .replace(/([^a-zA-Z.?!])'/g, (_, m) => `${m}‘`)
+            .replace(/(\s)'/g, (_, m) => `${m}‘`)
             .replace(/'/g, '’')
-            .replace(/([^a-zA-Z.?!])"/g, (_, m) => `${m}“`)
+            .replace(/(\s)"/g, (_, m) => `${m}“`)
             .replace(/"/g, '”'),
         ),
       lineBreaks: true,

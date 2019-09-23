@@ -62,7 +62,13 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
           streamMap(([v1, v2]) =>
             fromJs(
               (v1.value || '') +
-                (v1.value && v2.value && space ? ' ' : '') +
+                (v1.value &&
+                /\S$/.test(v1.value) &&
+                v2.value &&
+                /^\S/.test(v2.value) &&
+                space
+                  ? ' '
+                  : '') +
                 (v2.value || ''),
             ),
           )([s1, s2]),
