@@ -9,8 +9,8 @@ const s = g.createSemantics();
 
 const funcAst = (key, value, body, map, first, last) => ({
   type: 'func',
-  nodes: [key && key.ast, value && value.ast, body && body.ast],
-  ...(map ? { info: { map: true } } : {}),
+  nodes: [key && key.ast, value && value.ast],
+  info: { body: body.ast, map },
   start: first.source.startIdx,
   end: last.source.endIdx,
 });
@@ -96,10 +96,20 @@ s.addAttribute('ast', {
   }),
   ExpPush: a => a.ast,
 
-  ExpEval_eval: coreAst,
+  ExpEval_eval: (a, _, b) => ({
+    type: 'eval',
+    nodes: [a.ast, b.ast],
+    start: a.source.startIdx,
+    end: b.source.endIdx,
+  }),
   ExpEval: a => a.ast,
 
-  ExpTrigger_trigger: coreAst,
+  ExpTrigger_trigger: (a, _, b) => ({
+    type: 'trigger',
+    nodes: [a.ast, b.ast],
+    start: a.source.startIdx,
+    end: b.source.endIdx,
+  }),
   ExpTrigger: a => a.ast,
 
   ExpNot_not: (a, b) => ({

@@ -1,4 +1,5 @@
-import core, { streamMap } from './core';
+import { streamMap } from './build';
+import core from './core';
 import { fromJs, toIndex } from './data';
 import listUtils from './list';
 

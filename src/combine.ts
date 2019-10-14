@@ -1,5 +1,5 @@
 import assign from './assign';
-import { streamMap } from './core';
+import { streamMap } from './build';
 import { fromJs } from './data';
 import listUtils from './list';
 

@@ -1,19 +1,7 @@
 import { fromJs, isEqual, toJs } from './data';
 import fuzzy from './fuzzy';
 
-export const streamMap = map => (args, deeps = [] as boolean[]) => ({
-  get,
-  output,
-  create,
-}) => {
-  const run = () => {
-    create();
-    return map(args.map((a, i) => get(a, deeps[i] || false)), create);
-  };
-  return { initial: run(), update: () => output(run()) };
-};
-
-const dataMap = map => streamMap(args => fromJs(map(args)));
+const dataMap = map => args => fromJs(map(args));
 
 const numericMap = map =>
   dataMap(args => {
@@ -30,7 +18,10 @@ export default {
       update: () => output({ set, ...get(arg) }),
     };
   },
-  '==': args => dataMap(([a, b]) => isEqual(a, b))(args, [true, true]),
+  '==': {
+    map: dataMap(([a, b]) => isEqual(a, b)),
+    deepArgs: [true, true],
+  },
   '=': dataMap(([a, b]) => {
     if (a.type === 'list' || b.type === 'list') return null;
     const res = fuzzy(a.value || '', b.value || '');
@@ -76,15 +67,4 @@ export default {
   '/': numericMap(([a, b]) => a / b),
   '%': numericMap(([a, b]) => ((((a - 1) % b) + b) % b) + 1),
   '^': numericMap(([a, b]) => a ** b),
-  '|': args => ({ get, output }) => {
-    let values = args.map(a => get(a));
-    return {
-      initial: values[1],
-      update: () => {
-        const newValues = args.map(a => get(a));
-        if (values[0] !== newValues[0]) output({ ...newValues[1] });
-        values = newValues;
-      },
-    };
-  },
 };
