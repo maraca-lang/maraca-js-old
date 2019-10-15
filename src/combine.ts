@@ -3,6 +3,19 @@ import { streamMap } from './build';
 import { fromJs } from './data';
 import listUtils from './list';
 
+export const joinValues = (v1, v2, space) =>
+  fromJs(
+    (v1.value || '') +
+      (v1.value &&
+      /\S$/.test(v1.value) &&
+      v2.value &&
+      /^\S/.test(v2.value) &&
+      space
+        ? ' '
+        : '') +
+      (v2.value || ''),
+  );
+
 const sortTypes = (v1, v2) => {
   if (v2.type === 'nil') return [v1, v2];
   if (v1.type === 'nil') return [v2, v1];
@@ -58,21 +71,7 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
   if (type === 'join') {
     return {
       result: listUtils.fromArray([
-        create(
-          streamMap(([v1, v2]) =>
-            fromJs(
-              (v1.value || '') +
-                (v1.value &&
-                /\S$/.test(v1.value) &&
-                v2.value &&
-                /^\S/.test(v2.value) &&
-                space
-                  ? ' '
-                  : '') +
-                (v2.value || ''),
-            ),
-          )([s1, s2]),
-        ),
+        create(streamMap(([v1, v2]) => joinValues(v1, v2, space))([s1, s2])),
       ]),
       canContinue: info => info.type === 'join',
     };
