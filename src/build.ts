@@ -1,8 +1,9 @@
 import assign from './assign';
 import combine from './combine';
-import core from './core';
+import maps from './maps';
 import { joinValues } from './combine';
 import listUtils from './list';
+import shorthands from './shorthands';
 import streamBuild from './streams';
 
 export const streamMap = map => (args, deeps = [] as boolean[]) => ({
@@ -17,62 +18,21 @@ export const streamMap = map => (args, deeps = [] as boolean[]) => ({
   return { initial: run(), update: () => output(run()) };
 };
 
-const compile = (
-  { type, nodes = [] as any[], info = {} as any } = {} as any,
-  evalArgs,
-) => {
-  if (type === 'list' && !['[', '<'].includes(info.bracket)) {
-    return compile(
-      {
-        type: 'combine',
-        info: { dot: true },
-        nodes: [
-          {
-            type: 'value',
-            info: {
-              value: `${
-                info.bracket === '('
-                  ? nodes.filter(n => n.type !== 'func').length
-                  : 1
-              }`,
-            },
-          },
-          { type: 'list', info: { bracket: '[', semi: true }, nodes },
-        ],
-      },
-      evalArgs,
-    );
-  }
-  if (type === 'identity') {
-    return compile(
-      {
-        type: 'list',
-        nodes: [
-          {
-            type: 'func',
-            nodes: [
-              null,
-              { type: 'value', info: { value: 'v' } },
-              {
-                type: 'combine',
-                nodes: [
-                  { type: 'value', info: { value: 'v' } },
-                  { type: 'context' },
-                ],
-                info: { space: [false] },
-              },
-            ],
-          },
-        ],
-        info: { bracket: '[' },
-      },
-      evalArgs,
-    );
-  }
+export const settable = arg => ({ get, output }) => {
+  const set = v => output({ ...v, set, wasSet: true });
+  return {
+    initial: { set, ...get(arg) },
+    update: () => output({ set, ...get(arg) }),
+  };
+};
+
+const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
+  const shorthand = shorthands(type, info, nodes);
+  if (shorthand) return compile(shorthand, evalArgs);
 
   const [config, create, context] = evalArgs;
 
-  if (!type || type === 'nil' || type === 'comment') {
+  if (type === 'nil' || type === 'comment') {
     return { type: 'constant', value: { type: 'nil' } };
   }
   if (type === 'value') {
@@ -86,13 +46,13 @@ const compile = (
     const ctx = info.semi
       ? { scope: [...context.scope], current: [...context.current] }
       : { scope: [], current: [] };
-    ctx.current.unshift({ type: 'list', static: {}, value: listUtils.empty() });
+    ctx.current.unshift({ type: 'constant', value: listUtils.empty() });
     ctx.scope.unshift({
-      type: 'list',
-      static: {},
+      type: 'any',
+      items: { ...context.scope[0].items },
       value: create(
         streamMap(([value]) => listUtils.clearIndices(value))([
-          context.scope[0],
+          context.scope[0].value,
         ]),
       ),
     });
@@ -102,7 +62,7 @@ const compile = (
     return ctx.current.shift();
   }
 
-  const args = nodes.map(n => compile(n, evalArgs));
+  const args = nodes.map(n => n && compile(n, evalArgs));
   if (type === 'combine') {
     return args.reduce((a1, a2, i) => {
       const space = info.space && info.space[i - 1];
@@ -115,78 +75,225 @@ const compile = (
         };
       }
       if (
-        [a1, a2].some(a => a.type === 'list') &&
+        [a1, a2].some(a => a.items) &&
         [a1, a2].some(a => a.type === 'constant' && a.value.type !== 'list')
       ) {
-        const [list, key] = a1.type === 'list' ? [a1, a2] : [a2, a1];
-        if (list.static[key.value.value || '']) {
-          return list.static[key.value.value || ''];
+        const [list, key] = a1.items ? [a1, a2] : [a2, a1];
+        if (list.items[key.value.value || '']) {
+          return list.items[key.value.value || ''];
         }
       }
-      return { type: 'combine', args: [a1, a2], dot: info.dot, space };
+      [a1, a2].forEach(a => evaluate(a, config, create, context));
+      return {
+        type: 'any',
+        value: combine(create, [a1.value, a2.value], info.dot, space)[0],
+      };
     });
   }
-  if (type === 'core') {
+  if (type === 'map') {
     const { map, deepArgs = [] } =
-      typeof core[info.func] === 'function'
-        ? { map: core[info.func] }
-        : core[info.func];
-    args.forEach((_, i) => {
-      deepArgs[i] = deepArgs[i] || false;
-    });
+      typeof maps[info.func] === 'function'
+        ? { map: maps[info.func] }
+        : maps[info.func];
     if (args.every(a => a.type === 'constant')) {
       return { type: 'constant', value: map(args.map(a => a.value)) };
     }
-    return { type: 'map', args, deepArgs, map };
+    const allArgs = args
+      .filter(a => a.type !== 'constant')
+      .map(a => (a.type === 'map' ? a.arg : a));
+    if (allArgs.every(a => a === allArgs[0])) {
+      return {
+        type: 'map',
+        arg: allArgs[0],
+        deep: allArgs.some(a => a.type === 'map' && a.deep),
+        map: x =>
+          map(
+            args.map(a => {
+              if (a.type === 'constant') return a.value;
+              if (a.type === 'map') return a.map(x);
+              return x;
+            }),
+          ),
+      };
+    }
+    args.forEach(a => evaluate(a, config, create, context));
+    return {
+      type: 'any',
+      value: create(streamMap(map)(args.map(a => a.value), deepArgs)),
+    };
+  }
+  if (type === 'func') {
+    if (
+      args
+        .filter(a => a)
+        .every(a => a.type === 'constant' && a.value.type !== 'list')
+    ) {
+      const argTrace = { type: 'any', value: { type: 'nil ' } };
+      const currentTrace = { type: 'constant', value: listUtils.empty() };
+      const ctx = {
+        scope: [
+          {
+            type: 'any',
+            items: args.reduce(
+              (res, a, i) =>
+                a
+                  ? {
+                      ...res,
+                      [a.value.value || '']: {
+                        type: 'map',
+                        arg: argTrace,
+                        map: x =>
+                          listUtils.get(x, {
+                            type: 'value',
+                            value: `${i + 1}`,
+                          }),
+                      },
+                    }
+                  : res,
+              {},
+            ),
+            value: { type: 'nil ' },
+          },
+        ],
+        current: [currentTrace],
+      };
+      const compiledBody = compile(info.body, [config, create, ctx]);
+      if (
+        compiledBody.type === 'map' &&
+        compiledBody.arg === argTrace &&
+        ctx.current[0] === currentTrace
+      ) {
+        context.current[0] = {
+          type: 'any',
+          items: { ...context.current[0].items },
+          value: create(
+            streamMap(([current]) =>
+              listUtils.setFunc(
+                current || listUtils.empty(),
+                info.map
+                  ? (create, list) => [
+                      create(
+                        streamMap(([y]) =>
+                          listUtils.fromArray(
+                            listUtils
+                              .toPairs(y)
+                              .filter(d => d.value.type !== 'nil')
+                              .map(({ key, value }) =>
+                                compiledBody.map(
+                                  listUtils.fromArray([key, value]),
+                                ),
+                              )
+                              .filter(d => d.value.type !== 'nil'),
+                          ),
+                        )([list]),
+                      ),
+                    ]
+                  : (create, value) => [
+                      create(
+                        streamMap(([y]) =>
+                          compiledBody.map(
+                            listUtils.fromArray([{ type: 'nil' }, y]),
+                          ),
+                        )([value]),
+                      ),
+                    ],
+                info.map,
+                !!args[1],
+                true,
+              ),
+            )([context.current[0].value]),
+          ),
+        };
+        return { type: 'constant', value: { type: 'nil' } };
+      }
+    }
+
+    args.forEach(a => a && evaluate(a, config, create, context));
+    const argValues = args.map(a => a && a.value);
+    const scope = context.scope[0].value;
+    const funcMap = (
+      funcScope = scope,
+      funcCurrent = listUtils.empty(),
+      key = null,
+    ) => (subCreate, value) => {
+      const values = [key, value];
+      const subContext = {
+        scope: [{ type: 'any', value: funcScope }],
+        current: [{ type: 'any', value: funcCurrent }],
+      };
+      argValues.forEach((key, i) => {
+        if (key) {
+          subContext.scope[0] = {
+            type: 'any',
+            value: create(
+              assign([subContext.scope[0].value, values[i], key], true, false),
+            ),
+          };
+        }
+      });
+      const result = build(config, subCreate, subContext, info.body);
+      return [result, subContext.scope[0].value, subContext.current[0].value];
+    };
+    const func = funcMap();
+    context.current[0] = {
+      type: 'any',
+      items: { ...context.current[0].items },
+      value: create(
+        streamMap(([current]) =>
+          listUtils.setFunc(
+            current || listUtils.empty(),
+            info.map ? funcMap : func,
+            info.map,
+            !!args[1],
+          ),
+        )([context.current[0].value]),
+      ),
+    };
+    return { type: 'constant', value: { type: 'nil' } };
   }
 
   args.forEach(a => evaluate(a, config, create, context));
   if (type === 'assign') {
     [context.scope, context.current].forEach(l => {
-      if (args[1]) {
-        if (args[1].type === 'constant' && args[1].value.type !== 'list') {
-          l[0].static[args[1].value.value || ''] = args[0];
-        } else {
-          Object.keys(l[0].static).forEach(k => {
-            delete l[0].static[k];
-          });
-        }
-      }
+      const prevItems = l[0].items || {};
       if (
         args[1] ||
         !(args[0].type === 'constant' && args[0].value.type === 'nil')
       ) {
-        l[0].value = create(
-          assign([l[0].value, ...args.map(a => a.value)], true, false),
-        );
+        l[0] = {
+          type: 'any',
+          value: create(
+            assign([l[0].value, ...args.map(a => a.value)], true, false),
+          ),
+        };
+      }
+      if (args[1]) {
+        if (args[1].type === 'constant' && args[1].value.type !== 'list') {
+          prevItems[args[1].value.value || ''] = args[0];
+          l[0].items = prevItems;
+        } else {
+          delete l[0].items;
+        }
       }
     });
     return { type: 'constant', value: { type: 'nil' } };
   }
   return {
-    type: 'stream',
+    type: 'any',
     args,
-    value: streamBuild(
-      type,
-      info,
-      config,
-      create,
-      context,
-      args.map(a => a.value),
-    ),
+    value: streamBuild(type, info, config, create, args.map(a => a.value)),
   };
 };
 
 const evaluateInner = (compiled, config, create, context) => {
-  const args = compiled.args.map(a => {
-    evaluate(a, config, create, context);
-    return a.value;
-  });
   if (compiled.type === 'map') {
-    return create(streamMap(compiled.map)(args, compiled.deepArgs));
-  }
-  if (compiled.type === 'combine') {
-    return combine(create, args, compiled.dot, compiled.space)[0];
+    evaluate(compiled.arg, config, create, context);
+    return create(
+      streamMap(([x]) => compiled.map(x))(
+        [compiled.arg.value],
+        [compiled.deep],
+      ),
+    );
   }
 };
 const evaluate = (compiled, config, create, context) => {

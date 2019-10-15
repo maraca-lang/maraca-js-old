@@ -20,8 +20,8 @@ const assignAst = (value, key, first, last) => ({
   start: first.source.startIdx,
   end: last.source.endIdx,
 });
-const coreAst = (arg1, func, arg2) => ({
-  type: 'core',
+const mapAst = (arg1, func, arg2) => ({
+  type: 'map',
   nodes: [arg1.ast, arg2.ast],
   info: { func: func.sourceString },
   start: arg1.source.startIdx,
@@ -113,7 +113,7 @@ s.addAttribute('ast', {
   ExpTrigger: a => a.ast,
 
   ExpNot_not: (a, b) => ({
-    type: 'core',
+    type: 'map',
     nodes: [b.ast],
     info: { func: a.sourceString },
     start: a.source.startIdx,
@@ -121,12 +121,12 @@ s.addAttribute('ast', {
   }),
   ExpNot: a => a.ast,
 
-  ExpComp_comp: coreAst,
+  ExpComp_comp: mapAst,
   ExpComp: a => a.ast,
 
-  ExpSum_sum: coreAst,
+  ExpSum_sum: mapAst,
   ExpSum_minus: (a, b) => ({
-    type: 'core',
+    type: 'map',
     nodes: [b.ast],
     info: { func: a.sourceString },
     start: a.source.startIdx,
@@ -134,10 +134,10 @@ s.addAttribute('ast', {
   }),
   ExpSum: a => a.ast,
 
-  ExpProd_prod: coreAst,
+  ExpProd_prod: mapAst,
   ExpProd: a => a.ast,
 
-  ExpPow_pow: coreAst,
+  ExpPow_pow: mapAst,
   ExpPow: a => a.ast,
 
   ExpDyn_dyn: (a, b) => ({

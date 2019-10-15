@@ -196,9 +196,12 @@ const listUtils = {
       },
     };
   },
-  setFunc: (list, func, isMap?, hasArg?) => ({
+  setFunc: (list, func, isMap?, hasArg?, isPure?) => ({
     ...list,
-    value: { ...list.value, func: Object.assign(func, { isMap, hasArg }) },
+    value: {
+      ...list.value,
+      func: Object.assign(func, { isMap, hasArg, isPure }),
+    },
   }),
 };
 

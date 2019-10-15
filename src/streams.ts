@@ -1,6 +1,4 @@
-import assign from './assign';
-import build, { streamMap } from './build';
-import core from './core';
+import build, { settable, streamMap } from './build';
 import { fromJs, fromJsFunc, fromValue, toJs, toValue } from './data';
 import listUtils from './list';
 import parse from './parse';
@@ -15,45 +13,10 @@ const snapshot = (create, { set, ...value }, index?) => {
             value: snapshot(create, value, [...(index || [0]), i]),
           })),
         );
-  return index ? create(core.settable(result), null, index) : result;
+  return index ? create(settable(result), null, index) : result;
 };
 
-export default (type, info, config, create, context, nodes) => {
-  if (type === 'func') {
-    const scope = context.scope[0];
-    const funcMap = (
-      funcScope = scope,
-      funcCurrent = listUtils.empty(),
-      key = null,
-    ) => (subCreate, value) => {
-      const values = [key, value];
-      const subContext = {
-        scope: [{ type: 'list', static: {}, value: funcScope }],
-        current: [{ type: 'list', static: {}, value: funcCurrent }],
-      };
-      nodes.forEach((key, i) => {
-        if (key) {
-          subContext.scope[0] = create(
-            assign([subContext.scope[0], values[i], key], true, false),
-          );
-        }
-      });
-      const result = build(config, subCreate, subContext, info.body);
-      return [result, subContext.scope[0], subContext.current[0]];
-    };
-    const func = funcMap();
-    context.current[0] = create(
-      streamMap(([current]) =>
-        listUtils.setFunc(
-          current || listUtils.empty(),
-          info.map ? funcMap : func,
-          info.map,
-          !(nodes[1].type === 'constant' && nodes[1].value.type === 'nil'),
-        ),
-      )([context.current[0]]),
-    );
-    return { type: 'nil' };
-  }
+export default (type, info, config, create, nodes) => {
   if (type === 'push') {
     return create(({ get }) => {
       let source = get(nodes[0]);
@@ -79,8 +42,8 @@ export default (type, info, config, create, context, nodes) => {
     return create(
       streamMap(([code], create) => {
         const subContext = {
-          scope: [{ type: 'list', static: {}, value: nodes[1] }],
-          current: [{ type: 'list', static: {}, value: listUtils.empty() }],
+          scope: [{ type: 'any', value: nodes[1] }],
+          current: [{ type: 'constant', value: listUtils.empty() }],
         };
         let parsed = { type: 'nil' };
         try {

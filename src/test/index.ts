@@ -6,7 +6,7 @@ import maraca, { fromJs, toJs } from '../index';
 //   { test: '#size.[a, b, _, c, `hello`]' },
 // ] as Source;
 
-const source = `[1, 2, 3]`;
+const source = `[1, 2][v=>> v? + 1]`;
 
 const config = {
   '@': [

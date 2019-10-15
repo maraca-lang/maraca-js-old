@@ -93,12 +93,16 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
         listUtils.getFunc(info.big) === listUtils.getFunc(big),
     };
   }
+  const func = listUtils.getFunc(big);
+  if (func.isPure) {
+    return { result: listUtils.fromArray([func(create, small)[0]]) };
+  }
   const pairs = listUtils.toPairs(small).filter(d => d.value.type !== 'nil');
   return {
     result: listUtils.fromArray([
       pairs.reduce(
         (res, { key, value }) => {
-          const map = listUtils.getFunc(big)(...res, key);
+          const map = func(...res, key);
           const [result, scope, current] = map(create, value);
           return [scope, create(assign([current, result, key], false, false))];
         },

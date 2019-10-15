@@ -11,13 +11,6 @@ const numericMap = map =>
   });
 
 export default {
-  settable: arg => ({ get, output }) => {
-    const set = v => output({ ...v, set, wasSet: true });
-    return {
-      initial: { set, ...get(arg) },
-      update: () => output({ set, ...get(arg) }),
-    };
-  },
   '==': {
     map: dataMap(([a, b]) => isEqual(a, b)),
     deepArgs: [true, true],

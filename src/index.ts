@@ -34,8 +34,8 @@ function maraca(...args) {
       config,
       create,
       {
-        scope: [{ type: 'list', static: {}, value: scope }],
-        current: [{ type: 'list', static: {}, value: listUtils.empty() }],
+        scope: [{ type: 'any', value: scope }],
+        current: [{ type: 'constant', value: listUtils.empty() }],
       },
       typeof code === 'string' ? parse(code) : code,
     );
@@ -55,8 +55,8 @@ function maraca(...args) {
     config,
     create,
     {
-      scope: [{ type: 'list', static: {}, value: scope }],
-      current: [{ type: 'list', static: {}, value: listUtils.empty() }],
+      scope: [{ type: 'any', value: scope }],
+      current: [{ type: 'constant', value: listUtils.empty() }],
     },
     typeof start === 'string' ? parse(start) : start,
   );

@@ -1,5 +1,4 @@
-import { streamMap } from './build';
-import core from './core';
+import { settable, streamMap } from './build';
 import { fromJs, toIndex } from './data';
 import listUtils from './list';
 
@@ -25,7 +24,7 @@ const getType = ([l, v, k], setNil, noDestructure, get) => {
 
 const run = (type, [l, v, k]) => {
   if (type === 'none') {
-    return core.settable(l);
+    return settable(l);
   }
   if (type === 'append') {
     return streamMap(([list]) => listUtils.append(list, v))([l]);
