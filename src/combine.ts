@@ -3,7 +3,7 @@ import { streamMap } from './build';
 import { fromJs } from './data';
 import listUtils from './list';
 
-export const joinValues = (v1, v2, space) =>
+const joinValues = (v1, v2, space) =>
   fromJs(
     (v1.value || '') +
       (v1.value &&
@@ -15,6 +15,16 @@ export const joinValues = (v1, v2, space) =>
         : '') +
       (v2.value || ''),
   );
+
+export const combineValues = (v1, v2, dot, space) => {
+  if ([v1, v2].every(v => v.type !== 'list')) {
+    if (dot && [v1, v2].some(v => v.type === 'nil')) return { type: 'nil' };
+    return joinValues(v1, v2, space);
+  }
+  if ([v1, v2].every(v => v.type === 'list')) return { type: 'nil' };
+  const [l, v] = v1.type === 'list' ? [v1, v2] : [v2, v1];
+  return listUtils.get(l, v);
+};
 
 const sortTypes = (v1, v2) => {
   if (v2.type === 'nil') return [v1, v2];
@@ -50,29 +60,25 @@ const copy = stream => ({ get, output }) => ({
 });
 
 const runGet = (create, value, func, arg) => {
-  if (typeof value === 'function') return value(create, arg);
-  if (value.type !== 'stream' || !func) return [value];
-  return [
-    create(
-      streamMap(([v]) => (v.type === 'nil' ? func(create, arg)[0] : v))([
-        value,
-      ]),
-    ),
-  ];
+  if (typeof value === 'function') return value(create, arg)[0];
+  if (value.type !== 'stream' || !func) return value;
+  return create(
+    streamMap(([v]) => (v.type === 'nil' ? func(create, arg)[0] : v))([value]),
+  );
 };
 
 const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
   if (type === 'nil') {
     return {
-      result: listUtils.fromArray([{ type: 'nil' }]),
+      result: { type: 'nil' },
       canContinue: info => info.type === 'nil',
     };
   }
   if (type === 'join') {
     return {
-      result: listUtils.fromArray([
-        create(streamMap(([v1, v2]) => joinValues(v1, v2, space))([s1, s2])),
-      ]),
+      result: create(
+        streamMap(([v1, v2]) => joinValues(v1, v2, space))([s1, s2]),
+      ),
       canContinue: info => info.type === 'join',
     };
   }
@@ -84,9 +90,8 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
       listUtils.getFunc(big),
       reverse ? s1 : s2,
     );
-    if (result[0].type === 'stream') result[0] = create(copy(result[0]));
     return {
-      result: listUtils.fromArray(result),
+      result: result.type === 'stream' ? create(copy(result)) : result,
       canContinue: info =>
         info.type === 'get' &&
         listUtils.get(info.big, info.small) === value &&
@@ -95,25 +100,23 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
   }
   const func = listUtils.getFunc(big);
   if (func.isPure) {
-    return { result: listUtils.fromArray([func(create, small)[0]]) };
+    return { result: func(create, small)[0] };
   }
   const pairs = listUtils.toPairs(small).filter(d => d.value.type !== 'nil');
   return {
-    result: listUtils.fromArray([
-      pairs.reduce(
-        (res, { key, value }) => {
-          const map = func(...res, key);
-          const [result, scope, current] = map(create, value);
-          return [scope, create(assign([current, result, key], false, false))];
-        },
-        [undefined, listUtils.cloneValues(big)],
-      )[1],
-    ]),
+    result: pairs.reduce(
+      (res, { key, value }) => {
+        const map = func(...res, key);
+        const [result, scope, current] = map(create, value);
+        return [scope, create(assign([current, result, key], false, false))];
+      },
+      [undefined, listUtils.cloneValues(big)],
+    )[1],
   };
 };
 
-const combine = (create, args, dot, space) => {
-  const base = create(({ get, output, create }) => {
+export default (create, args, dot, space) => {
+  return create(({ get, output, create }) => {
     let { result, canContinue } = run(
       create,
       getInfo(args, get, dot),
@@ -135,13 +138,4 @@ const combine = (create, args, dot, space) => {
       },
     };
   });
-  return [1, 2, 3].map(i =>
-    create(
-      streamMap(([b]) => listUtils.get(b, fromJs(i)) || { type: 'nil' })([
-        base,
-      ]),
-    ),
-  );
 };
-
-export default combine;

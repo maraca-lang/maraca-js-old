@@ -33,11 +33,13 @@ export default (type, info, config, create, nodes) => {
       };
     });
   }
+
   if (type === 'interpret') {
     const func = config['@'] && config['@'][info.level - 1];
     if (!func) return { type: 'nil' };
     return create(fromJsFunc(nodes[0], func, true));
   }
+
   if (type === 'eval') {
     return create(
       streamMap(([code], create) => {
@@ -55,6 +57,7 @@ export default (type, info, config, create, nodes) => {
       })([nodes[0]]),
     );
   }
+
   if (type === 'trigger') {
     return create(({ get, output }) => {
       let values = nodes.map(a => get(a));
@@ -68,6 +71,7 @@ export default (type, info, config, create, nodes) => {
       };
     });
   }
+
   if (type === 'library') {
     return create(({ get, output, create }) => {
       const run = () => {

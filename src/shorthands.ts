@@ -24,10 +24,9 @@ export default (type, info, nodes) => {
       nodes: [
         {
           type: 'func',
-          nodes: [
-            null,
-            { type: 'value', info: { value: 'v' } },
-            {
+          nodes: [null, { type: 'value', info: { value: 'v' } }],
+          info: {
+            body: {
               type: 'combine',
               nodes: [
                 { type: 'value', info: { value: 'v' } },
@@ -35,7 +34,7 @@ export default (type, info, nodes) => {
               ],
               info: { space: [false] },
             },
-          ],
+          },
         },
       ],
       info: { bracket: '[' },
