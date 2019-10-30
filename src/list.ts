@@ -196,6 +196,26 @@ const listUtils = {
       },
     };
   },
+  destructure: (list, key, value) => {
+    if ((!key || key.type === 'list') && value.type === 'list') {
+      if (!key) {
+        return listUtils
+          .toPairs(value)
+          .reduce((res, v) => listUtils.destructure(res, v.key, v.value), list);
+      }
+      const keyPairs = listUtils.toPairs(key);
+      const { values } = listUtils.extract(
+        value,
+        keyPairs.map(d => d.key),
+        false,
+      );
+      return values.reduce(
+        (res, v, i) => listUtils.destructure(res, keyPairs[i].value, v),
+        list,
+      );
+    }
+    return listUtils.set(list, key || { type: 'nil' }, value);
+  },
   setFunc: (list, func, isMap?, hasArg?, isPure?) => ({
     ...list,
     value: {

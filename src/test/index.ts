@@ -1,13 +1,10 @@
 import maraca, { fromJs, toJs } from '../index';
-// import { Source } from '../typings';
+import { Source } from '../typings';
 
-// const source = [
-//   'test? (@1)',
-//   { test: '#size.[a, b, _, c, `hello`]' },
-// ] as Source;
-
-// const source = `[v=> (v?.name == jon, v?)]`;
-const source = `[1, 2, 3].[v=>> (v? == 2, v?)]`;
+const source = [
+  'test? (@1)',
+  { test: '#size.[a, b, _, c, `hello`]' },
+] as Source;
 
 const config = {
   '@': [

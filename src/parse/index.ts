@@ -84,7 +84,7 @@ s.addAttribute('ast', {
   ExpSet_short_value: (a, _) => assignAst(a.ast, a.ast, a, _),
   ExpSet_normal: (a, _, b) => assignAst(b.ast, a.ast, a, b),
   ExpSet_nil_value: (a, _) => assignAst({ type: 'nil' }, a.ast, a, _),
-  ExpSet_nil_key: (_, a) => assignAst(a.ast, { type: 'nil' }, _, a),
+  ExpSet_nil_key: (_, a) => assignAst(a.ast, null, _, a),
   ExpSet_nil_both: _ => assignAst({ type: 'nil' }, { type: 'nil' }, _, _),
   ExpSet: a => a.ast,
 
@@ -194,11 +194,6 @@ s.addAttribute('ast', {
   Atom_space: a => ({
     type: 'value',
     info: { value: ' ' },
-    start: a.source.startIdx,
-    end: a.source.endIdx,
-  }),
-  Atom_identity: a => ({
-    type: 'identity',
     start: a.source.startIdx,
     end: a.source.endIdx,
   }),

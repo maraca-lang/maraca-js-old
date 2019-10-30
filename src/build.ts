@@ -1,10 +1,9 @@
 import assign from './assign';
 import combine from './combine';
-import { fromJs } from './data';
+import { fromJs, toIndex } from './data';
 import maps from './maps';
 import { combineValues } from './combine';
 import listUtils from './list';
-import shorthands from './shorthands';
 import streamBuild from './streams';
 
 export const streamMap = map => (args, deeps = [] as boolean[]) => ({
@@ -52,8 +51,28 @@ const mergeMaps = (args, deep, map) => {
 };
 
 const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
-  const shorthand = shorthands(type, info, nodes);
-  if (shorthand) return compile(shorthand, evalArgs);
+  if (type === 'list' && !['[', '<'].includes(info.bracket)) {
+    return compile(
+      {
+        type: 'combine',
+        info: { dot: true },
+        nodes: [
+          {
+            type: 'value',
+            info: {
+              value: `${
+                info.bracket === '('
+                  ? nodes.filter(n => n.type !== 'func').length
+                  : 1
+              }`,
+            },
+          },
+          { type: 'list', info: { bracket: '[', semi: true }, nodes },
+        ],
+      },
+      evalArgs,
+    );
+  }
 
   const [config, create, context] = evalArgs;
 
@@ -82,7 +101,11 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
       ),
     });
     nodes.forEach(n => {
-      compile({ type: 'assign', nodes: [n] }, [config, create, ctx]);
+      compile({ type: 'assign', nodes: [n], info: { append: true } }, [
+        config,
+        create,
+        ctx,
+      ]);
     });
     return ctx.current.shift();
   }
@@ -100,6 +123,44 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         if (list.items[key.value.value || '']) {
           return list.items[key.value.value || ''];
         }
+      }
+      if (
+        (i === 1 && nodes[0].type === 'context') !==
+        (nodes[i].type === 'context')
+      ) {
+        const argPair = [a1, a2];
+        const v = create(settable({ type: 'nil' }));
+        const k = argPair[nodes[i].type === 'context' ? 0 : 1];
+        const prevScopes = [...context.scope];
+        [context.scope, context.current].forEach(l => {
+          for (
+            let j = 0;
+            j < (l === context.scope ? context.scope.length : 1);
+            j++
+          ) {
+            [l[j], k, prevScopes[j]].forEach(a =>
+              evaluate(a, config, create, context),
+            );
+            l[j] = {
+              type: 'any',
+              value: create(
+                streamMap(([list, key, scope]) => {
+                  if (listUtils.getFunc(list)) return list;
+                  const res = listUtils.cloneValues(list);
+                  if (
+                    key.type !== 'list' &&
+                    !toIndex(key.value) &&
+                    !listUtils.has(scope, key)
+                  ) {
+                    return listUtils.set(res, key, v);
+                  }
+                  return res;
+                })([l[j], k, prevScopes[j]].map(a => a.value)),
+              ),
+            };
+          }
+        });
+        argPair[nodes[i].type === 'context' ? 1 : 0] = context.scope[0];
       }
       if ([a1, a2].every(a => !a.maybeFunc)) {
         const merged = mergeMaps([a1, a2], true, ([v1, v2]) =>
@@ -136,16 +197,32 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
 
   if (type === 'assign') {
     [context.scope, context.current].forEach(l => {
-      const prevItems = l[0].items || {};
       if (
-        args[1] ||
-        !(args[0].type === 'constant' && args[0].value.type === 'nil')
+        !(
+          info.append &&
+          args[0].type === 'constant' &&
+          args[0].value.type === 'nil'
+        )
       ) {
-        const assignArgs = [l[0], ...args];
+        const prevItems = l[0].items || {};
+
+        const assignArgs = [l[0], ...args].filter(x => x);
+        if (!info.append && args[1] && context.scope.length === 1) {
+          evaluate(assignArgs[1], config, create, context);
+          assignArgs[1] = {
+            type: 'any',
+            value: create(settable(assignArgs[1].value)),
+          };
+        }
         const merged = mergeMaps(assignArgs, true, ([l, v, k]) => {
-          if (k) return listUtils.set(l, k, v);
-          if (v.type !== 'nil') return listUtils.append(l, v);
-          return l;
+          if (!k && info.append) {
+            if (v.type === 'nil') return l;
+            return listUtils.append(l, v);
+          }
+          if ((!k || k.type === 'list') && v.type === 'list') {
+            return listUtils.destructure(l, k, v);
+          }
+          return listUtils.set(l, k || { type: 'nil' }, v);
         });
         if (merged) {
           l[0] = merged;
@@ -153,18 +230,23 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
           assignArgs.forEach(a => evaluate(a, config, create, context));
           l[0] = {
             type: 'any',
-            value: create(assign(assignArgs.map(a => a.value), true, false)),
+            value: create(
+              assign(assignArgs.map(a => a.value), true, false, info.append),
+            ),
           };
         }
-      }
-      if (
-        !args[1] ||
-        (args[1].type === 'constant' && args[1].value.type !== 'list')
-      ) {
-        if (args[1]) prevItems[args[1].value.value || ''] = args[0];
-        l[0].items = prevItems;
-      } else {
-        delete l[0].items;
+
+        if (
+          !args[1] ||
+          (args[1].type === 'constant' && args[1].value.type !== 'list')
+        ) {
+          if (!info.append) {
+            prevItems[(args[1] && args[1].value.value) || ''] = args[0];
+          }
+          l[0].items = prevItems;
+        } else {
+          delete l[0].items;
+        }
       }
     });
     return { type: 'constant', value: { type: 'nil' } };
@@ -207,6 +289,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         compiledBody.arg === argTrace &&
         ctx.current[0] === currentTrace
       ) {
+        evaluate(context.current[0], config, create, context);
         context.current[0] = {
           type: 'any',
           items: { ...context.current[0].items },
@@ -272,7 +355,12 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
           subContext.scope[0] = {
             type: 'any',
             value: create(
-              assign([subContext.scope[0].value, values[i], key], true, false),
+              assign(
+                [subContext.scope[0].value, values[i], key],
+                true,
+                false,
+                false,
+              ),
             ),
           };
         }
@@ -332,42 +420,3 @@ const build = (config, create, context, node) => {
 };
 
 export default build;
-
-// if (type === 'combine') {
-//   return nodes.reduce((a1, a2, i) => {
-//     const argPair = [a1, a2];
-//     // if (
-//     //   (i === 1 && nodes[0].type === 'context') !==
-//     //   (nodes[i].type === 'context')
-//     // ) {
-//     //   const v = create(core.settable({ type: 'nil' }));
-//     //   const k = argPair[nodes[i].type === 'context' ? 0 : 1];
-//     //   const scopes = [...context.scope];
-//     //   [context.scope, context.current].forEach(l => {
-//     //     for (let j = 0; j <= context.base; j++) {
-//     //       l[j] = create(
-//     //         streamMap(([list, key, scope]) => {
-//     //           if (listUtils.getFunc(list)) return list;
-//     //           const res = listUtils.cloneValues(list);
-//     //           if (
-//     //             key.type !== 'list' &&
-//     //             !toIndex(key.value) &&
-//     //             !listUtils.has(scope, key)
-//     //           ) {
-//     //             return listUtils.set(res, key, v);
-//     //           }
-//     //           return res;
-//     //         })([l[j], k, scopes[j]]),
-//     //       );
-//     //     }
-//     //   });
-//     //   argPair[nodes[i].type === 'context' ? 1 : 0] = context.scope[0];
-//     // }
-//     return combine(
-//       create,
-//       argPair,
-//       info.dot,
-//       info.space && info.space[i - 1],
-//     )[0];
-//   });
-// }

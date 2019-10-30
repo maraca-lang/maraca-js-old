@@ -100,7 +100,16 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
   }
   const func = listUtils.getFunc(big);
   if (func.isPure) {
-    return { result: func(create, small)[0] };
+    return {
+      result: create(
+        streamMap(([b, s]) => {
+          return listUtils.fromPairs([
+            ...listUtils.toPairs(b),
+            ...listUtils.toPairs(s),
+          ]);
+        })([big, func(create, small)[0]]),
+      ),
+    };
   }
   const pairs = listUtils.toPairs(small).filter(d => d.value.type !== 'nil');
   return {
@@ -108,15 +117,18 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
       (res, { key, value }) => {
         const map = func(...res, key);
         const [result, scope, current] = map(create, value);
-        return [scope, create(assign([current, result, key], false, false))];
+        return [
+          scope,
+          create(assign([current, result, key], false, false, false)),
+        ];
       },
       [undefined, listUtils.cloneValues(big)],
     )[1],
   };
 };
 
-export default (create, args, dot, space) => {
-  return create(({ get, output, create }) => {
+export default (create, args, dot, space) =>
+  create(({ get, output, create }) => {
     let { result, canContinue } = run(
       create,
       getInfo(args, get, dot),
@@ -138,4 +150,3 @@ export default (create, args, dot, space) => {
       },
     };
   });
-};

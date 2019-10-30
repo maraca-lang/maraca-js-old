@@ -2,20 +2,20 @@ import { settable, streamMap } from './build';
 import { fromJs, toIndex } from './data';
 import listUtils from './list';
 
-const getType = ([l, v, k], setNil, noDestructure, get) => {
+const getType = ([l, v, k], setNil, noDestructure, append, get) => {
   const list = get(l);
   if (list.type === 'value') return 'none';
-  if (!k) {
+  if (!k && append) {
     const value = get(v);
     if (value.type === 'nil') return 'none';
     return 'append';
   }
-  const key = get(k);
   if (!setNil) {
     const value = get(v);
     if (value.type === 'nil') return 'none';
   }
-  if (!noDestructure && key.type === 'list') {
+  const key = k && get(k);
+  if (!noDestructure && (!key || key.type === 'list')) {
     const value = get(v);
     if (value.type === 'list') return 'destructure';
   }
@@ -31,15 +31,16 @@ const run = (type, [l, v, k]) => {
   }
   if (type === 'destructure') {
     return streamMap(([value, key], create) => {
-      const keyPairs = listUtils.toPairs(key);
-      const func = listUtils.getFunc(key);
+      const keyPairs = key ? listUtils.toPairs(key) : [];
+      const func = key ? listUtils.getFunc(key) : { hasArg: true };
       const { values, rest } = listUtils.extract(
         value,
         keyPairs.map(d => d.key),
         func && !func.isMap && !func.hasArg,
       );
       const result = values.reduce(
-        (res, v, i) => create(assign([res, v, keyPairs[i].value], true, false)),
+        (res, v, i) =>
+          create(assign([res, v, keyPairs[i].value], true, false, false)),
         l,
       );
       if (!func || func.isMap) return result;
@@ -62,11 +63,12 @@ const run = (type, [l, v, k]) => {
                             if (index) return fromJs(index + offset);
                           }
                           return x;
-                        })([func(create, k)[0]]),
+                        })([key ? func(create, k)[0] : k]),
                       ),
                     ],
                     true,
                     true,
+                    false,
                   ),
                 ),
               result,
@@ -83,23 +85,28 @@ const run = (type, [l, v, k]) => {
           ],
           true,
           true,
+          false,
         ),
       );
     })([v, k], [false, true]);
   }
   return streamMap(([list, key]) => listUtils.set(list, key, v))(
-    [l, k],
+    [l, k || { type: 'nil' }],
     [false, true],
   );
 };
 
-const assign = (args, setNil, noDestructure) => ({ get, output, create }) => {
-  let type = getType(args, setNil, noDestructure, get);
+const assign = (args, setNil, noDestructure, append) => ({
+  get,
+  output,
+  create,
+}) => {
+  let type = getType(args, setNil, noDestructure, append, get);
   let prev = create(run(type, args));
   return {
     initial: prev,
     update: () => {
-      const nextType = getType(args, setNil, noDestructure, get);
+      const nextType = getType(args, setNil, noDestructure, append, get);
       if (nextType !== type) {
         type = nextType;
         if (!args.includes(prev)) prev.value.stop();

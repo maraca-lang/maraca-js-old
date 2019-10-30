@@ -73,7 +73,6 @@ export default `Maraca {
     = List
     | value
     | "_" -- space
-    | "~" -- identity
     | "?" -- context
 
   List
