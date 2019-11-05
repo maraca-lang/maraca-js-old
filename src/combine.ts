@@ -141,9 +141,7 @@ export default (create, args, dot, space) =>
       update: () => {
         const info = getInfo(args, get, dot);
         if (!canContinue || !canContinue(info)) {
-          listUtils.toPairs(result).forEach(s => {
-            if (s.value.type === 'stream') s.value.value.stop();
-          });
+          if (result.type === 'stream') result.value.stop();
           create();
           ({ result, canContinue } = run(create, info, args, space));
           output(result);

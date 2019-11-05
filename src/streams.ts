@@ -3,17 +3,17 @@ import { fromJs, fromJsFunc, fromValue, toJs, toValue } from './data';
 import listUtils from './list';
 import parse from './parse';
 
-const snapshot = (create, { set, ...value }, index?) => {
+const snapshot = ({ set, ...value }) => {
   const result =
     value.type !== 'list'
       ? value
       : listUtils.fromPairs(
-          listUtils.toPairs(value).map(({ key, value }, i) => ({
+          listUtils.toPairs(value).map(({ key, value }) => ({
             key,
-            value: snapshot(create, value, [...(index || [0]), i]),
+            value: snapshot(value),
           })),
         );
-  return index ? create(result, null, index) : result;
+  return result;
 };
 
 export default (type, info, config, create, nodes) => {
@@ -26,7 +26,7 @@ export default (type, info, config, create, nodes) => {
           const dest = get(nodes[1]);
           const newSource = get(nodes[0]);
           if (dest.set && source !== newSource) {
-            dest.set(snapshot(create, get(nodes[0], true)));
+            dest.set(snapshot(get(nodes[0], true)));
           }
           source = newSource;
         },

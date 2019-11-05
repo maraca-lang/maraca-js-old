@@ -88,6 +88,19 @@ test('partial', () => {
 });
 
 test('unpack', () => {
+  expect(maraca('[:[a], a]')).toEqual({
+    type: 'list',
+    value: [
+      {
+        key: { type: 'value', value: '1' },
+        value: { type: 'value', value: 'a' },
+      },
+      {
+        key: { type: 'value', value: '2' },
+        value: { type: 'value', value: 'a' },
+      },
+    ],
+  });
   expect(maraca('[x: 1, : [y: 2, z: 3]]')).toEqual({
     type: 'list',
     value: [

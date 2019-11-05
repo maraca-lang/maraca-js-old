@@ -199,7 +199,7 @@ const listUtils = {
   destructure: (list, key, value) => {
     if ((!key || key.type === 'list') && value.type === 'list') {
       if (!key) {
-        const offset = list.value.indices[list.value.indices.length - 1];
+        const offset = list.value.indices[list.value.indices.length - 1] || 0;
         return listUtils.toPairs(value).reduce((res, v) => {
           const i = toIndex(toKey(v.key));
           return listUtils.destructure(
