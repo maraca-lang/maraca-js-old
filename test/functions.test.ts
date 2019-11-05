@@ -65,11 +65,11 @@ test('maps', () => {
     value: [
       {
         key: { type: 'value', value: 'Item a' },
-        value: { type: 'value', value: 'a', set: expect.any(Function) },
+        value: { type: 'value', value: 'a' },
       },
       {
         key: { type: 'value', value: 'Item b' },
-        value: { type: 'value', value: 'b', set: expect.any(Function) },
+        value: { type: 'value', value: 'b' },
       },
     ],
   });

@@ -27,7 +27,7 @@ export const settable = arg => ({ get, output }) => {
 };
 
 const mergeMaps = (create, args, deep, map) => {
-  if (args.every(a => !a.maybeFunc)) {
+  if (args.every(a => a.type !== 'any')) {
     if (args.every(a => a.type === 'constant')) {
       return { type: 'constant', value: map(args.map(a => a.value)) };
     }
@@ -54,6 +54,32 @@ const mergeMaps = (create, args, deep, map) => {
       };
     }
   }
+};
+
+const getCompiledMap = (node, evalArgs, argTrace) => {
+  const compiled = compile(node, evalArgs);
+  if (compiled.type === 'constant') return () => compiled.value;
+  if (compiled.type === 'map' && compiled.arg === argTrace) return compiled.map;
+  return null;
+};
+const compileFuncBody = (body, evalArgs, isMap, argTrace) => {
+  if (
+    isMap &&
+    body.type === 'assign' &&
+    body.nodes[1] === null &&
+    body.nodes[0].type === 'list' &&
+    body.nodes[0].info.bracket === '[' &&
+    body.nodes[0].nodes.length === 1
+  ) {
+    const value = getCompiledMap(body.nodes[0].nodes[0], evalArgs, argTrace);
+    return value && { value, index: true };
+  }
+  if (isMap && body.type === 'assign' && body.nodes[0] && body.nodes[1]) {
+    const maps = body.nodes.map(n => getCompiledMap(n, evalArgs, argTrace));
+    return maps.every(c => c) && { value: maps[0], key: maps[1] };
+  }
+  const value = getCompiledMap(body, evalArgs, argTrace);
+  return value && { value };
 };
 
 const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
@@ -195,7 +221,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
       create,
       args,
       args.some(a => a.type === 'map' && a.deep) ||
-        args.some((a, i) => a.type === 'any' && deepArgs[i]),
+        args.some((a, i) => a.type === 'data' && deepArgs[i]),
       vals => map(vals),
     );
     if (merged) return merged;
@@ -214,7 +240,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
       )
     ) {
       const assignArgs = [...args].filter(x => x);
-      if (!info.append && assignArgs[1] && context.scope.length === 1) {
+      if (!info.append && assignArgs[1]) {
         assignArgs[0] = {
           type: 'any',
           value: create(settable(assignArgs[0].value)),
@@ -265,7 +291,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         .filter(a => a)
         .every(a => a.type === 'constant' && a.value.type !== 'list')
     ) {
-      const argTrace = { type: 'any', value: { type: 'nil' } };
+      const argTrace = { type: 'data', value: { type: 'nil' } };
       const currentTrace = { type: 'constant', value: listUtils.empty() };
       const ctx = {
         scope: [
@@ -290,16 +316,16 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         ],
         current: [currentTrace],
       };
-      const compiledBody = compile(info.body, [config, create, ctx]);
-      if (
-        compiledBody.type === 'map' &&
-        compiledBody.arg === argTrace &&
-        ctx.current[0] === currentTrace
-      ) {
+      const compiledBody = compileFuncBody(
+        info.body,
+        [config, create, ctx],
+        info.map,
+        argTrace,
+      );
+      if (compiledBody && ctx.current[0] === currentTrace) {
         context.current[0] = {
           type: 'any',
           items: { ...context.current[0].items },
-          maybeFunc: true,
           value: create(
             streamMap(([current]) =>
               listUtils.setFunc(
@@ -307,26 +333,36 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
                 info.map
                   ? (create, list) => [
                       create(
-                        streamMap(([y]) =>
-                          listUtils.fromPairs(
-                            listUtils
-                              .toPairs(y)
-                              .filter(d => d.value.type !== 'nil')
-                              .map(({ key, value }) => ({
-                                key,
-                                value: compiledBody.map(
-                                  listUtils.fromArray([key, value]),
-                                ),
-                              }))
-                              .filter(d => d.value.type !== 'nil'),
-                          ),
-                        )([list]),
+                        streamMap(([y]) => {
+                          const mapped = listUtils
+                            .toPairs(y)
+                            .filter(d => d.value.type !== 'nil')
+                            .map(({ key, value }) => ({
+                              key: compiledBody.key
+                                ? compiledBody.key(
+                                    listUtils.fromArray([key, value]),
+                                  )
+                                : key,
+                              value: compiledBody.value(
+                                listUtils.fromArray([key, value]),
+                              ),
+                            }))
+                            .filter(d => d.value.type !== 'nil');
+                          return listUtils.fromPairs(
+                            compiledBody.index
+                              ? mapped.map((d, i) => ({
+                                  key: fromJs(i + 1),
+                                  value: d.value,
+                                }))
+                              : mapped,
+                          );
+                        })([list], [true]),
                       ),
                     ]
                   : (create, value) => [
                       create(
                         streamMap(([y]) =>
-                          compiledBody.map(
+                          compiledBody.value(
                             listUtils.fromArray([{ type: 'nil' }, y]),
                           ),
                         )([value]),
@@ -377,7 +413,6 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     context.current[0] = {
       type: 'any',
       items: { ...context.current[0].items },
-      maybeFunc: true,
       value: create(
         streamMap(([current]) =>
           listUtils.setFunc(
@@ -394,7 +429,6 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
 
   return {
     type: 'any',
-    maybeFunc: true,
     value: streamBuild(type, info, config, create, args.map(a => a.value)),
   };
 };

@@ -1,24 +1,24 @@
-import build, { streamMap } from './build';
+import build, { settable, streamMap } from './build';
 import { fromJs, fromJsFunc, fromValue, toJs, toValue } from './data';
 import listUtils from './list';
 import parse from './parse';
 
-const snapshot = ({ set, ...value }) => {
+const snapshot = (create, { set, ...value }, index?) => {
   const result =
     value.type !== 'list'
       ? value
       : listUtils.fromPairs(
-          listUtils.toPairs(value).map(({ key, value }) => ({
+          listUtils.toPairs(value).map(({ key, value }, i) => ({
             key,
-            value: snapshot(value),
+            value: snapshot(create, value, [...(index || [0]), i]),
           })),
         );
-  return result;
+  return index ? create(settable(result), null, index) : result;
 };
 
 export default (type, info, config, create, nodes) => {
   if (type === 'push') {
-    return create(({ get }) => {
+    return create(({ get, create }) => {
       let source = get(nodes[0]);
       return {
         initial: { type: 'nil' },
@@ -26,7 +26,7 @@ export default (type, info, config, create, nodes) => {
           const dest = get(nodes[1]);
           const newSource = get(nodes[0]);
           if (dest.set && source !== newSource) {
-            dest.set(snapshot(get(nodes[0], true)));
+            dest.set(snapshot(create, get(nodes[0], true)));
           }
           source = newSource;
         },
