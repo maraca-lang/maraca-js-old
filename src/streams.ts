@@ -1,4 +1,4 @@
-import build, { settable, streamMap } from './build';
+import build, { streamMap } from './build';
 import { fromJs, fromJsFunc, fromValue, toJs, toValue } from './data';
 import listUtils from './list';
 import parse from './parse';
@@ -13,7 +13,7 @@ const snapshot = (create, { set, ...value }, index?) => {
             value: snapshot(create, value, [...(index || [0]), i]),
           })),
         );
-  return index ? create(settable(result), null, index) : result;
+  return index ? create(result, null, index) : result;
 };
 
 export default (type, info, config, create, nodes) => {

@@ -26,7 +26,7 @@ export const settable = arg => ({ get, output }) => {
   };
 };
 
-const mergeMaps = (args, deep, map) => {
+const mergeMaps = (create, args, deep, map) => {
   if (args.every(a => a.type === 'constant')) {
     return { type: 'constant', value: map(args.map(a => a.value)) };
   }
@@ -34,18 +34,22 @@ const mergeMaps = (args, deep, map) => {
     .filter(a => a.type !== 'constant')
     .map(a => (a.type === 'map' ? a.arg : a));
   if (allArgs.every(a => a === allArgs[0])) {
+    const combinedMap = x =>
+      map(
+        args.map(a => {
+          if (a.type === 'constant') return a.value;
+          if (a.type === 'map') return a.map(x);
+          return x;
+        }),
+      );
     return {
       type: 'map',
       arg: allArgs[0],
       deep,
-      map: x =>
-        map(
-          args.map(a => {
-            if (a.type === 'constant') return a.value;
-            if (a.type === 'map') return a.map(x);
-            return x;
-          }),
-        ),
+      map: combinedMap,
+      value: create(
+        streamMap(([x]) => combinedMap(x))([allArgs[0].value], [deep]),
+      ),
     };
   }
 };
@@ -76,7 +80,11 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
 
   const [config, create, context] = evalArgs;
 
-  if (type === 'nil' || type === 'comment') {
+  if (
+    type === 'nil' ||
+    type === 'comment' ||
+    (type === 'value' && !info.value)
+  ) {
     return { type: 'constant', value: { type: 'nil' } };
   }
   if (type === 'value') {
@@ -134,13 +142,10 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         const prevScopes = [...context.scope];
         [context.scope, context.current].forEach(l => {
           for (
-            let j = 0;
-            j < (l === context.scope ? context.scope.length : 1);
+            let j = context.current ? context.current.length - 1 : 0;
+            j < l.length;
             j++
           ) {
-            [l[j], k, prevScopes[j]].forEach(a =>
-              evaluate(a, config, create, context),
-            );
             l[j] = {
               type: 'any',
               value: create(
@@ -163,12 +168,11 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         argPair[nodes[i].type === 'context' ? 1 : 0] = context.scope[0];
       }
       if ([a1, a2].every(a => !a.maybeFunc)) {
-        const merged = mergeMaps([a1, a2], true, ([v1, v2]) =>
+        const merged = mergeMaps(create, [a1, a2], true, ([v1, v2]) =>
           combineValues(v1, v2, info.dot, space),
         );
         if (merged) return merged;
       }
-      [a1, a2].forEach(a => evaluate(a, config, create, context));
       return {
         type: 'any',
         value: combine(create, [a1.value, a2.value], info.dot, space),
@@ -182,13 +186,13 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         ? { map: maps[info.func] }
         : maps[info.func];
     const merged = mergeMaps(
+      create,
       args,
       args.some(a => a.type === 'map' && a.deep) ||
         args.some((a, i) => a.type === 'any' && deepArgs[i]),
       vals => map(vals),
     );
     if (merged) return merged;
-    args.forEach(a => evaluate(a, config, create, context));
     return {
       type: 'any',
       value: create(streamMap(map)(args.map(a => a.value), deepArgs)),
@@ -208,13 +212,12 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
 
         const assignArgs = [l[0], ...args].filter(x => x);
         if (!info.append && args[1] && context.scope.length === 1) {
-          evaluate(assignArgs[1], config, create, context);
           assignArgs[1] = {
             type: 'any',
             value: create(settable(assignArgs[1].value)),
           };
         }
-        const merged = mergeMaps(assignArgs, true, ([l, v, k]) => {
+        const merged = mergeMaps(create, assignArgs, true, ([l, v, k]) => {
           if (!k && info.append) {
             if (v.type === 'nil') return l;
             return listUtils.append(l, v);
@@ -227,7 +230,6 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         if (merged) {
           l[0] = merged;
         } else {
-          assignArgs.forEach(a => evaluate(a, config, create, context));
           l[0] = {
             type: 'any',
             value: create(
@@ -241,7 +243,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
           (args[1].type === 'constant' && args[1].value.type !== 'list')
         ) {
           if (!info.append) {
-            prevItems[(args[1] && args[1].value.value) || ''] = args[0];
+            prevItems[(args[1] && args[1].value.value) || ''] = assignArgs[1];
           }
           l[0].items = prevItems;
         } else {
@@ -289,7 +291,6 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         compiledBody.arg === argTrace &&
         ctx.current[0] === currentTrace
       ) {
-        evaluate(context.current[0], config, create, context);
         context.current[0] = {
           type: 'any',
           items: { ...context.current[0].items },
@@ -337,7 +338,6 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
       }
     }
 
-    args.forEach(a => a && evaluate(a, config, create, context));
     const argValues = args.map(a => a && a.value);
     const scope = context.scope[0].value;
     const funcMap = (
@@ -387,7 +387,6 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     return { type: 'constant', value: { type: 'nil' } };
   }
 
-  args.forEach(a => evaluate(a, config, create, context));
   return {
     type: 'any',
     args,
@@ -396,27 +395,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
   };
 };
 
-const evaluateInner = (compiled, config, create, context) => {
-  if (compiled.type === 'map') {
-    evaluate(compiled.arg, config, create, context);
-    return create(
-      streamMap(([x]) => compiled.map(x))(
-        [compiled.arg.value],
-        [compiled.deep],
-      ),
-    );
-  }
-};
-const evaluate = (compiled, config, create, context) => {
-  if (!compiled.value) {
-    compiled.value = evaluateInner(compiled, config, create, context);
-  }
-};
-
-const build = (config, create, context, node) => {
-  const compiled = compile(node, [config, create, context]);
-  evaluate(compiled, config, create, context);
-  return compiled.value;
-};
+const build = (config, create, context, node) =>
+  compile(node, [config, create, context]).value;
 
 export default build;

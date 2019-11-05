@@ -40,6 +40,7 @@ const getType = (big, small) => {
   if (big.type === 'nil' || (big === null && small === null)) return 'nil';
   if (big.type === 'value') return 'join';
   const func = listUtils.getFunc(big);
+  if (func && func.isMap && small.type !== 'list') return 'nil';
   return func && func.isMap ? 'map' : 'get';
 };
 

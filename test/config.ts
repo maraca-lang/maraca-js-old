@@ -1,15 +1,9 @@
-import maraca, { fromJs, toJs } from '../index';
-import { Source } from '../typings';
+import { fromJs, toJs } from '../src/index';
 
-const source = [
-  'test? (@1)',
-  { test: '#size.[a, b, _, c, `hello`]' },
-] as Source;
-
-const config = {
+export default {
   '@': [
     emit => {
-      let count = 0;
+      let count = 1;
       let interval;
       return value => {
         if (interval) clearInterval(interval);
@@ -27,6 +21,7 @@ const config = {
   ],
   '#': {
     size: fromJs(emit => x =>
+      x &&
       emit(
         fromJs(
           x.type === 'list'
@@ -37,5 +32,3 @@ const config = {
     ),
   },
 };
-
-maraca(source, config, data => console.log(JSON.stringify(data, null, 2)));

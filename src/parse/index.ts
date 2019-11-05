@@ -314,6 +314,7 @@ s.addAttribute('ast', {
 });
 
 export default (script: string): AST => {
+  if (!script.trim()) return { type: 'nil', start: 0, end: 0 };
   const m = g.match(script);
   if (m.failed()) throw new Error('Parser error');
   const res = s(m).ast;

@@ -4,8 +4,8 @@ export interface Obj<T = any> {
 
 export interface AST {
   type: string;
-  nodes: (AST | null)[];
-  info: any;
+  nodes?: (AST | null)[];
+  info?: any;
   start: number;
   end: number;
 }

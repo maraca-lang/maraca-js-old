@@ -1,4 +1,4 @@
-import { settable, streamMap } from './build';
+import { streamMap } from './build';
 import { fromJs, toIndex } from './data';
 import listUtils from './list';
 
@@ -24,7 +24,7 @@ const getType = ([l, v, k], setNil, noDestructure, append, get) => {
 
 const run = (type, [l, v, k]) => {
   if (type === 'none') {
-    return settable(l);
+    return () => ({ initial: l });
   }
   if (type === 'append') {
     return streamMap(([list]) => listUtils.append(list, v))([l]);
@@ -88,7 +88,7 @@ const run = (type, [l, v, k]) => {
           false,
         ),
       );
-    })([v, k], [false, true]);
+    })(k ? [v, k] : [v], [false, true]);
   }
   return streamMap(([list, key]) => listUtils.set(list, key, v))(
     [l, k || { type: 'nil' }],

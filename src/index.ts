@@ -17,13 +17,13 @@ export const fromJs = (value: any): Data => fromValue(fromJsBase(value));
 export const toJs = (data: Data): any => toJsBase(toValue(data));
 
 function maraca(source: Source): Data;
-function maraca(source: Source, output: (data: Data) => void): void;
+function maraca(source: Source, output: (data: Data) => void): () => void;
 function maraca(source: Source, config: Config): Data;
 function maraca(
   source: Source,
   config: Config,
   output: (data: Data) => void,
-): void;
+): () => void;
 function maraca(...args) {
   const [source, config = {}, output] =
     typeof args[1] === 'function' ? [args[0], {}, args[1]] : args;

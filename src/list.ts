@@ -199,9 +199,15 @@ const listUtils = {
   destructure: (list, key, value) => {
     if ((!key || key.type === 'list') && value.type === 'list') {
       if (!key) {
-        return listUtils
-          .toPairs(value)
-          .reduce((res, v) => listUtils.destructure(res, v.key, v.value), list);
+        const offset = list.value.indices[list.value.indices.length - 1];
+        return listUtils.toPairs(value).reduce((res, v) => {
+          const i = toIndex(toKey(v.key));
+          return listUtils.destructure(
+            res,
+            i ? fromJs(i + offset) : v.key,
+            v.value,
+          );
+        }, list);
       }
       const keyPairs = listUtils.toPairs(key);
       const { values } = listUtils.extract(
