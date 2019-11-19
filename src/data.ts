@@ -44,35 +44,32 @@ export const fromJs = value => {
   if (Object.prototype.toString.call(value) === '[object Date]') {
     return { type: 'value', value: value.toISOString() };
   }
-  if (
-    Object.keys(value).length === 2 &&
-    Object.keys(value)
-      .sort()
-      .join(',') === 'lat,lng'
-  ) {
-    return { type: 'value', value: JSON.stringify(value) };
+  if (Object.prototype.toString.call(value) === '[object Object]') {
+    return listUtils.fromPairs(
+      Object.keys(value).map(k => ({
+        key: fromJs(k),
+        value: fromJs(value[k]),
+      })),
+    );
   }
   if (Array.isArray(value)) {
     return listUtils.fromPairs(
-      value.map((v, i) => ({ key: fromJs(i + 1), value: fromJs(v) })),
+      value.map(({ key, value }) => ({
+        key: fromJs(key),
+        value: fromJs(value),
+      })),
     );
   }
-  return listUtils.fromPairs(
-    Object.keys(value).map(k => ({ key: fromJs(k), value: fromJs(value[k]) })),
-  );
+  return { type: 'nil' };
 };
 
-const regexs = {
-  time: /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
-  location: /{"lat":[0-9\.-]+,"lng":[0-9\.-]+}/,
-};
+const dateRegex = /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/;
 export const toJs = data => {
   if (data.type === 'nil') return null;
   if (data.type === 'value') {
     const s = data.value;
     if (!isNaN(s as any) && !isNaN(parseFloat(s))) return parseFloat(s);
-    if (regexs.time.test(s)) return new Date(s);
-    if (regexs.location.test(s)) return JSON.parse(s);
+    if (dateRegex.test(s)) return new Date(s);
     return s;
   }
   return listUtils

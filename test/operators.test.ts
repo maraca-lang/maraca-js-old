@@ -43,19 +43,19 @@ test('negative', () => {
 });
 
 test('comparison', () => {
-  expect(maraca('John = James')).toEqual({
+  expect(maraca('John ~ James')).toEqual({
     type: 'value',
     value: '1.6987999999999999',
   });
-  expect(maraca('John = Jon')).toEqual({
+  expect(maraca('John ~ Jon')).toEqual({
     type: 'value',
     value: '1.1893333333333334',
   });
-  expect(maraca('2 == 6')).toEqual({
+  expect(maraca('2 = 6')).toEqual({
     type: 'value',
     value: '',
   });
-  expect(maraca('3 == 3')).toEqual({
+  expect(maraca('3 = 3')).toEqual({
     type: 'value',
     value: 'true',
   });

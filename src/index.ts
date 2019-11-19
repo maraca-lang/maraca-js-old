@@ -25,9 +25,31 @@ function maraca(
   output: (data: Data) => void,
 ): () => void;
 function maraca(...args) {
-  const [source, config = {}, output] =
+  const [source, { '@': interpret = [], '#': library = {} } = {}, output] =
     typeof args[1] === 'function' ? [args[0], {}, args[1]] : args;
   const create = process();
+  const config = { '@': interpret, '#': {} };
+  Object.keys(library).forEach(k => {
+    config['#'][k] = create(
+      typeof library[k] !== 'function'
+        ? () => ({ initial: toValue(library[k]) })
+        : ({ output, get }) => {
+            let first = true;
+            let initial = { type: 'nil' };
+            const emit = ({ set, ...data }) => {
+              const value = {
+                ...toValue(data),
+                set: set && (v => set(fromValue(get(v, true)))),
+              };
+              if (first) initial = value;
+              else output(value);
+            };
+            const stop = library[k](emit);
+            first = false;
+            return { initial, stop };
+          },
+    );
+  });
   const [start, modules] = Array.isArray(source) ? source : [source, {}];
   const buildModule = (create, code) =>
     build(

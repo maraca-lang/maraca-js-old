@@ -13,7 +13,10 @@ export const streamMap = map => (args, deeps = [] as boolean[]) => ({
 }) => {
   const run = () => {
     create();
-    return map(args.map((a, i) => get(a, deeps[i] || false)), create);
+    return map(
+      args.map((a, i) => get(a, deeps[i] || false)),
+      create,
+    );
   };
   return { initial: run(), update: () => output(run()) };
 };
@@ -207,7 +210,12 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
       if (merged) return merged;
       return {
         type: 'any',
-        value: combine(create, argPair.map(a => a.value), info.dot, space),
+        value: combine(
+          create,
+          argPair.map(a => a.value),
+          info.dot,
+          space,
+        ),
       };
     });
   }
@@ -227,7 +235,12 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     if (merged) return merged;
     return {
       type: 'any',
-      value: create(streamMap(map)(args.map(a => a.value), deepArgs)),
+      value: create(
+        streamMap(map)(
+          args.map(a => a.value),
+          deepArgs,
+        ),
+      ),
     };
   }
 
@@ -264,7 +277,12 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         l[0] = merged || {
           type: 'any',
           value: create(
-            assign(allArgs.map(a => a.value), true, false, info.append),
+            assign(
+              allArgs.map(a => a.value),
+              true,
+              false,
+              info.append,
+            ),
           ),
         };
 
@@ -429,7 +447,13 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
 
   return {
     type: 'any',
-    value: streamBuild(type, info, config, create, args.map(a => a.value)),
+    value: streamBuild(
+      type,
+      info,
+      config,
+      create,
+      args.map(a => a.value),
+    ),
   };
 };
 

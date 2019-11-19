@@ -11,11 +11,11 @@ const numericMap = map =>
   });
 
 export default {
-  '==': {
+  '=': {
     map: dataMap(([a, b]) => isEqual(a, b)),
     deepArgs: [true, true],
   },
-  '=': dataMap(([a, b]) => {
+  '~': dataMap(([a, b]) => {
     if (a.type === 'list' || b.type === 'list') return null;
     const res = fuzzy(a.value || '', b.value || '');
     return res < 0.3 ? null : 2 - res;

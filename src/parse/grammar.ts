@@ -37,7 +37,7 @@ export default `Maraca {
     | ExpComp
 
   ExpComp
-    = ExpComp ("<=" | ">=" | "<" | ">" | "!" | "==" | "=") ExpSum -- comp
+    = ExpComp ("<=" | ">=" | "<" | ">" | "!" | "~" | "=") ExpSum -- comp
     | ExpSum
 
   ExpSum

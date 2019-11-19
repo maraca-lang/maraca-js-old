@@ -178,7 +178,8 @@ export default function doubleMetaphone(value) {
             isGermanic ||
             // Such as 'architect' but not 'arch', orchestra', 'orchid'.
             greekCh.test(value.slice(index - 2, index + 4)) ||
-            (nextnext === 'T' || nextnext === 'S') ||
+            nextnext === 'T' ||
+            nextnext === 'S' ||
             ((index === 0 ||
               prev === 'A' ||
               prev === 'E' ||
@@ -681,7 +682,8 @@ export default function doubleMetaphone(value) {
           prev === 'E' &&
           characters[index - 2] === 'I' &&
           characters[index - 4] !== 'M' &&
-          (characters[index - 3] !== 'E' && characters[index - 3] !== 'A')
+          characters[index - 3] !== 'E' &&
+          characters[index - 3] !== 'A'
         ) {
           secondary += 'R';
         } else {
@@ -960,8 +962,8 @@ export default function doubleMetaphone(value) {
             index === last &&
             // Bug: IAU and EAU also match by AU
             // (/IAU|EAU/.test(value.slice(index - 3, index))) ||
-            (prev === 'U' &&
-              (characters[index - 2] === 'A' || characters[index - 2] === 'O'))
+            prev === 'U' &&
+            (characters[index - 2] === 'A' || characters[index - 2] === 'O')
           )
         ) {
           primary += 'KS';

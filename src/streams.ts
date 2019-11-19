@@ -1,5 +1,5 @@
 import build, { settable, streamMap } from './build';
-import { fromJs, fromJsFunc, fromValue, toJs, toValue } from './data';
+import { fromJs, fromJsFunc, toIndex, toJs } from './data';
 import listUtils from './list';
 import parse from './parse';
 
@@ -10,7 +10,14 @@ const snapshot = (create, { set, ...value }, index?) => {
       : listUtils.fromPairs(
           listUtils.toPairs(value).map(({ key, value }, i) => ({
             key,
-            value: snapshot(create, value, [...(index || [0]), i]),
+            value: snapshot(
+              create,
+              value,
+              !(key.type === 'value' && toIndex(key.value)) && [
+                ...(index || [0]),
+                i,
+              ],
+            ),
           })),
         );
   return index ? create(settable(result), null, index) : result;
@@ -73,7 +80,7 @@ export default (type, info, config, create, nodes) => {
   }
 
   if (type === 'library') {
-    return create(({ get, output, create }) => {
+    return create(({ get, output }) => {
       const run = () => {
         const resolved = get(nodes[0]);
         const v = resolved.type !== 'list' && toJs(resolved);
@@ -83,26 +90,7 @@ export default (type, info, config, create, nodes) => {
           );
         }
         if (typeof v === 'string') {
-          const func = config['#'] && config['#'][v];
-          if (!func) return { type: 'nil' };
-          if (typeof func !== 'function') {
-            return create(() => ({ initial: toValue(func) }));
-          }
-          return create(({ output, get }) => {
-            let first = true;
-            let initial = { type: 'nil' };
-            const emit = ({ set, ...data }) => {
-              const value = {
-                ...toValue(data),
-                set: set && (v => set(fromValue(get(v, true)))),
-              };
-              if (first) initial = value;
-              else output(value);
-            };
-            const stop = func(emit);
-            first = false;
-            return { initial, stop };
-          });
+          return (config['#'] && config['#'][v]) || { type: 'nil' };
         }
         const list = get(nodes[0], true);
         return fromJs(

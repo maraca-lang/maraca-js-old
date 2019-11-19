@@ -29,6 +29,6 @@ export type Data =
     };
 
 export interface Config {
-  '@': ((emit: (output: Data) => void) => (value?: Data) => void)[];
-  '#': Obj<Data | ((emit: (output: Data) => void) => void | (() => void))>;
+  '@'?: ((emit: (output: Data) => void) => (value?: Data) => void)[];
+  '#'?: Obj<Data | ((emit: (output: Data) => void) => void | (() => void))>;
 }
