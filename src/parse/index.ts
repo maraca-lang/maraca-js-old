@@ -169,8 +169,12 @@ s.addAttribute('ast', {
     const [x, y] = nodes.slice(-2);
     const space =
       a.source.endIdx !== b.source.startIdx &&
-      (x.type === 'value' ? /\S$/.test(a.ast.info.value) : true) &&
-      (y.type === 'value' ? /^\S/.test(b.ast.info.value) : true);
+      (x.type === 'value'
+        ? !a.ast.info.value || /\S$/.test(a.ast.info.value)
+        : true) &&
+      (y.type === 'value'
+        ? !b.ast.info.value || /^\S/.test(b.ast.info.value)
+        : true);
     return {
       type: 'combine',
       nodes,
