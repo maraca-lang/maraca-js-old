@@ -134,9 +134,11 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
       type: 'any',
       items: { ...context.scope[0].items },
       value: create(
-        streamMap(([value]) => listUtils.clearIndices(value))([
-          context.scope[0].value,
-        ]),
+        streamMap(([value]) =>
+          value.type === 'list'
+            ? listUtils.clearIndices(value)
+            : listUtils.empty(),
+        )([context.scope[0].value]),
       ),
     });
     nodes.forEach(n => {
@@ -187,16 +189,16 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
               type: 'any',
               value: create(
                 streamMap(([list, key, scope]) => {
-                  if (listUtils.getFunc(list)) return list;
-                  const res = listUtils.cloneValues(list);
                   if (
+                    list.type === 'list' &&
+                    !listUtils.getFunc(list) &&
                     key.type !== 'list' &&
                     !toIndex(key.value) &&
                     !listUtils.has(scope, key)
                   ) {
-                    return listUtils.set(res, key, v);
+                    return listUtils.set(list, key, v);
                   }
-                  return res;
+                  return list;
                 })([l[j], k, prevScopes[j]].map(a => a.value)),
               ),
             };

@@ -10,6 +10,7 @@ import parse from './parse';
 import process from './process';
 import { Config, Data, Source } from './typings';
 
+export { unpack } from './data';
 export { default as parse } from './parse';
 export { Data, Source } from './typings';
 
@@ -17,15 +18,15 @@ export const fromJs = (value: any): Data => fromValue(fromJsBase(value));
 export const toJs = (data: Data): any => toJsBase(toValue(data));
 
 function maraca(source: Source): Data;
-function maraca(source: Source, output: (data: Data) => void): () => void;
+function maraca(source: Source, onData: (data: Data) => void): () => void;
 function maraca(source: Source, config: Config): Data;
 function maraca(
   source: Source,
   config: Config,
-  output: (data: Data) => void,
+  onData: (data: Data) => void,
 ): () => void;
 function maraca(...args) {
-  const [source, { '@': interpret = [], '#': library = {} } = {}, output] =
+  const [source, { '@': interpret = [], '#': library = {} } = {}, onData] =
     typeof args[1] === 'function' ? [args[0], {}, args[1]] : args;
   const create = process();
   const config = { '@': interpret, '#': {} };
@@ -87,17 +88,17 @@ function maraca(...args) {
       const run = () => get(stream, true);
       return { initial: run(), update: () => output(run()) };
     },
-    data => output(fromValue(data)),
+    data => onData(fromValue(data)),
   )!;
   const obj = {};
   result.value.observe(obj);
   const initial = result.value.value;
   const stop = () => result.value.unobserve(obj);
-  if (!output) {
+  if (!onData) {
     stop();
     return fromValue(initial);
   }
-  output(fromValue(initial));
+  onData(fromValue(initial));
   return stop;
 }
 
