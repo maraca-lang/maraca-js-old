@@ -109,8 +109,7 @@ const assign = (args, setNil, noDestructure, append) => ({
       const nextType = getType(args, setNil, noDestructure, append, get);
       if (nextType !== type) {
         type = nextType;
-        if (!args.includes(prev)) prev.value.stop();
-        create();
+        if (!args.includes(prev)) prev.value.cancel();
         prev = create(run(type, args));
         output(prev);
       }

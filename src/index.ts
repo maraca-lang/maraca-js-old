@@ -17,6 +17,32 @@ export { Data, Source } from './typings';
 export const fromJs = (value: any): Data => fromValue(fromJsBase(value));
 export const toJs = (data: Data): any => toJsBase(toValue(data));
 
+const wrapCreate = create => (run, ...args) => ({
+  type: 'stream',
+  value: create(({ get, output, create }) => {
+    const resolve = data => {
+      if (data.type === 'stream') return resolve(get(data.value));
+      return data;
+    };
+    const resolveDeep = data =>
+      get(
+        create(({ get, output }) => {
+          const map = d => {
+            if (d.type === 'stream') return map(get(d.value));
+            if (d.type !== 'list') return d;
+            return listUtils.map(d, v => map(v));
+          };
+          return { initial: map(data), update: () => output(map(data)) };
+        }),
+      );
+    return run({
+      get: (data, deep) => (deep ? resolveDeep(data) : resolve(data)),
+      output,
+      create: wrapCreate(create),
+    });
+  }, ...args),
+});
+
 function maraca(source: Source): Data;
 function maraca(source: Source, onData: (data: Data) => void): () => void;
 function maraca(source: Source, config: Config): Data;
@@ -28,7 +54,7 @@ function maraca(
 function maraca(...args) {
   const [source, { '@': interpret = [], '#': library = {} } = {}, onData] =
     typeof args[1] === 'function' ? [args[0], {}, args[1]] : args;
-  const create = process();
+  const create = wrapCreate(process());
   const config = { '@': interpret, '#': {} };
   Object.keys(library).forEach(k => {
     config['#'][k] = create(
@@ -90,10 +116,9 @@ function maraca(...args) {
     },
     data => onData(fromValue(data)),
   )!;
-  const obj = {};
-  result.value.observe(obj);
+  result.value.observe();
   const initial = result.value.value;
-  const stop = () => result.value.unobserve(obj);
+  const stop = () => result.value.unobserve();
   if (!onData) {
     stop();
     return fromValue(initial);

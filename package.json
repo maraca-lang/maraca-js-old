@@ -22,9 +22,10 @@
     "@babel/core": "^7.8.3",
     "@babel/preset-env": "^7.8.3",
     "@babel/preset-typescript": "^7.8.3",
-    "@types/jest": "^24.9.0",
-    "babel-jest": "^24.9.0",
-    "jest": "^24.9.0",
+    "@types/jest": "^24.9.1",
+    "babel-jest": "^25.1.0",
+    "babel-plugin-transform-class-properties": "^6.24.1",
+    "jest": "^25.1.0",
     "prettier": "^1.19.1",
     "rimraf": "^3.0.0",
     "typescript": "^3.7.5"

@@ -141,8 +141,7 @@ export default (create, args, dot, space) =>
       update: () => {
         const info = getInfo(args, get, dot);
         if (!canContinue || !canContinue(info)) {
-          if (result.type === 'stream') result.value.stop();
-          create();
+          if (result.type === 'stream') result.value.cancel();
           ({ result, canContinue } = run(create, info, args, space));
           output(result);
         }

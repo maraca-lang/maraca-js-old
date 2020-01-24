@@ -11,13 +11,11 @@ export const streamMap = map => (args, deeps = [] as boolean[]) => ({
   output,
   create,
 }) => {
-  const run = () => {
-    create();
-    return map(
+  const run = () =>
+    map(
       args.map((a, i) => get(a, deeps[i] || false)),
       create,
     );
-  };
   return { initial: run(), update: () => output(run()) };
 };
 
