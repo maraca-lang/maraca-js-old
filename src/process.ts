@@ -36,8 +36,9 @@ export class Stream {
   start;
   update;
   stop;
+  onChange;
 
-  constructor(queue: Queue, index, run, onChange) {
+  constructor(queue: Queue, index, run) {
     this.index = index;
     this.start = () => {
       let active = new Set<any>();
@@ -50,7 +51,7 @@ export class Stream {
         },
         output: v => {
           this.value = v;
-          if (onChange) onChange(v);
+          if (this.onChange) this.onChange(v);
           queue.add(this.listeners);
         },
         create: (...args) => (creator.create as any)(...args),
@@ -74,11 +75,13 @@ export class Stream {
     };
   }
 
-  observe(x = obj) {
+  observe(x?) {
+    if (typeof x === 'function') this.onChange = x;
     if (this.listeners.size === 0) this.start();
-    this.listeners.add(x);
+    this.listeners.add(typeof x === 'function' ? obj : x);
   }
   unobserve(x = obj) {
+    delete this.onChange;
     if (this.listeners.has(x)) {
       this.listeners.delete(x);
       if (this.listeners.size === 0) this.stop();
@@ -100,17 +103,25 @@ class Creator {
     this.queue = queue;
     this.base = base;
   }
-  create(run, onChange?, forceIndex?) {
+  create(run, forceIndex?) {
     const index = forceIndex || [...this.base, this.counter++];
-    return new Stream(this.queue, index, run, onChange) as any;
+    return new Stream(this.queue, index, run) as any;
   }
   reset() {
     this.counter = 0;
   }
 }
 
-export default () => {
+export default (build, output?) => {
   const queue = new Queue();
-  const result = new Creator(queue, []) as any;
-  return (...args) => result.create(...args);
+  const creator = new Creator(queue, []) as any;
+  const stream = build((...args) => creator.create(...args));
+  stream.observe(output);
+  const initial = stream.value;
+  if (!output) {
+    stream.unobserve();
+    return initial;
+  }
+  output(initial);
+  return () => stream.unobserve();
 };

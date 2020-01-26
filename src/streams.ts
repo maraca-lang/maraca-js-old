@@ -23,7 +23,7 @@ const snapshot = (create, { set, ...value }, index?) => {
             })),
           ),
         };
-  return index ? create(settable(result), null, index) : result;
+  return index ? create(settable(result), index) : result;
 };
 
 export default (type, info, config, create, nodes) => {

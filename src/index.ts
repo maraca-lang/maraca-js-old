@@ -55,32 +55,59 @@ function maraca(
 function maraca(...args) {
   const [source, { '@': interpret = [], '#': library = {} } = {}, onData] =
     typeof args[1] === 'function' ? [args[0], {}, args[1]] : args;
-  const create = wrapCreate(process());
-  const config = { '@': interpret, '#': {} };
-  Object.keys(library).forEach(k => {
-    config['#'][k] = create(
-      typeof library[k] !== 'function'
-        ? () => ({ initial: toValue(library[k]) })
-        : ({ output, get }) => {
-            let first = true;
-            let initial = { type: 'value', value: '' };
-            const emit = ({ set, ...data }) => {
-              const value = {
-                ...toValue(data as Data),
-                set: set && (v => set(fromValue(get(v, true)))),
+  const result = process(baseCreate => {
+    const create = wrapCreate(baseCreate);
+    const config = { '@': interpret, '#': {} };
+    Object.keys(library).forEach(k => {
+      config['#'][k] = create(
+        typeof library[k] !== 'function'
+          ? () => ({ initial: toValue(library[k]) })
+          : ({ output, get }) => {
+              let first = true;
+              let initial = { type: 'value', value: '' };
+              const emit = ({ set, ...data }) => {
+                const value = {
+                  ...toValue(data as Data),
+                  set: set && (v => set(fromValue(get(v, true)))),
+                };
+                if (first) initial = value;
+                else output(value);
               };
-              if (first) initial = value;
-              else output(value);
-            };
-            const stop = library[k](emit);
-            first = false;
-            return { initial, stop };
-          },
-    );
-  });
-  const [start, modules] = Array.isArray(source) ? source : [source, {}];
-  const buildModule = (create, code) =>
-    build(
+              const stop = library[k](emit);
+              first = false;
+              return { initial, stop };
+            },
+      );
+    });
+    const [start, modules] = Array.isArray(source) ? source : [source, {}];
+    const buildModule = (create, code) =>
+      build(
+        config,
+        create,
+        {
+          scope: [{ type: 'any', value: scope }],
+          current: [
+            { type: 'constant', value: { type: 'list', value: new List() } },
+          ],
+        },
+        typeof code === 'string' ? parse(code) : code,
+      );
+    const scope = {
+      type: 'list',
+      value: List.fromPairs(
+        Object.keys(modules).map(k => ({
+          key: fromJsBase(k),
+          value: create(({ output, create }) => {
+            if (typeof modules[k] === 'function') {
+              modules[k]().then(code => output(buildModule(create, code)));
+              return { initial: fromJsBase(null) };
+            }
+            return { initial: buildModule(create, modules[k]) };
+          }),
+        })),
+      ),
+    };
+    const stream = build(
       config,
       create,
       {
@@ -89,50 +116,14 @@ function maraca(...args) {
           { type: 'constant', value: { type: 'list', value: new List() } },
         ],
       },
-      typeof code === 'string' ? parse(code) : code,
+      typeof start === 'string' ? parse(start) : start,
     );
-  const scope = {
-    type: 'list',
-    value: List.fromPairs(
-      Object.keys(modules).map(k => ({
-        key: fromJsBase(k),
-        value: create(({ output, create }) => {
-          if (typeof modules[k] === 'function') {
-            modules[k]().then(code => output(buildModule(create, code)));
-            return { initial: fromJsBase(null) };
-          }
-          return { initial: buildModule(create, modules[k]) };
-        }),
-      })),
-    ),
-  };
-  const stream = build(
-    config,
-    create,
-    {
-      scope: [{ type: 'any', value: scope }],
-      current: [
-        { type: 'constant', value: { type: 'list', value: new List() } },
-      ],
-    },
-    typeof start === 'string' ? parse(start) : start,
-  );
-  const result = create(
-    ({ get, output }) => {
-      const run = () => get(stream, true);
-      return { initial: run(), update: () => output(run()) };
-    },
-    data => onData(fromValue(data)),
-  )!;
-  result.value.observe();
-  const initial = result.value.value;
-  const stop = () => result.value.unobserve();
-  if (!onData) {
-    stop();
-    return fromValue(initial);
-  }
-  onData(fromValue(initial));
-  return stop;
+    return create(({ get, output }) => ({
+      initial: get(stream, true),
+      update: () => output(get(stream, true)),
+    })).value;
+  }, onData && (data => onData(fromValue(data))));
+  return onData ? result : fromValue(result);
 }
 
 export default maraca;
