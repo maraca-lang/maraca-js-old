@@ -1,39 +1,25 @@
 import List from './list';
-import { isValue } from './typings';
-
-const memoMap = new WeakMap();
-const memoize = func => {
-  return arg => {
-    if (memoMap.has(arg)) {
-      return memoMap.get(arg);
-    }
-    const result = func(arg);
-    memoMap.set(arg, result);
-    return result;
-  };
-};
 
 export const fromJsFunc = (arg, func, deep) => ({ get, output }) => {
   let first = true;
-  let initial = { type: 'nil' };
+  let initial = { type: 'value', value: '' };
   const emit = data => {
-    const value = toValue(data);
-    if (first) initial = value;
-    else output(value);
+    if (first) initial = data;
+    else output(data);
   };
   const update = func(emit);
-  update(fromValue(get(arg, deep)));
+  update(get(arg, deep));
   first = false;
   return {
     initial,
-    update: () => update(fromValue(get(arg, deep))),
+    update: () => update(get(arg, deep)),
     stop: () => update(),
   };
 };
 
 export const fromJs = value => {
   if (value === 0) return { type: 'value', value: '0' };
-  if (!value) return { type: 'nil' };
+  if (!value) return { type: 'value', value: '' };
   if (value === true) return { type: 'value', value: 'true' };
   if (typeof value === 'number') return { type: 'value', value: `${value}` };
   if (typeof value === 'string') return { type: 'value', value };
@@ -70,12 +56,12 @@ export const fromJs = value => {
       ),
     };
   }
-  return { type: 'nil' };
+  return { type: 'value', value: '' };
 };
 
 const dateRegex = /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/;
 export const toJs = data => {
-  if (data.type === 'nil') return null;
+  if (!data.value) return null;
   if (data.type === 'value') {
     const s = data.value;
     if (!isNaN(s as any) && !isNaN(parseFloat(s))) return parseFloat(s);
@@ -84,7 +70,7 @@ export const toJs = data => {
   }
   return data
     .toPairs()
-    .filter(({ value }) => value.type !== 'nil')
+    .filter(({ value }) => value.value)
     .map(({ key, value }) => ({ key: toJs(key), value: toJs(value) }));
 };
 
@@ -94,13 +80,11 @@ export const isEqual = (v1, v2) => {
   const fullObj1 = v1.toObject();
   const fullObj2 = v2.toObject();
   const obj1 = Object.keys(fullObj1).reduce(
-    (res, k) =>
-      fullObj1[k].type === 'nil' ? res : { ...res, [k]: fullObj1[k] },
+    (res, k) => (!fullObj1[k].value ? res : { ...res, [k]: fullObj1[k] }),
     {},
   );
   const obj2 = Object.keys(fullObj2).reduce(
-    (res, k) =>
-      fullObj2[k].type === 'nil' ? res : { ...res, [k]: fullObj2[k] },
+    (res, k) => (!fullObj2[k].value ? res : { ...res, [k]: fullObj2[k] }),
     {},
   );
   const keys1 = Object.keys(obj1);
@@ -108,46 +92,6 @@ export const isEqual = (v1, v2) => {
   if (keys1.length !== keys2.length) return false;
   return keys1.every(k => obj2[k] && isEqual(obj1[k].value, obj2[k].value));
 };
-
-export const toValue = data => {
-  if (isValue(data)) {
-    return {
-      ...data,
-      set: data.set && ((...args) => data.set(...args.map(fromValue))),
-    };
-  }
-  return {
-    ...data,
-    value: List.fromPairs(
-      data.value.map(({ key, value }) => ({
-        key: toValue(key),
-        value: toValue(value as any),
-      })),
-    ).setFunc(data.value.func),
-    set: data.set && ((...args) => data.set(...args.map(fromValue))),
-  };
-};
-const fromValueInner = value => {
-  if (value.type !== 'list') {
-    return {
-      ...value,
-      type: 'value',
-      value: value.value || '',
-      set: value.set && ((...args) => value.set(...args.map(toValue))),
-    };
-  }
-  const result = { ...value };
-  result.value = result.value.toPairs().map(({ key, value }) => ({
-    key: fromValue(key),
-    value: fromValue(value),
-  }));
-  result.value.func = value.value.getFunc();
-  return {
-    ...result,
-    set: result.set && ((...args) => result.set(...args.map(toValue))),
-  };
-};
-export const fromValue = memoize(fromValueInner);
 
 export const toIndex = (v: string) => {
   const n = parseFloat(v);

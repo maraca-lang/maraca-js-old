@@ -1,4 +1,5 @@
 import maraca from '../src/index';
+import List from '../src/list';
 
 import config from './config';
 
@@ -59,16 +60,16 @@ test('push list', done => {
     [
       {
         type: 'list',
-        value: [
+        value: List.fromPairs([
           {
             key: { type: 'value', value: '1' },
             value: { type: 'value', value: 'a' },
           },
-        ],
+        ] as any),
       },
       {
         type: 'list',
-        value: [
+        value: List.fromPairs([
           {
             key: { type: 'value', value: '1' },
             value: { type: 'value', value: 'a' },
@@ -77,7 +78,7 @@ test('push list', done => {
             key: { type: 'value', value: '2' },
             value: { type: 'value', value: 'a' },
           },
-        ],
+        ] as any),
       },
     ],
     done,

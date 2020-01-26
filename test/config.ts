@@ -1,4 +1,4 @@
-import { fromJs, toJs } from '../src/index';
+import { fromJs, toJs } from '../src/data';
 
 export default {
   '@': [
@@ -25,7 +25,7 @@ export default {
       emit(
         fromJs(
           x.type === 'list'
-            ? x.value.filter(v => v.value.type !== 'nil').length
+            ? x.value.toPairs().filter(v => v.value.value).length
             : '0',
         ),
       ),

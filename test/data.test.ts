@@ -1,4 +1,5 @@
 import maraca from '../src/index';
+import List from '../src/list';
 
 test('nil', () => {
   expect(maraca('')).toEqual({ type: 'value', value: '' });
@@ -34,7 +35,7 @@ test('comments', () => {
 test('lists', () => {
   expect(maraca('[hello, world]')).toEqual({
     type: 'list',
-    value: [
+    value: List.fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: 'hello' },
@@ -43,11 +44,11 @@ test('lists', () => {
         key: { type: 'value', value: '2' },
         value: { type: 'value', value: 'world' },
       },
-    ],
+    ] as any),
   });
   expect(maraca('[x: a, y: b]')).toEqual({
     type: 'list',
-    value: [
+    value: List.fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: 'a', set: expect.any(Function) },
@@ -56,11 +57,11 @@ test('lists', () => {
         key: { type: 'value', value: 'y' },
         value: { type: 'value', value: 'b', set: expect.any(Function) },
       },
-    ],
+    ] as any),
   });
   expect(maraca('[10, key: value]')).toEqual({
     type: 'list',
-    value: [
+    value: List.fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: '10' },
@@ -69,14 +70,14 @@ test('lists', () => {
         key: { type: 'value', value: 'key' },
         value: { type: 'value', value: 'value', set: expect.any(Function) },
       },
-    ],
+    ] as any),
   });
 });
 
 test('list nils ignored', () => {
   expect(maraca('[a, , b]')).toEqual({
     type: 'list',
-    value: [
+    value: List.fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: 'a' },
@@ -85,11 +86,11 @@ test('list nils ignored', () => {
         key: { type: 'value', value: '2' },
         value: { type: 'value', value: 'b' },
       },
-    ],
+    ] as any),
   });
   expect(maraca('[`comment`, 1, c: , 2]')).toEqual({
     type: 'list',
-    value: [
+    value: List.fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: '1' },
@@ -102,19 +103,19 @@ test('list nils ignored', () => {
         key: { type: 'value', value: 'c' },
         value: { type: 'value', value: '', set: expect.any(Function) },
       },
-    ],
+    ] as any),
   });
 });
 
 test('nest lists', () => {
   expect(maraca('[y: [a, b]]')).toEqual({
     type: 'list',
-    value: [
+    value: List.fromPairs([
       {
         key: { type: 'value', value: 'y' },
         value: {
           type: 'list',
-          value: [
+          value: List.fromPairs([
             {
               key: { type: 'value', value: '1' },
               value: { type: 'value', value: 'a' },
@@ -123,18 +124,18 @@ test('nest lists', () => {
               key: { type: 'value', value: '2' },
               value: { type: 'value', value: 'b' },
             },
-          ],
+          ] as any),
         },
       },
-    ],
+    ] as any),
   });
   expect(maraca('[[a, b]: 100]')).toEqual({
     type: 'list',
-    value: [
+    value: List.fromPairs([
       {
         key: {
           type: 'list',
-          value: [
+          value: List.fromPairs([
             {
               key: { type: 'value', value: '1' },
               value: { type: 'value', value: 'a' },
@@ -143,18 +144,18 @@ test('nest lists', () => {
               key: { type: 'value', value: '2' },
               value: { type: 'value', value: 'b' },
             },
-          ],
+          ] as any),
         },
         value: { type: 'value', value: '100', set: expect.any(Function) },
       },
-    ],
+    ] as any),
   });
 });
 
 test('list sort', () => {
   expect(maraca('[z: 1, y: 2, b, a]')).toEqual({
     type: 'list',
-    value: [
+    value: List.fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: 'b' },
@@ -171,18 +172,18 @@ test('list sort', () => {
         key: { type: 'value', value: 'z' },
         value: { type: 'value', value: '1', set: expect.any(Function) },
       },
-    ],
+    ] as any),
   });
 });
 
 test('list assign shorthand', () => {
   expect(maraca('[item:=]')).toEqual({
     type: 'list',
-    value: [
+    value: List.fromPairs([
       {
         key: { type: 'value', value: 'item' },
         value: { type: 'value', value: 'item', set: expect.any(Function) },
       },
-    ],
+    ] as any),
   });
 });

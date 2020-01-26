@@ -1,10 +1,5 @@
 import build from './build';
-import {
-  fromJs as fromJsBase,
-  fromValue,
-  toJs as toJsBase,
-  toValue,
-} from './data';
+import { fromJs } from './data';
 import List from './list';
 import parse from './parse';
 import process from './process';
@@ -13,9 +8,6 @@ import { Config, Data, Source, StreamData } from './typings';
 export { unpack } from './data';
 export { default as parse } from './parse';
 export { Data, Source } from './typings';
-
-export const fromJs = (value: any): Data => fromValue(fromJsBase(value));
-export const toJs = (data: Data): any => toJsBase(toValue(data));
 
 const wrapCreate = create => (run, ...args) =>
   ({
@@ -55,21 +47,21 @@ function maraca(
 function maraca(...args) {
   const [source, { '@': interpret = [], '#': library = {} } = {}, onData] =
     typeof args[1] === 'function' ? [args[0], {}, args[1]] : args;
-  const result = process(baseCreate => {
+  return process(baseCreate => {
     const create = wrapCreate(baseCreate);
     const config = { '@': interpret, '#': {} };
     Object.keys(library).forEach(k => {
       config['#'][k] = create(
         typeof library[k] !== 'function'
-          ? () => ({ initial: toValue(library[k]) })
+          ? () => ({ initial: library[k] })
           : ({ output, get }) => {
               let first = true;
               let initial = { type: 'value', value: '' };
               const emit = ({ set, ...data }) => {
                 const value = {
-                  ...toValue(data as Data),
-                  set: set && (v => set(fromValue(get(v, true)))),
-                };
+                  ...data,
+                  set: set && (v => set(get(v, true))),
+                } as any;
                 if (first) initial = value;
                 else output(value);
               };
@@ -96,11 +88,11 @@ function maraca(...args) {
       type: 'list',
       value: List.fromPairs(
         Object.keys(modules).map(k => ({
-          key: fromJsBase(k),
+          key: fromJs(k),
           value: create(({ output, create }) => {
             if (typeof modules[k] === 'function') {
               modules[k]().then(code => output(buildModule(create, code)));
-              return { initial: fromJsBase(null) };
+              return { initial: fromJs(null) };
             }
             return { initial: buildModule(create, modules[k]) };
           }),
@@ -122,8 +114,7 @@ function maraca(...args) {
       initial: get(stream, true),
       update: () => output(get(stream, true)),
     })).value;
-  }, onData && (data => onData(fromValue(data))));
-  return onData ? result : fromValue(result);
+  }, onData);
 }
 
 export default maraca;
