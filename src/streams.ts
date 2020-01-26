@@ -1,25 +1,28 @@
 import build, { settable, streamMap } from './build';
 import { fromJs, fromJsFunc, toIndex, toJs } from './data';
-import listUtils from './list';
+import List from './list';
 import parse from './parse';
 
 const snapshot = (create, { set, ...value }, index?) => {
   const result =
     value.type !== 'list'
       ? value
-      : listUtils.fromPairs(
-          listUtils.toPairs(value).map(({ key, value }, i) => ({
-            key,
-            value: snapshot(
-              create,
-              value,
-              !(key.type === 'value' && toIndex(key.value)) && [
-                ...(index || [0]),
-                i,
-              ],
-            ),
-          })),
-        );
+      : {
+          type: 'list',
+          value: List.fromPairs(
+            value.value.toPairs().map(({ key, value }, i) => ({
+              key,
+              value: snapshot(
+                create,
+                value,
+                !(key.type === 'value' && toIndex(key.value)) && [
+                  ...(index || [0]),
+                  i,
+                ],
+              ),
+            })),
+          ),
+        };
   return index ? create(settable(result), null, index) : result;
 };
 
@@ -28,7 +31,7 @@ export default (type, info, config, create, nodes) => {
     return create(({ get, create }) => {
       let source = get(nodes[0]);
       return {
-        initial: { type: 'nil' },
+        initial: { type: 'value', value: '' },
         update: () => {
           const dest = get(nodes[1]);
           const newSource = get(nodes[0]);
@@ -43,7 +46,7 @@ export default (type, info, config, create, nodes) => {
 
   if (type === 'interpret') {
     const func = config['@'] && config['@'][info.level - 1];
-    if (!func) return { type: 'nil' };
+    if (!func) return { type: 'value', value: '' };
     return create(fromJsFunc(nodes[0], func, true));
   }
 
@@ -52,7 +55,9 @@ export default (type, info, config, create, nodes) => {
       streamMap(([code], create) => {
         const subContext = {
           scope: [{ type: 'any', value: nodes[1] }],
-          current: [{ type: 'constant', value: listUtils.empty() }],
+          current: [
+            { type: 'constant', value: { type: 'list', value: new List() } },
+          ],
         };
         let parsed = { type: 'nil' };
         try {
@@ -85,17 +90,20 @@ export default (type, info, config, create, nodes) => {
         const resolved = get(nodes[0]);
         const v = resolved.type !== 'list' && toJs(resolved);
         if (typeof v === 'number' && Math.floor(v) === v) {
-          return listUtils.fromArray(
-            Array.from({ length: v }).map((_, i) => fromJs(i + 1)),
-          );
+          return {
+            type: 'list',
+            value: List.fromArray(
+              Array.from({ length: v }).map((_, i) => fromJs(i + 1)),
+            ),
+          };
         }
         if (typeof v === 'string') {
-          return (config['#'] && config['#'][v]) || { type: 'nil' };
+          return (
+            (config['#'] && config['#'][v]) || { type: 'value', value: '' }
+          );
         }
         const list = get(nodes[0], true);
-        return fromJs(
-          listUtils.toPairs(list).filter(d => d.value.type !== 'nil').length,
-        );
+        return fromJs(list.toPairs().filter(d => d.value).length);
       };
       return { initial: run(), update: () => output(run()) };
     });

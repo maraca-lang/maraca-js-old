@@ -124,7 +124,6 @@ test('nest lists', () => {
               value: { type: 'value', value: 'b' },
             },
           ],
-          set: expect.any(Function),
         },
       },
     ],

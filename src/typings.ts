@@ -1,3 +1,6 @@
+import List from './list';
+import { Stream } from './process';
+
 export interface Obj<T = any> {
   [key: string]: T;
 }
@@ -15,18 +18,24 @@ export type Source =
   | AST
   | [string | AST, Obj<string | AST | (() => Promise<string | AST>)>];
 
-export type Data =
-  | { type: 'nil'; value?: undefined; set?: any }
-  | { type: 'value'; value: string; set?: any }
-  | {
-      type: 'list';
-      value: {
-        values: Obj<{ key: Data; value: Data }>;
-        indices: number[];
-        other?: any;
-      };
-      set?: any;
-    };
+export interface ValueData {
+  type: 'value';
+  value: string;
+  set?: any;
+}
+export interface ListData {
+  type: 'list';
+  value: List;
+  set?: any;
+}
+export interface StreamData {
+  type: 'stream';
+  value: Stream;
+}
+export type Data = ValueData | ListData;
+export type FullData = Data | StreamData;
+
+export const isValue = (data: Data): data is ValueData => data.type === 'value';
 
 export interface Config {
   '@'?: ((emit: (output: Data) => void) => (value?: Data) => void)[];

@@ -16,7 +16,10 @@ const testStream = (code, values, done) => {
 test('interpret', done => {
   testStream(
     '@1',
-    [{ type: 'value', value: '1' }, { type: 'value', value: '2' }],
+    [
+      { type: 'value', value: '1' },
+      { type: 'value', value: '2' },
+    ],
     done,
   );
 });
@@ -31,7 +34,10 @@ test('lib', () => {
 test('trigger', done => {
   testStream(
     '@1 | 10',
-    [{ type: 'value', value: '10' }, { type: 'value', value: '10' }],
+    [
+      { type: 'value', value: '10' },
+      { type: 'value', value: '10' },
+    ],
     done,
   );
 });
@@ -59,7 +65,6 @@ test('push list', done => {
             value: { type: 'value', value: 'a' },
           },
         ],
-        set: expect.any(Function),
       },
       {
         type: 'list',
@@ -73,7 +78,6 @@ test('push list', done => {
             value: { type: 'value', value: 'a' },
           },
         ],
-        set: expect.any(Function),
       },
     ],
     done,

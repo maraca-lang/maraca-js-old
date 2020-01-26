@@ -1,7 +1,7 @@
 import assign from './assign';
 import { streamMap } from './build';
 import { fromJs } from './data';
-import listUtils from './list';
+import List from './list';
 
 const joinValues = (v1, v2, space) =>
   fromJs(
@@ -18,28 +18,32 @@ const joinValues = (v1, v2, space) =>
 
 export const combineValues = (v1, v2, dot, space) => {
   if ([v1, v2].every(v => v.type !== 'list')) {
-    if (dot && [v1, v2].some(v => v.type === 'nil')) return { type: 'nil' };
+    if (dot && [v1, v2].some(v => !v.value)) {
+      return { type: 'value', value: '' };
+    }
     return joinValues(v1, v2, space);
   }
-  if ([v1, v2].every(v => v.type === 'list')) return { type: 'nil' };
+  if ([v1, v2].every(v => v.type === 'list')) {
+    return { type: 'value', value: '' };
+  }
   const [l, v] = v1.type === 'list' ? [v1, v2] : [v2, v1];
-  return listUtils.get(l, v);
+  return l.value.get(v);
 };
 
 const sortTypes = (v1, v2) => {
-  if (v2.type === 'nil') return [v1, v2];
-  if (v1.type === 'nil') return [v2, v1];
+  if (!v2.value) return [v1, v2];
+  if (!v1.value) return [v2, v1];
   if (v2.type === 'value') return [v1, v2];
   if (v1.type === 'value') return [v2, v1];
-  if (!listUtils.getFunc(v2)) return [v1, v2];
-  if (!listUtils.getFunc(v1)) return [v2, v1];
+  if (!v2.value.getFunc()) return [v1, v2];
+  if (!v1.value.getFunc()) return [v2, v1];
   return [null, null];
 };
 
 const getType = (big, small) => {
-  if (big.type === 'nil' || (big === null && small === null)) return 'nil';
+  if (!big.value || (big === null && small === null)) return 'nil';
   if (big.type === 'value') return 'join';
-  const func = listUtils.getFunc(big);
+  const func = big.value.getFunc();
   if (func && func.isMap && small.type !== 'list') return 'nil';
   return func && func.isMap ? 'map' : 'get';
 };
@@ -49,8 +53,8 @@ const getInfo = ([s1, s2], get, dot) => {
   const v2 = get(s2);
   const [b, s] = sortTypes(v1, v2);
   const [big, small] =
-    dot && b.type === 'value' && s.type === 'nil'
-      ? [listUtils.empty(), b]
+    dot && b.type === 'value' && !s.value
+      ? [{ type: 'list', value: new List() }, b]
       : [b, s];
   return { type: getType(big, small), reverse: small === v1, big, small };
 };
@@ -64,14 +68,14 @@ const runGet = (create, value, func, arg) => {
   if (typeof value === 'function') return value(create, arg)[0];
   if (value.type !== 'stream' || !func) return value;
   return create(
-    streamMap(([v]) => (v.type === 'nil' ? func(create, arg)[0] : v))([value]),
+    streamMap(([v]) => (!v.value ? func(create, arg)[0] : v))([value]),
   );
 };
 
 const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
   if (type === 'nil') {
     return {
-      result: { type: 'nil' },
+      result: { type: 'value', value: '' },
       canContinue: info => info.type === 'nil',
     };
   }
@@ -84,35 +88,33 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
     };
   }
   if (type === 'get') {
-    const value = listUtils.get(big, small);
+    const value = big.value.get(small);
     const result = runGet(
       create,
       value,
-      listUtils.getFunc(big),
+      big.value.getFunc(),
       reverse ? s1 : s2,
     );
     return {
       result: result.type === 'stream' ? create(copy(result)) : result,
       canContinue: info =>
         info.type === 'get' &&
-        listUtils.get(info.big, info.small) === value &&
-        listUtils.getFunc(info.big) === listUtils.getFunc(big),
+        info.big.value.get(info.small) === value &&
+        info.big.value.getFunc() === big.value.getFunc(),
     };
   }
-  const func = listUtils.getFunc(big);
+  const func = big.value.getFunc();
   if (func.isPure) {
     return {
       result: create(
-        streamMap(([b, s]) => {
-          return listUtils.fromPairs([
-            ...listUtils.toPairs(b),
-            ...listUtils.toPairs(s),
-          ]);
-        })([big, func(create, small)[0]]),
+        streamMap(([b, s]) => ({
+          type: 'list',
+          value: List.fromPairs([...b.value.toPairs(), ...s.value.toPairs()]),
+        }))([big, func(create, small)[0]]),
       ),
     };
   }
-  const pairs = listUtils.toPairs(small).filter(d => d.value.type !== 'nil');
+  const pairs = small.value.toPairs().filter(d => d.value.value);
   return {
     result: pairs.reduce(
       (res, { key, value }) => {
@@ -123,7 +125,7 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
           create(assign([current, result, key], false, false, false)),
         ];
       },
-      [undefined, listUtils.cloneValues(big)],
+      [undefined, { type: 'list', value: big.value.cloneValues() }],
     )[1],
   };
 };

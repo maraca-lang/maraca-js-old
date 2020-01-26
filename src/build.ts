@@ -3,7 +3,7 @@ import combine from './combine';
 import { fromJs, toIndex } from './data';
 import maps from './maps';
 import { combineValues } from './combine';
-import listUtils from './list';
+import List from './list';
 import streamBuild from './streams';
 
 export const streamMap = map => (args, deeps = [] as boolean[]) => ({
@@ -114,7 +114,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     type === 'comment' ||
     (type === 'value' && !info.value)
   ) {
-    return { type: 'constant', value: { type: 'nil' } };
+    return { type: 'constant', value: { type: 'value', value: '' } };
   }
   if (type === 'value') {
     return { type: 'constant', value: { type: 'value', value: info.value } };
@@ -127,16 +127,19 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     const ctx = info.semi
       ? { scope: [...context.scope], current: [...context.current] }
       : { scope: [], current: [] };
-    ctx.current.unshift({ type: 'constant', value: listUtils.empty() });
+    ctx.current.unshift({
+      type: 'constant',
+      value: { type: 'list', value: new List() },
+    });
     ctx.scope.unshift({
       type: 'any',
       items: { ...context.scope[0].items },
       value: create(
-        streamMap(([value]) =>
-          value.type === 'list'
-            ? listUtils.clearIndices(value)
-            : listUtils.empty(),
-        )([context.scope[0].value]),
+        streamMap(([value]) => ({
+          type: 'list',
+          value:
+            value.type === 'list' ? value.value.clearIndices() : new List(),
+        }))([context.scope[0].value]),
       ),
     });
     nodes.forEach(n => {
@@ -174,7 +177,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         (i === 1 && nodes[0].type === 'context') !==
         (nodes[i].type === 'context')
       ) {
-        const v = create(settable({ type: 'nil' }));
+        const v = create(settable({ type: 'value', value: '' }));
         const k = argPair[nodes[i].type === 'context' ? 0 : 1];
         const prevScopes = [...context.scope];
         [context.scope, context.current].forEach(l => {
@@ -189,12 +192,12 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
                 streamMap(([list, key, scope]) => {
                   if (
                     list.type === 'list' &&
-                    !listUtils.getFunc(list) &&
+                    !list.value.getFunc() &&
                     key.type !== 'list' &&
                     !toIndex(key.value) &&
-                    !listUtils.has(scope, key)
+                    !scope.value.has(key)
                   ) {
-                    return listUtils.set(list, key, v);
+                    return { type: 'list', value: list.value.set(key, v) };
                   }
                   return list;
                 })([l[j], k, prevScopes[j]].map(a => a.value)),
@@ -245,13 +248,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
   }
 
   if (type === 'assign') {
-    if (
-      !(
-        info.append &&
-        args[0].type === 'constant' &&
-        args[0].value.type === 'nil'
-      )
-    ) {
+    if (!(info.append && args[0].type === 'constant' && !args[0].value.value)) {
       const assignArgs = [...args].filter(x => x);
       if (!info.append && assignArgs[1]) {
         assignArgs[0] = {
@@ -266,13 +263,16 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
 
         const merged = mergeMaps(create, allArgs, true, ([l, v, k]) => {
           if (!k && info.append) {
-            if (v.type === 'nil') return l;
-            return listUtils.append(l, v);
+            if (!v.value) return l;
+            return { type: 'list', value: l.value.append(v) };
           }
           if ((!k || k.type === 'list') && v.type === 'list') {
-            return listUtils.destructure(l, k, v);
+            return { type: 'list', value: l.value.destructure(k, v) };
           }
-          return listUtils.set(l, k || { type: 'nil' }, v);
+          return {
+            type: 'list',
+            value: l.value.set(k || { type: 'value', value: '' }, v),
+          };
         });
         l[0] = merged || {
           type: 'any',
@@ -300,7 +300,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         }
       });
     }
-    return { type: 'constant', value: { type: 'nil' } };
+    return { type: 'constant', value: { type: 'value', value: '' } };
   }
 
   if (type === 'func') {
@@ -309,8 +309,11 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         .filter(a => a)
         .every(a => a.type === 'constant' && a.value.type !== 'list')
     ) {
-      const argTrace = { type: 'data', value: { type: 'nil' } };
-      const currentTrace = { type: 'constant', value: listUtils.empty() };
+      const argTrace = { type: 'data', value: { type: 'value', value: '' } };
+      const currentTrace = {
+        type: 'constant',
+        value: { type: 'list', value: new List() },
+      };
       const ctx = {
         scope: [
           {
@@ -323,7 +326,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
                       [a.value.value || '']: {
                         type: 'map',
                         arg: argTrace,
-                        map: x => listUtils.get(x, fromJs(i + 1)),
+                        map: x => x.value.get(fromJs(i + 1)),
                       },
                     }
                   : res,
@@ -345,44 +348,53 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
           type: 'any',
           items: { ...context.current[0].items },
           value: create(
-            streamMap(([current]) =>
-              listUtils.setFunc(
-                current || listUtils.empty(),
+            streamMap(([current]) => ({
+              type: 'list',
+              value: ((current && current.value) || new List()).setFunc(
                 info.map
                   ? (create, list) => [
                       create(
                         streamMap(([y]) => {
-                          const mapped = listUtils
-                            .toPairs(y)
-                            .filter(d => d.value.type !== 'nil')
+                          const mapped = y.value
+                            .toPairs()
+                            .filter(d => d.value.value)
                             .map(({ key, value }) => ({
                               key: compiledBody.key
-                                ? compiledBody.key(
-                                    listUtils.fromArray([key, value]),
-                                  )
+                                ? compiledBody.key({
+                                    type: 'list',
+                                    value: List.fromArray([key, value]),
+                                  })
                                 : key,
-                              value: compiledBody.value(
-                                listUtils.fromArray([key, value]),
-                              ),
+                              value: compiledBody.value({
+                                type: 'list',
+                                value: List.fromArray([key, value]),
+                              }),
                             }))
-                            .filter(d => d.value.type !== 'nil');
-                          return listUtils.fromPairs(
-                            compiledBody.index
-                              ? mapped.map((d, i) => ({
-                                  key: fromJs(i + 1),
-                                  value: d.value,
-                                }))
-                              : mapped,
-                          );
+                            .filter(d => d.value.value);
+                          return {
+                            type: 'list',
+                            value: List.fromPairs(
+                              compiledBody.index
+                                ? mapped.map((d, i) => ({
+                                    key: fromJs(i + 1),
+                                    value: d.value,
+                                  }))
+                                : mapped,
+                            ),
+                          };
                         })([list], [true]),
                       ),
                     ]
                   : (create, value) => [
                       create(
                         streamMap(([y]) =>
-                          compiledBody.value(
-                            listUtils.fromArray([{ type: 'nil' }, y]),
-                          ),
+                          compiledBody.value({
+                            type: 'list',
+                            value: List.fromArray([
+                              { type: 'value', value: '' },
+                              y,
+                            ]),
+                          }),
                         )([value]),
                       ),
                     ],
@@ -390,10 +402,10 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
                 !!args[1],
                 true,
               ),
-            )([context.current[0].value]),
+            }))([context.current[0].value]),
           ),
         };
-        return { type: 'constant', value: { type: 'nil' } };
+        return { type: 'constant', value: { type: 'value', value: '' } };
       }
     }
 
@@ -401,7 +413,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     const scope = context.scope[0].value;
     const funcMap = (
       funcScope = scope,
-      funcCurrent = listUtils.empty(),
+      funcCurrent = { type: 'list', value: new List() },
       key = null,
     ) => (subCreate, value) => {
       const values = [key, value];
@@ -432,17 +444,17 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
       type: 'any',
       items: { ...context.current[0].items },
       value: create(
-        streamMap(([current]) =>
-          listUtils.setFunc(
-            current || listUtils.empty(),
+        streamMap(([current]) => ({
+          type: 'list',
+          value: ((current && current.value) || new List()).setFunc(
             info.map ? funcMap : func,
             info.map,
             !!args[1],
           ),
-        )([context.current[0].value]),
+        }))([context.current[0].value]),
       ),
     };
-    return { type: 'constant', value: { type: 'nil' } };
+    return { type: 'constant', value: { type: 'value', value: '' } };
   }
 
   return {

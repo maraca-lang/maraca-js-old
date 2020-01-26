@@ -1,4 +1,5 @@
-import listUtils from './list';
+import List from './list';
+import { isValue } from './typings';
 
 const memoMap = new WeakMap();
 const memoize = func => {
@@ -37,28 +38,37 @@ export const fromJs = value => {
   if (typeof value === 'number') return { type: 'value', value: `${value}` };
   if (typeof value === 'string') return { type: 'value', value };
   if (typeof value === 'function') {
-    return listUtils.fromFunc((create, arg) => [
-      create(fromJsFunc(arg, value, true)),
-    ]);
+    return {
+      type: 'list',
+      value: List.fromFunc((create, arg) => [
+        create(fromJsFunc(arg, value, true)),
+      ]),
+    };
   }
   if (Object.prototype.toString.call(value) === '[object Date]') {
     return { type: 'value', value: value.toISOString() };
   }
   if (Object.prototype.toString.call(value) === '[object Object]') {
-    return listUtils.fromPairs(
-      Object.keys(value).map(k => ({
-        key: fromJs(k),
-        value: fromJs(value[k]),
-      })),
-    );
+    return {
+      type: 'list',
+      value: List.fromPairs(
+        Object.keys(value).map(k => ({
+          key: fromJs(k),
+          value: fromJs(value[k]),
+        })),
+      ),
+    };
   }
   if (Array.isArray(value)) {
-    return listUtils.fromPairs(
-      value.map(({ key, value }) => ({
-        key: fromJs(key),
-        value: fromJs(value),
-      })),
-    );
+    return {
+      type: 'list',
+      value: List.fromPairs(
+        value.map(({ key, value }) => ({
+          key: fromJs(key),
+          value: fromJs(value),
+        })),
+      ),
+    };
   }
   return { type: 'nil' };
 };
@@ -72,8 +82,8 @@ export const toJs = data => {
     if (dateRegex.test(s)) return new Date(s);
     return s;
   }
-  return listUtils
-    .toPairs(data)
+  return data
+    .toPairs()
     .filter(({ value }) => value.type !== 'nil')
     .map(({ key, value }) => ({ key: toJs(key), value: toJs(value) }));
 };
@@ -81,8 +91,8 @@ export const toJs = data => {
 export const isEqual = (v1, v2) => {
   if (v1.type !== v2.type) return false;
   if (v1.type !== 'list') return v1.value === v2.value;
-  const fullObj1 = listUtils.toObject(v1);
-  const fullObj2 = listUtils.toObject(v2);
+  const fullObj1 = v1.toObject();
+  const fullObj2 = v2.toObject();
   const obj1 = Object.keys(fullObj1).reduce(
     (res, k) =>
       fullObj1[k].type === 'nil' ? res : { ...res, [k]: fullObj1[k] },
@@ -100,29 +110,21 @@ export const isEqual = (v1, v2) => {
 };
 
 export const toValue = data => {
-  if (data.type !== 'list') {
+  if (isValue(data)) {
     return {
       ...data,
-      type: data.value ? 'value' : 'nil',
-      value: data.value || undefined,
       set: data.set && ((...args) => data.set(...args.map(fromValue))),
     };
   }
-  const result = {
-    ...data,
-    value: {
-      ...(listUtils.fromPairs(
-        data.value.map(({ key, value }) => ({
-          key: toValue(key),
-          value: toValue(value),
-        })),
-      ).value as any),
-      func: data.value.func,
-    },
-  };
   return {
-    ...result,
-    set: result.set && ((...args) => result.set(...args.map(fromValue))),
+    ...data,
+    value: List.fromPairs(
+      data.value.map(({ key, value }) => ({
+        key: toValue(key),
+        value: toValue(value as any),
+      })),
+    ).setFunc(data.value.func),
+    set: data.set && ((...args) => data.set(...args.map(fromValue))),
   };
 };
 const fromValueInner = value => {
@@ -134,12 +136,12 @@ const fromValueInner = value => {
       set: value.set && ((...args) => value.set(...args.map(toValue))),
     };
   }
-  const result = { ...value, value: listUtils.toPairs(value) };
-  result.value = result.value.map(({ key, value }) => ({
+  const result = { ...value };
+  result.value = result.value.toPairs().map(({ key, value }) => ({
     key: fromValue(key),
     value: fromValue(value),
   }));
-  result.value.func = value.value.func;
+  result.value.func = value.value.getFunc();
   return {
     ...result,
     set: result.set && ((...args) => result.set(...args.map(toValue))),

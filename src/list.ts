@@ -1,11 +1,14 @@
 import { fromJs, sortMultiple, toIndex } from './data';
-import { Data } from './typings';
+import { Data, Obj, isValue, StreamData } from './typings';
 
-const toKey = ({ type, value }) => {
-  if (type !== 'list') return value;
+const toKey = (data: Data) => {
+  if (isValue(data)) return data.value;
   return JSON.stringify(
-    Object.keys(value.values).reduce(
-      (res, k) => ({ ...res, [k]: toKey(value.values[k].value) }),
+    data.value.toPairs().reduce(
+      (res, { key, value }) => ({
+        ...res,
+        [toKey(key)]: toKey(value as any),
+      }),
       {},
     ),
   );
@@ -42,11 +45,13 @@ const sortStrings = (s1, s2): -1 | 0 | 1 => {
   return (dir * (t1 === 'number' ? -1 : 1)) as -1 | 0 | 1;
 };
 const compare = (v1, v2): -1 | 0 | 1 => {
-  if (v1.type !== v2.type) {
-    return v1.type === 'value' || v2.type === 'list' ? -1 : 1;
+  const type1 = v1.value ? v1.type : 'nil';
+  const type2 = v2.value ? v2.type : 'nil';
+  if (type1 !== type2) {
+    return type1 === 'value' || type2 === 'list' ? -1 : 1;
   }
-  if (v1.type === 'nil') return 0;
-  if (v1.type === 'value') return sortStrings(v1.value, v2.value);
+  if (type1 === 'nil') return 0;
+  if (type1 === 'value') return sortStrings(v1.value, v2.value);
   const keys = Array.from(
     new Set([...Object.keys(v1.value.values), ...Object.keys(v2.value.values)]),
   ).sort((a, b) =>
@@ -57,83 +62,92 @@ const compare = (v1, v2): -1 | 0 | 1 => {
   );
   return sortMultiple(
     keys.map(
-      k => (v1.value.values[k] && v1.value.values[k].value) || { type: 'nil' },
+      k =>
+        (v1.value.values[k] && v1.value.values[k].value) || {
+          type: 'value',
+          value: '',
+        },
     ),
     keys.map(
-      k => (v2.value.values[k] && v2.value.values[k].value) || { type: 'nil' },
+      k =>
+        (v2.value.values[k] && v2.value.values[k].value) || {
+          type: 'value',
+          value: '',
+        },
     ),
     compare,
   );
 };
 
-const listUtils = {
-  empty: () => ({ type: 'list', value: { values: {}, indices: [] } } as Data),
-  fromPairs: pairs => {
-    const result = { values: {}, indices: [] as number[] };
+export default class List {
+  private values: Obj<{ key: Data; value: StreamData }> = {};
+  private indices: number[] = [];
+  private func?: any;
+
+  static fromPairs(pairs: { key: Data; value: StreamData }[]) {
+    const result = new List();
     pairs.forEach(pair => {
       const k = toKey(pair.key);
       const i = toIndex(k);
-      if (!i || pair.value.type !== 'nil') {
-        if (!result.values[k] || pair.value.type !== 'nil') {
-          result.values[k] = pair;
-        }
+      if (!i || pair.value) {
+        if (!result.values[k] || pair.value) result.values[k] = pair;
         if (i) result.indices.push(i);
       }
     });
     result.indices.sort((a, b) => a - b);
-    return { type: 'list', value: result } as Data;
-  },
-  fromFunc: (func, isMap?) =>
-    ({
-      type: 'list',
-      value: { values: {}, indices: [], func: Object.assign(func, { isMap }) },
-    } as Data),
-  fromArray: items =>
-    ({
-      type: 'list',
-      value: {
-        values: items.reduce(
-          (res, v, i) => ({
-            ...res,
-            [i + 1]: { key: fromJs(i + 1), value: v },
-          }),
-          {},
-        ),
-        indices: items.map((_, i) => i + 1),
-      },
-    } as Data),
+    return result;
+  }
+  static fromFunc(func, isMap?) {
+    const result = new List();
+    result.func = Object.assign(func, { isMap });
+    return result;
+  }
+  static fromArray(items: Data[]) {
+    const result = new List();
+    result.values = items.reduce(
+      (res, v, i) => ({
+        ...res,
+        [i + 1]: { key: fromJs(i + 1), value: v },
+      }),
+      {},
+    );
+    result.indices = items.map((_, i) => i + 1);
+    return result;
+  }
 
-  toPairs: list =>
-    Object.keys(list.value.values)
-      .map(k => list.value.values[k])
-      .sort((a, b) => compare(a.key, b.key)),
-  toObject: list => list.value.values,
-  cloneValues: list => ({
-    type: 'list',
-    value: {
-      values: { ...list.value.values },
-      indices: [...list.value.indices],
-    },
-  }),
+  toPairs() {
+    return Object.keys(this.values)
+      .map(k => this.values[k])
+      .sort((a, b) => compare(a.key, b.key));
+  }
+  toObject() {
+    return this.values;
+  }
+  cloneValues() {
+    const result = new List();
+    result.values = { ...this.values };
+    result.indices = [...this.indices];
+    return result;
+  }
 
-  has: (list, key) => {
+  has(key: Data) {
     const k = toKey(key);
-    return !!(list.value.values[k] && list.value.values[k].value);
-  },
-  get: (list, key) => {
+    return !!(this.values[k] && this.values[k].value);
+  }
+  get(key: Data) {
     const k = toKey(key);
-    const v = list.value.values[k] && list.value.values[k].value;
-    return v || list.value.func || { type: 'nil' };
-  },
-  extract: (list, keys, doOffset) => {
-    const rest = {
-      values: { ...list.value.values },
-      indices: [...list.value.indices],
-    };
+    const v = this.values[k] && this.values[k].value;
+    return v || this.func || { type: 'value', value: '' };
+  }
+  extract(keys: Data[], doOffset: boolean) {
+    const rest = this.cloneValues();
     const values = keys.map(key => {
       const k = toKey(key);
       const i = toIndex(k);
-      const v = (rest.values[k] && rest.values[k].value) || { type: 'nil' };
+      const v = (rest.values[k] && rest.values[k].value) || {
+        type: 'value',
+        value: '',
+      };
       delete rest.values[k];
       if (i) rest.indices = rest.indices.filter(x => x !== i);
       return v;
@@ -148,87 +162,85 @@ const listUtils = {
       });
     }
     return { values, rest };
-  },
-  getFunc: list => list.value.func,
+  }
+  getFunc() {
+    return this.func;
+  }
 
-  map: (list, map) => {
-    const result = listUtils.fromPairs(
-      Object.keys(list.value.values).map(k => ({
-        key: list.value.values[k].key,
-        value: map(list.value.values[k].value, list.value.values[k].key),
+  map(map: (value: StreamData, key: Data) => StreamData) {
+    const result = List.fromPairs(
+      Object.keys(this.values).map(k => ({
+        key: this.values[k].key,
+        value: map(this.values[k].value, this.values[k].key),
       })),
-    ) as any;
-    result.set = list.set;
-    result.value.func = list.value.func;
+    );
+    // result.set = list.set;
+    result.func = this.func;
     return result;
-  },
+  }
 
-  clearIndices: list => {
-    const values = { ...list.value.values };
-    list.value.indices.forEach(i => {
-      delete values[i];
+  clearIndices() {
+    const result = new List();
+    result.values = { ...this.values };
+    this.indices.forEach(i => {
+      delete result.values[i];
     });
-    return { ...list, value: { values, indices: [], func: list.value.func } };
-  },
-  append: (list, value) => {
-    const i = (list.value.indices[list.value.indices.length - 1] || 0) + 1;
-    return {
-      ...list,
-      value: {
-        values: { ...list.value.values, [i]: { key: fromJs(i), value } },
-        indices: [...list.value.indices, i],
-        func: list.value.func,
-      },
-    };
-  },
-  set: (list, key, value) => {
+    result.func = this.func;
+    // result.set = list.set;
+    return result;
+  }
+  append(value: Data) {
+    const i = (this.indices[this.indices.length - 1] || 0) + 1;
+    const result = new List();
+    result.values = { ...this.values, [i]: { key: fromJs(i), value } };
+    result.indices = [...this.indices, i];
+    result.func = this.func;
+    // result.set = list.set;
+    return result;
+  }
+  set(key: Data, value: Data) {
     const k = toKey(key);
     const i = toIndex(k);
-    return {
-      ...list,
-      value: {
-        values: { ...list.value.values, [k]: { key, value } },
-        indices:
-          i && !list.value.indices.includes(i)
-            ? [...list.value.indices, i].sort((a, b) => a - b)
-            : list.value.indices,
-        func: list.value.func,
-      },
-    };
-  },
-  destructure: (list, key, value) => {
-    if ((!key || key.type === 'list') && value.type === 'list') {
+    const result = new List();
+    result.values = { ...this.values, [k]: { key, value } };
+    result.indices =
+      i && !this.indices.includes(i)
+        ? [...this.indices, i].sort((a, b) => a - b)
+        : this.indices;
+    result.func = this.func;
+    // result.set = list.set;
+    return result;
+  }
+  destructure(key: Data, value: Data): List {
+    if ((!key || !isValue(key)) && !isValue(value)) {
       if (!key) {
-        const offset = list.value.indices[list.value.indices.length - 1] || 0;
-        return listUtils.toPairs(value).reduce((res, v) => {
+        const offset = this.indices[this.indices.length - 1] || 0;
+        return value.value.toPairs().reduce<List>((res, v) => {
           const i = toIndex(toKey(v.key));
-          return listUtils.destructure(
-            res,
+          return res.destructure(
             i ? fromJs(i + offset) : v.key,
-            v.value,
+            v.value as any,
           );
-        }, list);
+        }, this);
       }
-      const keyPairs = listUtils.toPairs(key);
-      const { values } = listUtils.extract(
-        value,
+      const keyPairs = key.value.toPairs();
+      const { values } = value.value.extract(
         keyPairs.map(d => d.key),
         false,
       );
-      return values.reduce(
-        (res, v, i) => listUtils.destructure(res, keyPairs[i].value, v),
-        list,
+      return values.reduce<List>(
+        (res, v, i) => res.destructure(keyPairs[i].value as any, v as any),
+        this,
       );
     }
-    return listUtils.set(list, key || { type: 'nil' }, value);
-  },
-  setFunc: (list, func, isMap?, hasArg?, isPure?) => ({
-    ...list,
-    value: {
-      ...list.value,
-      func: Object.assign(func, { isMap, hasArg, isPure }),
-    },
-  }),
-};
-
-export default listUtils;
+    return this.set(key || { type: 'value', value: '' }, value);
+  }
+  setFunc(func, isMap?, hasArg?, isPure?) {
+    const result = new List();
+    result.values = this.values;
+    result.indices = this.indices;
+    result.func = Object.assign(func, { isMap, hasArg, isPure });
+    // result.set = list.set;
+    return result;
+  }
+}
