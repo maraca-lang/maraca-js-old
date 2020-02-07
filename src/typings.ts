@@ -1,5 +1,5 @@
 import List from './list';
-import { Stream } from './process';
+import { Stream } from './streams';
 
 export interface Obj<T = any> {
   [key: string]: T;

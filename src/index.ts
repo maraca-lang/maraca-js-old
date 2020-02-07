@@ -2,7 +2,7 @@ import build from './build';
 import { fromJs } from './data';
 import List from './list';
 import parse from './parse';
-import process from './process';
+import process from './streams';
 import { Config, Data, Source, StreamData } from './typings';
 
 export { unpack } from './data';

@@ -4,7 +4,7 @@ import { fromJs, toIndex } from './data';
 import maps from './maps';
 import { combineValues } from './combine';
 import List from './list';
-import streamBuild from './streams';
+import operations from './operations';
 
 export const streamMap = map => (args, deeps = [] as boolean[]) => ({
   get,
@@ -459,7 +459,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
 
   return {
     type: 'any',
-    value: streamBuild(
+    value: operations(
       type,
       info,
       config,
