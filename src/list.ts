@@ -174,7 +174,6 @@ export default class List {
         value: map(this.values[k].value, this.values[k].key),
       })),
     );
-    // result.set = list.set;
     result.func = this.func;
     return result;
   }
@@ -186,7 +185,6 @@ export default class List {
       delete result.values[i];
     });
     result.func = this.func;
-    // result.set = list.set;
     return result;
   }
   append(value: Data) {
@@ -195,7 +193,6 @@ export default class List {
     result.values = { ...this.values, [i]: { key: fromJs(i), value } };
     result.indices = [...this.indices, i];
     result.func = this.func;
-    // result.set = list.set;
     return result;
   }
   set(key: Data, value: Data) {
@@ -208,7 +205,6 @@ export default class List {
         ? [...this.indices, i].sort((a, b) => a - b)
         : this.indices;
     result.func = this.func;
-    // result.set = list.set;
     return result;
   }
   destructure(key: Data, value: Data): List {
@@ -240,7 +236,6 @@ export default class List {
     result.values = this.values;
     result.indices = this.indices;
     result.func = Object.assign(func, { isMap, hasArg, isPure });
-    // result.set = list.set;
     return result;
   }
 }

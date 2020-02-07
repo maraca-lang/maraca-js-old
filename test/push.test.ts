@@ -17,14 +17,14 @@ const testStream = (code, actions, values, done) => {
 test('basic', done => {
   testStream(
     '[x: 1]',
-    [data => data.value.get(fromJs('x')).set(fromJs(2))],
+    [data => data.value.get(fromJs('x')).push(fromJs(2))],
     [
       {
         type: 'list',
         value: List.fromPairs([
           {
             key: { type: 'value', value: 'x' },
-            value: { type: 'value', value: '1', set: expect.any(Function) },
+            value: { type: 'value', value: '1', push: expect.any(Function) },
           },
         ] as any),
       },
@@ -36,7 +36,7 @@ test('basic', done => {
             value: {
               type: 'value',
               value: '2',
-              set: expect.any(Function),
+              push: expect.any(Function),
             },
           },
         ] as any),
@@ -52,7 +52,7 @@ test('auto', () => {
     value: List.fromPairs([
       {
         key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: '', set: expect.any(Function) },
+        value: { type: 'value', value: '', push: expect.any(Function) },
       },
     ] as any),
   });
@@ -62,7 +62,7 @@ test('auto', () => {
     value: List.fromPairs([
       {
         key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: '', set: expect.any(Function) },
+        value: { type: 'value', value: '', push: expect.any(Function) },
       },
     ] as any),
   });
@@ -71,18 +71,18 @@ test('auto', () => {
 test('auto assign', done => {
   testStream(
     '[y: x?]',
-    [data => data.value.get(fromJs('x')).set(fromJs('a'))],
+    [data => data.value.get(fromJs('x')).push(fromJs('a'))],
     [
       {
         type: 'list',
         value: List.fromPairs([
           {
             key: { type: 'value', value: 'x' },
-            value: { type: 'value', value: '', set: expect.any(Function) },
+            value: { type: 'value', value: '', push: expect.any(Function) },
           },
           {
             key: { type: 'value', value: 'y' },
-            value: { type: 'value', value: '', set: expect.any(Function) },
+            value: { type: 'value', value: '', push: expect.any(Function) },
           },
         ] as any),
       },
@@ -94,7 +94,7 @@ test('auto assign', done => {
             value: {
               type: 'value',
               value: 'a',
-              set: expect.any(Function),
+              push: expect.any(Function),
             },
           },
           {
@@ -102,7 +102,7 @@ test('auto assign', done => {
             value: {
               type: 'value',
               value: 'a',
-              set: expect.any(Function),
+              push: expect.any(Function),
             },
           },
         ] as any),
@@ -115,18 +115,18 @@ test('auto assign', done => {
 test('auto assign 2', done => {
   testStream(
     '[y: (x?, 10)]',
-    [data => data.value.get(fromJs('x')).set(fromJs('a'))],
+    [data => data.value.get(fromJs('x')).push(fromJs('a'))],
     [
       {
         type: 'list',
         value: List.fromPairs([
           {
             key: { type: 'value', value: 'x' },
-            value: { type: 'value', value: '', set: expect.any(Function) },
+            value: { type: 'value', value: '', push: expect.any(Function) },
           },
           {
             key: { type: 'value', value: 'y' },
-            value: { type: 'value', value: '', set: expect.any(Function) },
+            value: { type: 'value', value: '', push: expect.any(Function) },
           },
         ] as any),
       },
@@ -138,7 +138,7 @@ test('auto assign 2', done => {
             value: {
               type: 'value',
               value: 'a',
-              set: expect.any(Function),
+              push: expect.any(Function),
             },
           },
           {
@@ -146,7 +146,7 @@ test('auto assign 2', done => {
             value: {
               type: 'value',
               value: '10',
-              set: expect.any(Function),
+              push: expect.any(Function),
             },
           },
         ] as any),

@@ -23,12 +23,12 @@ test('list lookup', () => {
   expect(maraca('y [x: a, y: b]')).toEqual({
     type: 'value',
     value: 'b',
-    set: expect.any(Function),
+    push: expect.any(Function),
   });
   expect(maraca('[x: a, y: b]x')).toEqual({
     type: 'value',
     value: 'a',
-    set: expect.any(Function),
+    push: expect.any(Function),
   });
   expect(maraca('2 [a, b, c]')).toEqual({
     type: 'value',
@@ -52,7 +52,7 @@ test('dot', () => {
   expect(maraca('[a b: c].a b')).toEqual({
     type: 'value',
     value: 'c',
-    set: expect.any(Function),
+    push: expect.any(Function),
   });
   expect(maraca('"".z')).toEqual({
     type: 'value',

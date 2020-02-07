@@ -1,9 +1,9 @@
-import build, { settable, streamMap } from './build';
+import build, { pushable, streamMap } from './build';
 import { fromJs, fromJsFunc, toIndex, toJs } from './data';
 import List from './list';
 import parse from './parse';
 
-const snapshot = (create, { set, ...value }, index?) => {
+const snapshot = (create, { push, ...value }, index?) => {
   const result =
     value.type !== 'list'
       ? value
@@ -23,7 +23,7 @@ const snapshot = (create, { set, ...value }, index?) => {
             })),
           ),
         };
-  return index ? create(settable(result), index) : result;
+  return index ? create(pushable(result), index) : result;
 };
 
 export default (type, info, config, create, nodes) => {
@@ -35,8 +35,8 @@ export default (type, info, config, create, nodes) => {
         update: () => {
           const dest = get(nodes[1]);
           const newSource = get(nodes[0]);
-          if (dest.set && source !== newSource) {
-            dest.set(snapshot(create, get(nodes[0], true)));
+          if (dest.push && source !== newSource) {
+            dest.push(snapshot(create, get(nodes[0], true)));
           }
           source = newSource;
         },

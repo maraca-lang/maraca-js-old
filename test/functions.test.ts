@@ -79,7 +79,7 @@ test('maps', () => {
     value: List.fromPairs([
       {
         key: { type: 'value', value: 'sum' },
-        value: { type: 'value', value: '6', set: expect.any(Function) },
+        value: { type: 'value', value: '6', push: expect.any(Function) },
       },
     ] as any),
   });

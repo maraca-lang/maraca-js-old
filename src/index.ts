@@ -57,10 +57,10 @@ function maraca(...args) {
           : ({ output, get }) => {
               let first = true;
               let initial = { type: 'value', value: '' };
-              const emit = ({ set, ...data }) => {
+              const emit = ({ push, ...data }) => {
                 const value = {
                   ...data,
-                  set: set && (v => set(get(v, true))),
+                  push: push && (v => push(get(v, true))),
                 } as any;
                 if (first) initial = value;
                 else output(value);

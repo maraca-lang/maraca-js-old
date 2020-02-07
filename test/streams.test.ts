@@ -47,8 +47,8 @@ test('push', done => {
   testStream(
     '[x: 10, @1 | x? + 10 -> x?].x',
     [
-      { type: 'value', value: '10', set: expect.any(Function) },
-      { type: 'value', value: '20', set: expect.any(Function) },
+      { type: 'value', value: '10', push: expect.any(Function) },
+      { type: 'value', value: '20', push: expect.any(Function) },
     ],
     done,
   );

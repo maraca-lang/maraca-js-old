@@ -21,12 +21,12 @@ export type Source =
 export interface ValueData {
   type: 'value';
   value: string;
-  set?: any;
+  push?: any;
 }
 export interface ListData {
   type: 'list';
   value: List;
-  set?: any;
+  push?: any;
 }
 export interface StreamData {
   type: 'stream';

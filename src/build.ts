@@ -19,11 +19,11 @@ export const streamMap = map => (args, deeps = [] as boolean[]) => ({
   return { initial: run(), update: () => output(run()) };
 };
 
-export const settable = arg => ({ get, output }) => {
-  const set = v => output({ ...v, set });
+export const pushable = arg => ({ get, output }) => {
+  const push = v => output({ ...v, push });
   return {
-    initial: { set, ...get(arg) },
-    update: () => output({ set, ...get(arg) }),
+    initial: { push, ...get(arg) },
+    update: () => output({ push, ...get(arg) }),
   };
 };
 
@@ -177,7 +177,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         (i === 1 && nodes[0].type === 'context') !==
         (nodes[i].type === 'context')
       ) {
-        const v = create(settable({ type: 'value', value: '' }));
+        const v = create(pushable({ type: 'value', value: '' }));
         const k = argPair[nodes[i].type === 'context' ? 0 : 1];
         const prevScopes = [...context.scope];
         [context.scope, context.current].forEach(l => {
@@ -253,7 +253,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
       if (!info.append && assignArgs[1]) {
         assignArgs[0] = {
           type: 'any',
-          value: create(settable(assignArgs[0].value)),
+          value: create(pushable(assignArgs[0].value)),
         };
       }
       [context.scope, context.current].forEach(l => {

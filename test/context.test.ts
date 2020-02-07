@@ -7,11 +7,11 @@ test('basic', () => {
     value: List.fromPairs([
       {
         key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: 'a', set: expect.any(Function) },
+        value: { type: 'value', value: 'a', push: expect.any(Function) },
       },
       {
         key: { type: 'value', value: 'y' },
-        value: { type: 'value', value: 'a', set: expect.any(Function) },
+        value: { type: 'value', value: 'a', push: expect.any(Function) },
       },
     ] as any),
   });
@@ -23,15 +23,15 @@ test('order', () => {
     value: List.fromPairs([
       {
         key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: 'a', set: expect.any(Function) },
+        value: { type: 'value', value: 'a', push: expect.any(Function) },
       },
       {
         key: { type: 'value', value: 'y' },
-        value: { type: 'value', value: '', set: expect.any(Function) },
+        value: { type: 'value', value: '', push: expect.any(Function) },
       },
       {
         key: { type: 'value', value: 'z' },
-        value: { type: 'value', value: 'b', set: expect.any(Function) },
+        value: { type: 'value', value: 'b', push: expect.any(Function) },
       },
     ] as any),
   });
@@ -43,7 +43,7 @@ test('nested', () => {
     value: List.fromPairs([
       {
         key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: 'a', set: expect.any(Function) },
+        value: { type: 'value', value: 'a', push: expect.any(Function) },
       },
       {
         key: { type: 'value', value: 'y' },
@@ -52,7 +52,7 @@ test('nested', () => {
           value: List.fromPairs([
             {
               key: { type: 'value', value: '1' },
-              value: { type: 'value', value: 'a', set: expect.any(Function) },
+              value: { type: 'value', value: 'a', push: expect.any(Function) },
             },
           ] as any),
         },
@@ -82,14 +82,14 @@ test('nested', () => {
           value: List.fromPairs([
             {
               key: { type: 'value', value: 'x' },
-              value: { type: 'value', value: 'a', set: expect.any(Function) },
+              value: { type: 'value', value: 'a', push: expect.any(Function) },
             },
           ] as any),
         },
       },
       {
         key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: '', set: expect.any(Function) },
+        value: { type: 'value', value: '', push: expect.any(Function) },
       },
     ] as any),
   });
@@ -101,7 +101,7 @@ test('shorthand', () => {
     value: List.fromPairs([
       {
         key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: '1', set: expect.any(Function) },
+        value: { type: 'value', value: '1', push: expect.any(Function) },
       },
       {
         key: { type: 'value', value: 'y' },
@@ -110,7 +110,7 @@ test('shorthand', () => {
           value: List.fromPairs([
             {
               key: { type: 'value', value: 'x' },
-              value: { type: 'value', value: '1', set: expect.any(Function) },
+              value: { type: 'value', value: '1', push: expect.any(Function) },
             },
           ] as any),
         },

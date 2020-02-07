@@ -51,11 +51,11 @@ test('lists', () => {
     value: List.fromPairs([
       {
         key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: 'a', set: expect.any(Function) },
+        value: { type: 'value', value: 'a', push: expect.any(Function) },
       },
       {
         key: { type: 'value', value: 'y' },
-        value: { type: 'value', value: 'b', set: expect.any(Function) },
+        value: { type: 'value', value: 'b', push: expect.any(Function) },
       },
     ] as any),
   });
@@ -68,7 +68,7 @@ test('lists', () => {
       },
       {
         key: { type: 'value', value: 'key' },
-        value: { type: 'value', value: 'value', set: expect.any(Function) },
+        value: { type: 'value', value: 'value', push: expect.any(Function) },
       },
     ] as any),
   });
@@ -101,7 +101,7 @@ test('list nils ignored', () => {
       },
       {
         key: { type: 'value', value: 'c' },
-        value: { type: 'value', value: '', set: expect.any(Function) },
+        value: { type: 'value', value: '', push: expect.any(Function) },
       },
     ] as any),
   });
@@ -146,7 +146,7 @@ test('nest lists', () => {
             },
           ] as any),
         },
-        value: { type: 'value', value: '100', set: expect.any(Function) },
+        value: { type: 'value', value: '100', push: expect.any(Function) },
       },
     ] as any),
   });
@@ -166,11 +166,11 @@ test('list sort', () => {
       },
       {
         key: { type: 'value', value: 'y' },
-        value: { type: 'value', value: '2', set: expect.any(Function) },
+        value: { type: 'value', value: '2', push: expect.any(Function) },
       },
       {
         key: { type: 'value', value: 'z' },
-        value: { type: 'value', value: '1', set: expect.any(Function) },
+        value: { type: 'value', value: '1', push: expect.any(Function) },
       },
     ] as any),
   });
@@ -182,7 +182,7 @@ test('list assign shorthand', () => {
     value: List.fromPairs([
       {
         key: { type: 'value', value: 'item' },
-        value: { type: 'value', value: 'item', set: expect.any(Function) },
+        value: { type: 'value', value: 'item', push: expect.any(Function) },
       },
     ] as any),
   });
