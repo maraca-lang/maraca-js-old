@@ -113,20 +113,3 @@ export const sortMultiple = <T = any>(
     },
     0,
   ) as -1 | 0 | 1;
-
-export const unpack = data => {
-  const result = {
-    values: data.type === 'value' ? data.value : {},
-    indices: [] as any[],
-  };
-  if (data.type === 'list') {
-    data.value.forEach(({ key, value }) => {
-      if (key.type !== 'list') {
-        const i = toIndex(key.value || '');
-        if (i) result.indices[i - 1] = value;
-        else result.values[key.value || ''] = value;
-      }
-    });
-  }
-  return result;
-};

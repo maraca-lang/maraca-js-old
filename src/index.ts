@@ -5,7 +5,7 @@ import parse from './parse';
 import process from './streams';
 import { Config, Data, Source, StreamData } from './typings';
 
-export { unpack } from './data';
+export { fromJs, toJs } from './data';
 export { default as parse } from './parse';
 export { Data, Source } from './typings';
 
