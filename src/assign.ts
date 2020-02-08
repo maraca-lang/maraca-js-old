@@ -2,8 +2,8 @@ import { streamMap } from './build';
 import { fromJs, toIndex } from './data';
 
 const getType = ([l, v, k], setNil, noDestructure, append, get) => {
-  const list = get(l);
-  if (list.type === 'value' && list.value) return 'none';
+  const box = get(l);
+  if (box.type === 'value' && box.value) return 'none';
   if (!k && append) {
     const value = get(v);
     if (!value.value) return 'none';
@@ -14,9 +14,9 @@ const getType = ([l, v, k], setNil, noDestructure, append, get) => {
     if (!value.value) return 'none';
   }
   const key = k && get(k);
-  if (!noDestructure && (!key || key.type === 'list')) {
+  if (!noDestructure && (!key || key.type === 'box')) {
     const value = get(v);
-    if (value.type === 'list') return 'destructure';
+    if (value.type === 'box') return 'destructure';
   }
   return 'set';
 };
@@ -26,9 +26,9 @@ const run = (type, [l, v, k]) => {
     return set => set(l);
   }
   if (type === 'append') {
-    return streamMap(([list]) => ({
-      type: 'list',
-      value: list.value.append(v),
+    return streamMap(([box]) => ({
+      type: 'box',
+      value: box.value.append(v),
     }))([l]);
   }
   if (type === 'destructure') {
@@ -47,9 +47,8 @@ const run = (type, [l, v, k]) => {
       if (!func || func.isMap) return result;
       if (func.hasArg) {
         return create(
-          streamMap(([list], create) => {
-            const offset =
-              list.value.indices[list.value.indices.length - 1] || 0;
+          streamMap(([box], create) => {
+            const offset = box.value.indices[box.value.indices.length - 1] || 0;
             return rest.toPairs().reduce(
               (res, { key: k, value: v }) =>
                 create(
@@ -81,7 +80,7 @@ const run = (type, [l, v, k]) => {
         assign(
           [
             result,
-            { type: 'list', value: rest },
+            { type: 'box', value: rest },
             func(create, { type: 'value', value: '' })[0],
           ],
           true,
@@ -91,9 +90,9 @@ const run = (type, [l, v, k]) => {
       );
     })(k ? [v, k] : [v], [false, true]);
   }
-  return streamMap(([list, key]) => ({
-    type: 'list',
-    value: list.value.set(key, v),
+  return streamMap(([box, key]) => ({
+    type: 'box',
+    value: box.value.set(key, v),
   }))([l, k || { type: 'value', value: '' }], [false, true]);
 };
 

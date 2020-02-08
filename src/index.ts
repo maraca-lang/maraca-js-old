@@ -1,6 +1,6 @@
 import build from './build';
 import { fromJs } from './data';
-import List from './list';
+import Box from './box';
 import parse from './parse';
 import process from './streams';
 import { Config, Data, Source, StreamData } from './typings';
@@ -25,8 +25,8 @@ const wrapCreate = create => (run, ...args) =>
             const map = d => {
               const d2 = d || nilValue;
               if (d2.type === 'stream') return map(get(d2.value));
-              if (d2.type !== 'list') return d2;
-              return { type: 'list', value: d2.value.map(v => map(v)) };
+              if (d2.type !== 'box') return d2;
+              return { type: 'box', value: d2.value.map(v => map(v)) };
             };
             return () => set(map(data));
           }),
@@ -76,14 +76,14 @@ function maraca(...args) {
         {
           scope: [{ type: 'any', value: scope }],
           current: [
-            { type: 'constant', value: { type: 'list', value: new List() } },
+            { type: 'constant', value: { type: 'box', value: new Box() } },
           ],
         },
         typeof code === 'string' ? parse(code) : code,
       );
     const scope = {
-      type: 'list',
-      value: List.fromPairs(
+      type: 'box',
+      value: Box.fromPairs(
         Object.keys(modules).map(k => ({
           key: fromJs(k),
           value: create((set, _, create) => {
@@ -102,7 +102,7 @@ function maraca(...args) {
       {
         scope: [{ type: 'any', value: scope }],
         current: [
-          { type: 'constant', value: { type: 'list', value: new List() } },
+          { type: 'constant', value: { type: 'box', value: new Box() } },
         ],
       },
       typeof start === 'string' ? parse(start) : start,

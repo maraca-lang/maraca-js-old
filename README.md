@@ -16,7 +16,8 @@ npm install maraca --save
 
 ## Maraca documentation
 
-Full documentation for the Maraca language itself can be found at https://maraca-lang.org/docs.
+Full documentation for the Maraca language itself can be found at
+https://maraca-lang.org/docs.
 
 ## Table of contents
 
@@ -32,7 +33,8 @@ The core runtime API parses and runs Maraca source code.
 maraca(source, config?, output?);
 ```
 
-The config parameter can be provided to setup the `@` and `#` Maraca language features, and the output parameter can be provided to enable streaming.
+The config parameter can be provided to setup the `@` and `#` Maraca language
+features, and the output parameter can be provided to enable streaming.
 
 ```ts
 import maraca from 'maraca';
@@ -59,11 +61,13 @@ The Maraca source can be provided in any of the following formats:
   ]
 ```
 
-If the object form is used, evaluation starts with the 'start' script, which can then access the modules via the context list (i.e. `[key]?`).
+If the object form is used, evaluation starts with the 'start' script, which can
+then access the modules via the context box (i.e. `[key]?`).
 
 ### `config` (optional)
 
-If provided, the config parameter sets up custom streams for the `@` and `#` Maraca features.
+If provided, the config parameter sets up custom streams for the `@` and `#`
+Maraca features.
 
 ```ts
 {
@@ -76,15 +80,21 @@ If provided, the config parameter sets up custom streams for the `@` and `#` Mar
 }
 ```
 
-So the `@` key accepts an array (mapped to `@`, `@@`, `@@@`), and the `#` accepts an object (mapped to `#[key]`).
+So the `@` key accepts an array (mapped to `@`, `@@`, `@@@`), and the `#`
+accepts an object (mapped to `#[key]`).
 
-For `@`, you are given an emit handler, and return a callback which is called whenever the argument to the `@` call changes. When the stream is disposed, the callback is called without an argument, which should be used to clean up any side effects.
+For `@`, you are given an emit handler, and return a callback which is called
+whenever the argument to the `@` call changes. When the stream is disposed, the
+callback is called without an argument, which should be used to clean up any
+side effects.
 
-For `#`, you either directly provide a Maraca data value, or another map as for `@`, except with only a dispose callback (since `#` calls have no argument).
+For `#`, you either directly provide a Maraca data value, or another map as for
+`@`, except with only a dispose callback (since `#` calls have no argument).
 
 ### output (optional)
 
-If provided, the runtime will run in stream mode, outputting the results to the given callback.
+If provided, the runtime will run in stream mode, outputting the results to the
+given callback.
 
 ## Data format
 
@@ -94,17 +104,17 @@ If provided, the runtime will run in stream mode, outputting the results to the 
 {
   type: 'value',
   value: string,
-  set: (value: data) => void,
+  push: (value: data) => void,
 }
 ```
 
-**List**
+**Box**
 
 ```ts
 {
-  type: 'list',
+  type: 'box',
   value: { key: data, value: data }[],
-  set: (value: data) => void,
+  push: (value: data) => void,
 }
 ```
 

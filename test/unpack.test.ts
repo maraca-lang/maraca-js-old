@@ -1,10 +1,10 @@
 import maraca from '../src/index';
-import List from '../src/list';
+import Box from '../src/box';
 
 test('basic', () => {
   expect(maraca('[[a, b, x: c]: [1, 2, x: 3]]')).toEqual({
-    type: 'list',
-    value: List.fromPairs([
+    type: 'box',
+    value: Box.fromPairs([
       {
         key: { type: 'value', value: 'a' },
         value: { type: 'value', value: '1' },
@@ -20,8 +20,8 @@ test('basic', () => {
     ] as any),
   });
   expect(maraca('[[_, _, a]: [1, 2, 3]]')).toEqual({
-    type: 'list',
-    value: List.fromPairs([
+    type: 'box',
+    value: Box.fromPairs([
       {
         key: { type: 'value', value: ' ' },
         value: { type: 'value', value: '2' },
@@ -36,8 +36,8 @@ test('basic', () => {
 
 test('partial', () => {
   expect(maraca('[[x, y]: [1, 2, 3]]')).toEqual({
-    type: 'list',
-    value: List.fromPairs([
+    type: 'box',
+    value: Box.fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: '1' },
@@ -49,8 +49,8 @@ test('partial', () => {
     ] as any),
   });
   expect(maraca('[[a, => b]: [1, 2, 3]]')).toEqual({
-    type: 'list',
-    value: List.fromPairs([
+    type: 'box',
+    value: Box.fromPairs([
       {
         key: { type: 'value', value: 'a' },
         value: { type: 'value', value: '1' },
@@ -58,8 +58,8 @@ test('partial', () => {
       {
         key: { type: 'value', value: 'b' },
         value: {
-          type: 'list',
-          value: List.fromPairs([
+          type: 'box',
+          value: Box.fromPairs([
             {
               key: { type: 'value', value: '1' },
               value: { type: 'value', value: '2' },
@@ -74,8 +74,8 @@ test('partial', () => {
     ] as any),
   });
   expect(maraca('[[a:=, b:=]: [a: 1, b: 2, c: 3, d: 4]]')).toEqual({
-    type: 'list',
-    value: List.fromPairs([
+    type: 'box',
+    value: Box.fromPairs([
       {
         key: { type: 'value', value: 'a', push: expect.any(Function) },
         value: { type: 'value', value: '1', push: expect.any(Function) },
@@ -90,8 +90,8 @@ test('partial', () => {
 
 test('unpack', () => {
   expect(maraca('[:[a], a]')).toEqual({
-    type: 'list',
-    value: List.fromPairs([
+    type: 'box',
+    value: Box.fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: 'a' },
@@ -103,8 +103,8 @@ test('unpack', () => {
     ] as any),
   });
   expect(maraca('[x: 1, : [y: 2, z: 3]]')).toEqual({
-    type: 'list',
-    value: List.fromPairs([
+    type: 'box',
+    value: Box.fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: '1', push: expect.any(Function) },
@@ -120,8 +120,8 @@ test('unpack', () => {
     ] as any),
   });
   expect(maraca('[1, 2, : [3, 4]]')).toEqual({
-    type: 'list',
-    value: List.fromPairs([
+    type: 'box',
+    value: Box.fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: '1' },

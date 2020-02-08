@@ -1,6 +1,6 @@
 import maraca from '../src/index';
 import { fromJs } from '../src/data';
-import List from '../src/list';
+import Box from '../src/box';
 
 const testStream = (code, actions, values, done) => {
   let c = 0;
@@ -20,8 +20,8 @@ test('basic', done => {
     [data => data.value.get(fromJs('x')).push(fromJs(2))],
     [
       {
-        type: 'list',
-        value: List.fromPairs([
+        type: 'box',
+        value: Box.fromPairs([
           {
             key: { type: 'value', value: 'x' },
             value: { type: 'value', value: '1', push: expect.any(Function) },
@@ -29,8 +29,8 @@ test('basic', done => {
         ] as any),
       },
       {
-        type: 'list',
-        value: List.fromPairs([
+        type: 'box',
+        value: Box.fromPairs([
           {
             key: { type: 'value', value: 'x' },
             value: {
@@ -48,8 +48,8 @@ test('basic', done => {
 
 test('auto', () => {
   expect(maraca('[x?]')).toEqual({
-    type: 'list',
-    value: List.fromPairs([
+    type: 'box',
+    value: Box.fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: '', push: expect.any(Function) },
@@ -58,8 +58,8 @@ test('auto', () => {
   });
 
   expect(maraca('[(x?)]')).toEqual({
-    type: 'list',
-    value: List.fromPairs([
+    type: 'box',
+    value: Box.fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: '', push: expect.any(Function) },
@@ -74,8 +74,8 @@ test('auto assign', done => {
     [data => data.value.get(fromJs('x')).push(fromJs('a'))],
     [
       {
-        type: 'list',
-        value: List.fromPairs([
+        type: 'box',
+        value: Box.fromPairs([
           {
             key: { type: 'value', value: 'x' },
             value: { type: 'value', value: '', push: expect.any(Function) },
@@ -87,8 +87,8 @@ test('auto assign', done => {
         ] as any),
       },
       {
-        type: 'list',
-        value: List.fromPairs([
+        type: 'box',
+        value: Box.fromPairs([
           {
             key: { type: 'value', value: 'x' },
             value: {
@@ -118,8 +118,8 @@ test('auto assign 2', done => {
     [data => data.value.get(fromJs('x')).push(fromJs('a'))],
     [
       {
-        type: 'list',
-        value: List.fromPairs([
+        type: 'box',
+        value: Box.fromPairs([
           {
             key: { type: 'value', value: 'x' },
             value: { type: 'value', value: '', push: expect.any(Function) },
@@ -131,8 +131,8 @@ test('auto assign 2', done => {
         ] as any),
       },
       {
-        type: 'list',
-        value: List.fromPairs([
+        type: 'box',
+        value: Box.fromPairs([
           {
             key: { type: 'value', value: 'x' },
             value: {

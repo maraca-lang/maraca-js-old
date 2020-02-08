@@ -1,4 +1,4 @@
-import List from './list';
+import Box from './box';
 
 export const fromJsFunc = (arg, func, deep) => (set, get) => {
   const run = func(set);
@@ -13,8 +13,8 @@ export const fromJs = value => {
   if (typeof value === 'string') return { type: 'value', value };
   if (typeof value === 'function') {
     return {
-      type: 'list',
-      value: List.fromFunc((create, arg) => [
+      type: 'box',
+      value: Box.fromFunc((create, arg) => [
         create(fromJsFunc(arg, value, true)),
       ]),
     };
@@ -24,8 +24,8 @@ export const fromJs = value => {
   }
   if (Object.prototype.toString.call(value) === '[object Object]') {
     return {
-      type: 'list',
-      value: List.fromPairs(
+      type: 'box',
+      value: Box.fromPairs(
         Object.keys(value).map(k => ({
           key: fromJs(k),
           value: fromJs(value[k]),
@@ -35,8 +35,8 @@ export const fromJs = value => {
   }
   if (Array.isArray(value)) {
     return {
-      type: 'list',
-      value: List.fromPairs(
+      type: 'box',
+      value: Box.fromPairs(
         value.map(({ key, value }) => ({
           key: fromJs(key),
           value: fromJs(value),
@@ -64,7 +64,7 @@ export const toJs = data => {
 
 export const isEqual = (v1, v2) => {
   if (v1.type !== v2.type) return false;
-  if (v1.type !== 'list') return v1.value === v2.value;
+  if (v1.type !== 'box') return v1.value === v2.value;
   const fullObj1 = v1.toObject();
   const fullObj2 = v2.toObject();
   const obj1 = Object.keys(fullObj1).reduce(

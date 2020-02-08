@@ -1,15 +1,15 @@
 import build, { pushable, streamMap } from './build';
 import { fromJs, fromJsFunc, toIndex, toJs } from './data';
-import List from './list';
+import Box from './box';
 import parse from './parse';
 
 const snapshot = (create, { push, ...value }, withPush = true) => {
   const result =
-    value.type !== 'list'
+    value.type !== 'box'
       ? value
       : {
-          type: 'list',
-          value: List.fromPairs(
+          type: 'box',
+          value: Box.fromPairs(
             value.value.toPairs().map(({ key, value }) => ({
               key,
               value: snapshot(
@@ -50,7 +50,7 @@ export default (type, info, config, create, nodes) => {
         const subContext = {
           scope: [{ type: 'any', value: nodes[1] }],
           current: [
-            { type: 'constant', value: { type: 'list', value: new List() } },
+            { type: 'constant', value: { type: 'box', value: new Box() } },
           ],
         };
         let parsed = { type: 'nil' };
@@ -79,11 +79,11 @@ export default (type, info, config, create, nodes) => {
     return create((set, get) => {
       const run = () => {
         const resolved = get(nodes[0]);
-        const v = resolved.type !== 'list' && toJs(resolved);
+        const v = resolved.type !== 'box' && toJs(resolved);
         if (typeof v === 'number' && Math.floor(v) === v) {
           return {
-            type: 'list',
-            value: List.fromArray(
+            type: 'box',
+            value: Box.fromArray(
               Array.from({ length: v }).map((_, i) => fromJs(i + 1)),
             ),
           };
@@ -93,8 +93,8 @@ export default (type, info, config, create, nodes) => {
             (config['#'] && config['#'][v]) || { type: 'value', value: '' }
           );
         }
-        const list = get(nodes[0], true);
-        return fromJs(list.toPairs().filter(d => d.value).length);
+        const box = get(nodes[0], true);
+        return fromJs(box.toPairs().filter(d => d.value).length);
       };
       return () => set(run());
     });

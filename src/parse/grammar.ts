@@ -70,12 +70,12 @@ export default `Maraca {
     | Atom
 
   Atom
-    = List
+    = Box
     | value
     | "_" -- space
     | "?" -- context
 
-  List
+  Box
     = "[" Line ("," Line)* "]"
     | "(" Line ("," Line)* ")"
     | "{" Line ("," Line)* "}"
@@ -87,7 +87,7 @@ export default `Maraca {
 
   Multi
     = (char3 | escape)+ -- string
-    | "<" Line ("," Line)* "/>" -- list
+    | "<" Line ("," Line)* "/>" -- box
 
   value
     = "\\\\" any -- char

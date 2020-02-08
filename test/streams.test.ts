@@ -1,5 +1,5 @@
 import maraca from '../src/index';
-import List from '../src/list';
+import Box from '../src/box';
 
 import config from './config';
 
@@ -54,13 +54,13 @@ test('push', done => {
   );
 });
 
-test('push list', done => {
+test('push box', done => {
   testStream(
     '[x: [a], @1 | [: x?, a] -> x?].x',
     [
       {
-        type: 'list',
-        value: List.fromPairs([
+        type: 'box',
+        value: Box.fromPairs([
           {
             key: { type: 'value', value: '1' },
             value: { type: 'value', value: 'a' },
@@ -68,8 +68,8 @@ test('push list', done => {
         ] as any),
       },
       {
-        type: 'list',
-        value: List.fromPairs([
+        type: 'box',
+        value: Box.fromPairs([
           {
             key: { type: 'value', value: '1' },
             value: { type: 'value', value: 'a' },

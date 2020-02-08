@@ -27,7 +27,7 @@ const mapAst = (arg1, func, arg2) => ({
   start: arg1.source.startIdx,
   end: arg2.source.endIdx,
 });
-const listAst = (a, b, first, last) => {
+const boxAst = (a, b, first, last) => {
   const items = b.ast.reduce((res, x) => [...res, ...x], [...a.ast]);
   let i = items.length - 1;
   while (i >= 0 && items[i].type === 'nil') {
@@ -35,7 +35,7 @@ const listAst = (a, b, first, last) => {
     i--;
   }
   return {
-    type: 'list',
+    type: 'box',
     nodes: items,
     info: { bracket: first.sourceString },
     start: first.source.startIdx,
@@ -208,7 +208,7 @@ s.addAttribute('ast', {
   }),
   Atom: a => a.ast,
 
-  List: (a, b, _, c, d) => listAst(b, c, a, d),
+  Box: (a, b, _, c, d) => boxAst(b, c, a, d),
 
   Line_string: (_1, a, _2) => {
     const indices = [
@@ -265,7 +265,7 @@ s.addAttribute('ast', {
     start: a.source.startIdx,
     end: a.source.endIdx,
   }),
-  Multi_list: (a, b, _, c, d) => listAst(b, c, a, d),
+  Multi_box: (a, b, _, c, d) => boxAst(b, c, a, d),
 
   value_char: (_, a) => ({
     type: 'value',

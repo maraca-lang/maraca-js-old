@@ -3,7 +3,7 @@ import combine from './combine';
 import { fromJs, toIndex } from './data';
 import maps from './maps';
 import { combineValues } from './combine';
-import List from './list';
+import Box from './box';
 import operations from './operations';
 
 export const streamMap = map => (args, deeps = [] as boolean[]) => (
@@ -64,7 +64,7 @@ const compileFuncBody = (body, evalArgs, isMap, argTrace) => {
     isMap &&
     body.type === 'assign' &&
     body.nodes[1] === null &&
-    body.nodes[0].type === 'list' &&
+    body.nodes[0].type === 'box' &&
     body.nodes[0].info.bracket === '[' &&
     body.nodes[0].nodes.length === 1
   ) {
@@ -80,7 +80,7 @@ const compileFuncBody = (body, evalArgs, isMap, argTrace) => {
 };
 
 const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
-  if (type === 'list' && !['[', '<'].includes(info.bracket)) {
+  if (type === 'box' && !['[', '<'].includes(info.bracket)) {
     return compile(
       {
         type: 'combine',
@@ -96,7 +96,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
               }`,
             },
           },
-          { type: 'list', info: { bracket: '[', semi: true }, nodes },
+          { type: 'box', info: { bracket: '[', semi: true }, nodes },
         ],
       },
       evalArgs,
@@ -119,22 +119,21 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     return context.scope[0];
   }
 
-  if (type === 'list') {
+  if (type === 'box') {
     const ctx = info.semi
       ? { scope: [...context.scope], current: [...context.current] }
       : { scope: [], current: [] };
     ctx.current.unshift({
       type: 'constant',
-      value: { type: 'list', value: new List() },
+      value: { type: 'box', value: new Box() },
     });
     ctx.scope.unshift({
       type: 'any',
       items: { ...context.scope[0].items },
       value: create(
         streamMap(([value]) => ({
-          type: 'list',
-          value:
-            value.type === 'list' ? value.value.clearIndices() : new List(),
+          type: 'box',
+          value: value.type === 'box' ? value.value.clearIndices() : new Box(),
         }))([context.scope[0].value]),
       ),
     });
@@ -161,11 +160,11 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
       const space = info.space && info.space[i - 1];
       if (
         [a1, a2].some(a => a.items) &&
-        [a1, a2].some(a => a.type === 'constant' && a.value.type !== 'list')
+        [a1, a2].some(a => a.type === 'constant' && a.value.type !== 'box')
       ) {
-        const [list, key] = a1.items ? [a1, a2] : [a2, a1];
-        if (list.items[key.value.value || '']) {
-          return list.items[key.value.value || ''];
+        const [box, key] = a1.items ? [a1, a2] : [a2, a1];
+        if (box.items[key.value.value || '']) {
+          return box.items[key.value.value || ''];
         }
       }
       const argPair = [a1, a2];
@@ -185,17 +184,17 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
             l[j] = {
               type: 'any',
               value: create(
-                streamMap(([list, key, scope]) => {
+                streamMap(([box, key, scope]) => {
                   if (
-                    list.type === 'list' &&
-                    !list.value.getFunc() &&
-                    key.type !== 'list' &&
+                    box.type === 'box' &&
+                    !box.value.getFunc() &&
+                    key.type !== 'box' &&
                     !toIndex(key.value) &&
                     !scope.value.has(key)
                   ) {
-                    return { type: 'list', value: list.value.set(key, v) };
+                    return { type: 'box', value: box.value.set(key, v) };
                   }
-                  return list;
+                  return box;
                 })([l[j], k, prevScopes[j]].map(a => a.value)),
               ),
             };
@@ -260,13 +259,13 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         const merged = mergeMaps(create, allArgs, true, ([l, v, k]) => {
           if (!k && info.append) {
             if (!v.value) return l;
-            return { type: 'list', value: l.value.append(v) };
+            return { type: 'box', value: l.value.append(v) };
           }
-          if ((!k || k.type === 'list') && v.type === 'list') {
-            return { type: 'list', value: l.value.destructure(k, v) };
+          if ((!k || k.type === 'box') && v.type === 'box') {
+            return { type: 'box', value: l.value.destructure(k, v) };
           }
           return {
-            type: 'list',
+            type: 'box',
             value: l.value.set(k || { type: 'value', value: '' }, v),
           };
         });
@@ -285,8 +284,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         if (
           l === context.scope &&
           (!allArgs[2] ||
-            (allArgs[2].type === 'constant' &&
-              allArgs[2].value.type !== 'list'))
+            (allArgs[2].type === 'constant' && allArgs[2].value.type !== 'box'))
         ) {
           if (!info.append) {
             prevItems[(allArgs[2] && allArgs[2].value.value) || ''] =
@@ -303,12 +301,12 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     if (
       args
         .filter(a => a)
-        .every(a => a.type === 'constant' && a.value.type !== 'list')
+        .every(a => a.type === 'constant' && a.value.type !== 'box')
     ) {
       const argTrace = { type: 'data', value: { type: 'value', value: '' } };
       const currentTrace = {
         type: 'constant',
-        value: { type: 'list', value: new List() },
+        value: { type: 'box', value: new Box() },
       };
       const ctx = {
         scope: [
@@ -345,10 +343,10 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
           items: { ...context.current[0].items },
           value: create(
             streamMap(([current]) => ({
-              type: 'list',
-              value: ((current && current.value) || new List()).setFunc(
+              type: 'box',
+              value: ((current && current.value) || new Box()).setFunc(
                 info.map
-                  ? (create, list) => [
+                  ? (create, box) => [
                       create(
                         streamMap(([y]) => {
                           const mapped = y.value
@@ -357,19 +355,19 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
                             .map(({ key, value }) => ({
                               key: compiledBody.key
                                 ? compiledBody.key({
-                                    type: 'list',
-                                    value: List.fromArray([key, value]),
+                                    type: 'box',
+                                    value: Box.fromArray([key, value]),
                                   })
                                 : key,
                               value: compiledBody.value({
-                                type: 'list',
-                                value: List.fromArray([key, value]),
+                                type: 'box',
+                                value: Box.fromArray([key, value]),
                               }),
                             }))
                             .filter(d => d.value.value);
                           return {
-                            type: 'list',
-                            value: List.fromPairs(
+                            type: 'box',
+                            value: Box.fromPairs(
                               compiledBody.index
                                 ? mapped.map((d, i) => ({
                                     key: fromJs(i + 1),
@@ -378,15 +376,15 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
                                 : mapped,
                             ),
                           };
-                        })([list], [true]),
+                        })([box], [true]),
                       ),
                     ]
                   : (create, value) => [
                       create(
                         streamMap(([y]) =>
                           compiledBody.value({
-                            type: 'list',
-                            value: List.fromArray([
+                            type: 'box',
+                            value: Box.fromArray([
                               { type: 'value', value: '' },
                               y,
                             ]),
@@ -409,7 +407,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     const scope = context.scope[0].value;
     const funcMap = (
       funcScope = scope,
-      funcCurrent = { type: 'list', value: new List() },
+      funcCurrent = { type: 'box', value: new Box() },
       key = null,
     ) => (subCreate, value) => {
       const values = [key, value];
@@ -441,8 +439,8 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
       items: { ...context.current[0].items },
       value: create(
         streamMap(([current]) => ({
-          type: 'list',
-          value: ((current && current.value) || new List()).setFunc(
+          type: 'box',
+          value: ((current && current.value) || new Box()).setFunc(
             info.map ? funcMap : func,
             info.map,
             !!args[1],

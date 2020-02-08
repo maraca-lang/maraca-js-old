@@ -1,10 +1,10 @@
 import maraca from '../src/index';
-import List from '../src/list';
+import Box from '../src/box';
 
 test('basic', () => {
   expect(maraca('[x: a, y: x?]')).toEqual({
-    type: 'list',
-    value: List.fromPairs([
+    type: 'box',
+    value: Box.fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: 'a', push: expect.any(Function) },
@@ -19,8 +19,8 @@ test('basic', () => {
 
 test('order', () => {
   expect(maraca('[x: a, y: z?, z: b]')).toEqual({
-    type: 'list',
-    value: List.fromPairs([
+    type: 'box',
+    value: Box.fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: 'a', push: expect.any(Function) },
@@ -39,8 +39,8 @@ test('order', () => {
 
 test('nested', () => {
   expect(maraca('[x: a, y: [x?]]')).toEqual({
-    type: 'list',
-    value: List.fromPairs([
+    type: 'box',
+    value: Box.fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: 'a', push: expect.any(Function) },
@@ -48,8 +48,8 @@ test('nested', () => {
       {
         key: { type: 'value', value: 'y' },
         value: {
-          type: 'list',
-          value: List.fromPairs([
+          type: 'box',
+          value: Box.fromPairs([
             {
               key: { type: 'value', value: '1' },
               value: { type: 'value', value: 'a', push: expect.any(Function) },
@@ -60,26 +60,26 @@ test('nested', () => {
     ] as any),
   });
   expect(maraca('[a, [1?]]')).toEqual({
-    type: 'list',
-    value: List.fromPairs([
+    type: 'box',
+    value: Box.fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: 'a' },
       },
       {
         key: { type: 'value', value: '2' },
-        value: { type: 'list', value: new List() },
+        value: { type: 'box', value: new Box() },
       },
     ] as any),
   });
   expect(maraca('[[x: a], x?]')).toEqual({
-    type: 'list',
-    value: List.fromPairs([
+    type: 'box',
+    value: Box.fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: {
-          type: 'list',
-          value: List.fromPairs([
+          type: 'box',
+          value: Box.fromPairs([
             {
               key: { type: 'value', value: 'x' },
               value: { type: 'value', value: 'a', push: expect.any(Function) },
@@ -97,8 +97,8 @@ test('nested', () => {
 
 test('shorthand', () => {
   expect(maraca('[x: 1, y: [x:=?]]')).toEqual({
-    type: 'list',
-    value: List.fromPairs([
+    type: 'box',
+    value: Box.fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: '1', push: expect.any(Function) },
@@ -106,8 +106,8 @@ test('shorthand', () => {
       {
         key: { type: 'value', value: 'y' },
         value: {
-          type: 'list',
-          value: List.fromPairs([
+          type: 'box',
+          value: Box.fromPairs([
             {
               key: { type: 'value', value: 'x' },
               value: { type: 'value', value: '1', push: expect.any(Function) },

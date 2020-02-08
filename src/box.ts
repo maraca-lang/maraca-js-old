@@ -48,7 +48,7 @@ const compare = (v1, v2): -1 | 0 | 1 => {
   const type1 = v1.value ? v1.type : 'nil';
   const type2 = v2.value ? v2.type : 'nil';
   if (type1 !== type2) {
-    return type1 === 'value' || type2 === 'list' ? -1 : 1;
+    return type1 === 'value' || type2 === 'box' ? -1 : 1;
   }
   if (type1 === 'nil') return 0;
   if (type1 === 'value') return sortStrings(v1.value, v2.value);
@@ -79,13 +79,13 @@ const compare = (v1, v2): -1 | 0 | 1 => {
   );
 };
 
-export default class List {
+export default class Box {
   private values: Obj<{ key: Data; value: StreamData }> = {};
   private indices: number[] = [];
   private func?: any;
 
   static fromPairs(pairs: { key: Data; value: StreamData }[]) {
-    const result = new List();
+    const result = new Box();
     pairs.forEach(pair => {
       const k = toKey(pair.key);
       const i = toIndex(k);
@@ -98,12 +98,12 @@ export default class List {
     return result;
   }
   static fromFunc(func, isMap?) {
-    const result = new List();
+    const result = new Box();
     result.func = Object.assign(func, { isMap });
     return result;
   }
   static fromArray(items: Data[]) {
-    const result = new List();
+    const result = new Box();
     result.values = items.reduce(
       (res, v, i) => ({
         ...res,
@@ -124,7 +124,7 @@ export default class List {
     return this.values;
   }
   cloneValues() {
-    const result = new List();
+    const result = new Box();
     result.values = { ...this.values };
     result.indices = [...this.indices];
     return result;
@@ -168,7 +168,7 @@ export default class List {
   }
 
   map(map: (value: StreamData, key: Data) => StreamData) {
-    const result = List.fromPairs(
+    const result = Box.fromPairs(
       Object.keys(this.values).map(k => ({
         key: this.values[k].key,
         value: map(this.values[k].value, this.values[k].key),
@@ -179,7 +179,7 @@ export default class List {
   }
 
   clearIndices() {
-    const result = new List();
+    const result = new Box();
     result.values = { ...this.values };
     this.indices.forEach(i => {
       delete result.values[i];
@@ -189,7 +189,7 @@ export default class List {
   }
   append(value: Data) {
     const i = (this.indices[this.indices.length - 1] || 0) + 1;
-    const result = new List();
+    const result = new Box();
     result.values = { ...this.values, [i]: { key: fromJs(i), value } };
     result.indices = [...this.indices, i];
     result.func = this.func;
@@ -198,7 +198,7 @@ export default class List {
   set(key: Data, value: Data) {
     const k = toKey(key);
     const i = toIndex(k);
-    const result = new List();
+    const result = new Box();
     result.values = { ...this.values, [k]: { key, value } };
     result.indices =
       i && !this.indices.includes(i)
@@ -207,11 +207,11 @@ export default class List {
     result.func = this.func;
     return result;
   }
-  destructure(key: Data, value: Data): List {
+  destructure(key: Data, value: Data): Box {
     if ((!key || !isValue(key)) && !isValue(value)) {
       if (!key) {
         const offset = this.indices[this.indices.length - 1] || 0;
-        return value.value.toPairs().reduce<List>((res, v) => {
+        return value.value.toPairs().reduce<Box>((res, v) => {
           const i = toIndex(toKey(v.key));
           return res.destructure(
             i ? fromJs(i + offset) : v.key,
@@ -224,7 +224,7 @@ export default class List {
         keyPairs.map(d => d.key),
         false,
       );
-      return values.reduce<List>(
+      return values.reduce<Box>(
         (res, v, i) => res.destructure(keyPairs[i].value as any, v as any),
         this,
       );
@@ -232,7 +232,7 @@ export default class List {
     return this.set(key || { type: 'value', value: '' }, value);
   }
   setFunc(func, isMap?, hasArg?, isPure?) {
-    const result = new List();
+    const result = new Box();
     result.values = this.values;
     result.indices = this.indices;
     result.func = Object.assign(func, { isMap, hasArg, isPure });

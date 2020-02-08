@@ -24,7 +24,7 @@ export default {
       x &&
       emit(
         fromJs(
-          x.type === 'list'
+          x.type === 'box'
             ? x.value.toPairs().filter(v => v.value.value).length
             : '0',
         ),

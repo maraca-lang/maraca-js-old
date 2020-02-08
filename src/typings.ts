@@ -1,4 +1,4 @@
-import List from './list';
+import Box from './box';
 import { Stream } from './streams';
 
 export interface Obj<T = any> {
@@ -23,16 +23,16 @@ export interface ValueData {
   value: string;
   push?: any;
 }
-export interface ListData {
-  type: 'list';
-  value: List;
+export interface BoxData {
+  type: 'box';
+  value: Box;
   push?: any;
 }
 export interface StreamData {
   type: 'stream';
   value: Stream;
 }
-export type Data = ValueData | ListData;
+export type Data = ValueData | BoxData;
 export type FullData = Data | StreamData;
 
 export const isValue = (data: Data): data is ValueData => data.type === 'value';
