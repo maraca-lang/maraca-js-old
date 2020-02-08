@@ -59,10 +59,7 @@ const getInfo = ([s1, s2], get, dot) => {
   return { type: getType(big, small), reverse: small === v1, big, small };
 };
 
-const copy = stream => ({ get, output }) => ({
-  initial: get(stream),
-  update: () => output(get(stream)),
-});
+const copy = stream => (set, get) => () => set(get(stream));
 
 const runGet = (create, value, func, arg) => {
   if (typeof value === 'function') return value(create, arg)[0];
@@ -131,22 +128,15 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
 };
 
 export default (create, args, dot, space) =>
-  create(({ get, output, create }) => {
-    let { result, canContinue } = run(
-      create,
-      getInfo(args, get, dot),
-      args,
-      space,
-    );
-    return {
-      initial: result,
-      update: () => {
-        const info = getInfo(args, get, dot);
-        if (!canContinue || !canContinue(info)) {
-          if (result.type === 'stream') result.value.cancel();
-          ({ result, canContinue } = run(create, info, args, space));
-          output(result);
-        }
-      },
+  create((set, get, create) => {
+    let result;
+    let canContinue;
+    return () => {
+      const info = getInfo(args, get, dot);
+      if (!canContinue || !canContinue(info)) {
+        if (result && result.type === 'stream') result.value.cancel();
+        ({ result, canContinue } = run(create, info, args, space));
+        set(result);
+      }
     };
   });

@@ -32,7 +32,7 @@ class Queue {
 export class Stream {
   listeners = new Set<any>();
   index;
-  value;
+  value = null;
   start;
   update;
   stop;
@@ -43,20 +43,24 @@ export class Stream {
     this.start = () => {
       let active = new Set<any>();
       const creator = new Creator(queue, index);
-      const { initial, update, stop } = run({
-        get: s => {
+      let firstUpdate = true;
+      const update = run(
+        v => {
+          this.value = v;
+          if (!firstUpdate) {
+            if (this.onChange) this.onChange(v);
+            queue.add(this.listeners);
+          }
+        },
+        s => {
           active.add(s);
           s.observe(this);
           return s.value;
         },
-        output: v => {
-          this.value = v;
-          if (this.onChange) this.onChange(v);
-          queue.add(this.listeners);
-        },
-        create: (...args) => (creator.create as any)(...args),
-      });
-      this.value = initial;
+        (...args) => (creator.create as any)(...args),
+      );
+      if (update) update();
+      firstUpdate = false;
       this.update = () => {
         const prevActive = active;
         active = new Set();
@@ -70,7 +74,7 @@ export class Stream {
         queue.remove(this);
         for (const s of active.values()) s.unobserve(this);
         active = new Set();
-        if (stop) stop();
+        if (update && update.length === 1) update(true);
       };
     };
   }
@@ -103,7 +107,7 @@ class Creator {
     this.queue = queue;
     this.base = base;
   }
-  create(run, zeroIndex?) {
+  create(run, zeroIndex = false) {
     const index = zeroIndex ? [0] : [...this.base, this.counter++];
     return new Stream(this.queue, index, run) as any;
   }

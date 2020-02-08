@@ -9,30 +9,33 @@ export { fromJs, toJs } from './data';
 export { default as parse } from './parse';
 export { Data, Source } from './typings';
 
+const nilValue = { type: 'value', value: '' };
 const wrapCreate = create => (run, ...args) =>
   ({
     type: 'stream',
-    value: create(({ get, output, create }) => {
+    value: create((set, get, create) => {
       const resolve = data => {
-        if (data.type === 'stream') return resolve(get(data.value));
-        return data;
+        const d = data || nilValue;
+        if (d.type === 'stream') return resolve(get(d.value));
+        return d;
       };
       const resolveDeep = data =>
         get(
-          create(({ get, output }) => {
+          create((set, get) => {
             const map = d => {
-              if (d.type === 'stream') return map(get(d.value));
-              if (d.type !== 'list') return d;
-              return { type: 'list', value: d.value.map(v => map(v)) };
+              const d2 = d || nilValue;
+              if (d2.type === 'stream') return map(get(d2.value));
+              if (d2.type !== 'list') return d2;
+              return { type: 'list', value: d2.value.map(v => map(v)) };
             };
-            return { initial: map(data), update: () => output(map(data)) };
+            return () => set(map(data));
           }),
         );
-      return run({
-        get: (data, deep) => (deep ? resolveDeep(data) : resolve(data)),
-        output,
-        create: wrapCreate(create),
-      });
+      return run(
+        set,
+        (data, deep) => (deep ? resolveDeep(data) : resolve(data)),
+        wrapCreate(create),
+      );
     }, ...args),
   } as StreamData);
 
@@ -53,21 +56,15 @@ function maraca(...args) {
     Object.keys(library).forEach(k => {
       config['#'][k] = create(
         typeof library[k] !== 'function'
-          ? () => ({ initial: library[k] })
-          : ({ output, get }) => {
-              let first = true;
-              let initial = { type: 'value', value: '' };
-              const emit = ({ push, ...data }) => {
-                const value = {
+          ? set => set(library[k])
+          : (set, get) => {
+              const emit = ({ push, ...data }) =>
+                set({
                   ...data,
                   push: push && (v => push(get(v, true))),
-                } as any;
-                if (first) initial = value;
-                else output(value);
-              };
+                });
               const stop = library[k](emit);
-              first = false;
-              return { initial, stop };
+              return dispose => dispose && stop && stop();
             },
       );
     });
@@ -89,12 +86,12 @@ function maraca(...args) {
       value: List.fromPairs(
         Object.keys(modules).map(k => ({
           key: fromJs(k),
-          value: create(({ output, create }) => {
+          value: create((set, _, create) => {
             if (typeof modules[k] === 'function') {
-              modules[k]().then(code => output(buildModule(create, code)));
-              return { initial: fromJs(null) };
+              modules[k]().then(code => set(buildModule(create, code)));
+            } else {
+              set(buildModule(create, modules[k]));
             }
-            return { initial: buildModule(create, modules[k]) };
           }),
         })),
       ),
@@ -110,10 +107,7 @@ function maraca(...args) {
       },
       typeof start === 'string' ? parse(start) : start,
     );
-    return create(({ get, output }) => ({
-      initial: get(stream, true),
-      update: () => output(get(stream, true)),
-    })).value;
+    return create((set, get) => () => set(get(stream, true))).value;
   }, onData);
 }
 

@@ -1,40 +1,39 @@
 import build, { pushable, streamMap } from './build';
-import { fromJs, fromJsFunc, toJs } from './data';
+import { fromJs, fromJsFunc, toIndex, toJs } from './data';
 import List from './list';
 import parse from './parse';
 
-const snapshot = (create, { push, ...value }) =>
-  create(
-    pushable(
-      value.type !== 'list'
-        ? value
-        : {
-            type: 'list',
-            value: List.fromPairs(
-              value.value.toPairs().map(({ key, value }) => ({
-                key,
-                value: snapshot(create, value),
-              })),
-            ),
-          },
-    ),
-    true,
-  );
+const snapshot = (create, { push, ...value }, withPush = true) => {
+  const result =
+    value.type !== 'list'
+      ? value
+      : {
+          type: 'list',
+          value: List.fromPairs(
+            value.value.toPairs().map(({ key, value }) => ({
+              key,
+              value: snapshot(
+                create,
+                value,
+                !(key.type === 'value' && toIndex(key.value)),
+              ),
+            })),
+          ),
+        };
+  return withPush ? create(pushable(result), true) : result;
+};
 
 export default (type, info, config, create, nodes) => {
   if (type === 'push') {
-    return create(({ get, create }) => {
-      let source = get(nodes[0]);
-      return {
-        initial: { type: 'value', value: '' },
-        update: () => {
-          const dest = get(nodes[1]);
-          const newSource = get(nodes[0]);
-          if (dest.push && source !== newSource) {
-            dest.push(snapshot(create, get(nodes[0], true)));
-          }
-          source = newSource;
-        },
+    return create((_, get, create) => {
+      let source;
+      return () => {
+        const dest = get(nodes[1]);
+        const newSource = get(nodes[0]);
+        if (source && dest.push && source !== newSource) {
+          dest.push(snapshot(create, get(nodes[0], true)));
+        }
+        source = newSource;
       };
     });
   }
@@ -66,21 +65,18 @@ export default (type, info, config, create, nodes) => {
   }
 
   if (type === 'trigger') {
-    return create(({ get, output }) => {
-      let values = nodes.map(a => get(a));
-      return {
-        initial: values[1],
-        update: () => {
-          const newValues = nodes.map(a => get(a));
-          if (values[0] !== newValues[0]) output({ ...newValues[1] });
-          values = newValues;
-        },
+    return create((set, get) => {
+      let values = [];
+      return () => {
+        const newValues = nodes.map(a => get(a));
+        if (values[0] !== newValues[0]) set({ ...newValues[1] });
+        values = newValues;
       };
     });
   }
 
   if (type === 'library') {
-    return create(({ get, output }) => {
+    return create((set, get) => {
       const run = () => {
         const resolved = get(nodes[0]);
         const v = resolved.type !== 'list' && toJs(resolved);
@@ -100,7 +96,7 @@ export default (type, info, config, create, nodes) => {
         const list = get(nodes[0], true);
         return fromJs(list.toPairs().filter(d => d.value).length);
       };
-      return { initial: run(), update: () => output(run()) };
+      return () => set(run());
     });
   }
 };

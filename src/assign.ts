@@ -23,7 +23,7 @@ const getType = ([l, v, k], setNil, noDestructure, append, get) => {
 
 const run = (type, [l, v, k]) => {
   if (type === 'none') {
-    return () => ({ initial: l });
+    return set => set(l);
   }
   if (type === 'append') {
     return streamMap(([list]) => ({
@@ -97,24 +97,17 @@ const run = (type, [l, v, k]) => {
   }))([l, k || { type: 'value', value: '' }], [false, true]);
 };
 
-const assign = (args, setNil, noDestructure, append) => ({
-  get,
-  output,
-  create,
-}) => {
-  let type = getType(args, setNil, noDestructure, append, get);
-  let prev = create(run(type, args));
-  return {
-    initial: prev,
-    update: () => {
-      const nextType = getType(args, setNil, noDestructure, append, get);
-      if (nextType !== type) {
-        type = nextType;
-        if (!args.includes(prev)) prev.value.cancel();
-        prev = create(run(type, args));
-        output(prev);
-      }
-    },
+const assign = (args, setNil, noDestructure, append) => (set, get, create) => {
+  let type;
+  let prev;
+  return () => {
+    const nextType = getType(args, setNil, noDestructure, append, get);
+    if (nextType !== type) {
+      type = nextType;
+      if (prev && !args.includes(prev)) prev.value.cancel();
+      prev = create(run(type, args));
+      set(prev);
+    }
   };
 };
 

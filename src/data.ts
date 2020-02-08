@@ -1,20 +1,8 @@
 import List from './list';
 
-export const fromJsFunc = (arg, func, deep) => ({ get, output }) => {
-  let first = true;
-  let initial = { type: 'value', value: '' };
-  const emit = data => {
-    if (first) initial = data;
-    else output(data);
-  };
-  const update = func(emit);
-  update(get(arg, deep));
-  first = false;
-  return {
-    initial,
-    update: () => update(get(arg, deep)),
-    stop: () => update(),
-  };
+export const fromJsFunc = (arg, func, deep) => (set, get) => {
+  const run = func(set);
+  return dispose => (dispose ? run() : run(get(arg, deep)));
 };
 
 export const fromJs = value => {

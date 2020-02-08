@@ -6,25 +6,21 @@ import { combineValues } from './combine';
 import List from './list';
 import operations from './operations';
 
-export const streamMap = map => (args, deeps = [] as boolean[]) => ({
+export const streamMap = map => (args, deeps = [] as boolean[]) => (
+  set,
   get,
-  output,
   create,
-}) => {
-  const run = () =>
+) => () =>
+  set(
     map(
       args.map((a, i) => get(a, deeps[i] || false)),
       create,
-    );
-  return { initial: run(), update: () => output(run()) };
-};
+    ),
+  );
 
-export const pushable = arg => ({ get, output }) => {
-  const push = v => output({ ...v, push });
-  return {
-    initial: { push, ...get(arg) },
-    update: () => output({ push, ...get(arg) }),
-  };
+export const pushable = arg => (set, get) => {
+  const push = v => set({ ...v, push });
+  return () => set({ push, ...get(arg) });
 };
 
 const mergeMaps = (create, args, deep, map) => {
