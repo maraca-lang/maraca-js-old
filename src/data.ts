@@ -64,22 +64,12 @@ export const toJs = data => {
 
 export const isEqual = (v1, v2) => {
   if (v1.type !== v2.type) return false;
-  if (v1.type !== 'box') return v1.value === v2.value;
-  const fullObj1 = v1.toObject();
-  const fullObj2 = v2.toObject();
-  const obj1 = Object.keys(fullObj1).reduce(
-    (res, k) => (!fullObj1[k].value ? res : { ...res, [k]: fullObj1[k] }),
-    {},
-  );
-  const obj2 = Object.keys(fullObj2).reduce(
-    (res, k) => (!fullObj2[k].value ? res : { ...res, [k]: fullObj2[k] }),
-    {},
-  );
-  const keys1 = Object.keys(obj1);
-  const keys2 = Object.keys(obj2);
-  if (keys1.length !== keys2.length) return false;
-  return keys1.every(k => obj2[k] && isEqual(obj1[k].value, obj2[k].value));
+  if (v1.type == 'value') return v1.value === v2.value;
+  return JSON.stringify(v1.value) === JSON.stringify(v2.value);
 };
+
+export const toString = x =>
+  x.type === 'value' ? x.value : JSON.stringify(x.value);
 
 export const toIndex = (v: string) => {
   const n = parseFloat(v);

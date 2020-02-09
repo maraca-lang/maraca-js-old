@@ -1,18 +1,5 @@
-import { fromJs, sortMultiple, toIndex } from './data';
+import { fromJs, sortMultiple, toIndex, toString } from './data';
 import { Data, Obj, isValue, StreamData } from './typings';
-
-const toKey = (data: Data) => {
-  if (isValue(data)) return data.value;
-  return JSON.stringify(
-    data.value.toPairs().reduce(
-      (res, { key, value }) => ({
-        ...res,
-        [toKey(key)]: toKey(value as any),
-      }),
-      {},
-    ),
-  );
-};
 
 const tryNumber = s => {
   const n = parseFloat(s);
@@ -87,7 +74,7 @@ export default class Box {
   static fromPairs(pairs: { key: Data; value: StreamData }[]) {
     const result = new Box();
     pairs.forEach(pair => {
-      const k = toKey(pair.key);
+      const k = toString(pair.key);
       const i = toIndex(k);
       if (!i || pair.value) {
         if (!result.values[k] || pair.value) result.values[k] = pair;
@@ -120,9 +107,6 @@ export default class Box {
       .map(k => this.values[k])
       .sort((a, b) => compare(a.key, b.key));
   }
-  toObject() {
-    return this.values;
-  }
   cloneValues() {
     const result = new Box();
     result.values = { ...this.values };
@@ -131,18 +115,18 @@ export default class Box {
   }
 
   has(key: Data) {
-    const k = toKey(key);
+    const k = toString(key);
     return !!(this.values[k] && this.values[k].value);
   }
   get(key: Data) {
-    const k = toKey(key);
+    const k = toString(key);
     const v = this.values[k] && this.values[k].value;
     return v || this.func || { type: 'value', value: '' };
   }
   extract(keys: Data[], doOffset: boolean) {
     const rest = this.cloneValues();
     const values = keys.map(key => {
-      const k = toKey(key);
+      const k = toString(key);
       const i = toIndex(k);
       const v = (rest.values[k] && rest.values[k].value) || {
         type: 'value',
@@ -196,10 +180,10 @@ export default class Box {
     return result;
   }
   set(key: Data, value: Data) {
-    const k = toKey(key);
+    const k = toString(key);
     const i = toIndex(k);
     const result = new Box();
-    result.values = { ...this.values, [k]: { key, value } };
+    result.values = { ...this.values, [k]: { key, value } } as any;
     result.indices =
       i && !this.indices.includes(i)
         ? [...this.indices, i].sort((a, b) => a - b)
@@ -212,7 +196,7 @@ export default class Box {
       if (!key) {
         const offset = this.indices[this.indices.length - 1] || 0;
         return value.value.toPairs().reduce<Box>((res, v) => {
-          const i = toIndex(toKey(v.key));
+          const i = toIndex(toString(v.key));
           return res.destructure(
             i ? fromJs(i + offset) : v.key,
             v.value as any,
@@ -237,5 +221,12 @@ export default class Box {
     result.indices = this.indices;
     result.func = Object.assign(func, { isMap, hasArg, isPure });
     return result;
+  }
+
+  toJSON() {
+    return `[${this.toPairs()
+      .filter(x => x.value)
+      .map(({ key, value }) => `${toString(key)}: ${toString(value)}`)
+      .join(', ')}]`;
   }
 }
