@@ -116,16 +116,21 @@ class Creator {
   }
 }
 
-export default (build, output?) => {
+export default (build, output?, initial = null as any) => {
   const queue = new Queue();
   const creator = new Creator(queue, []) as any;
-  const stream = build((...args) => creator.create(...args));
+  let setInput;
+  const input = creator.create(set => {
+    set(initial);
+    setInput = set;
+  });
+  const stream = build((...args) => creator.create(...args), input);
   stream.observe(output);
-  const initial = stream.value;
+  const first = stream.value;
   if (!output) {
     stream.unobserve();
-    return initial;
+    return first;
   }
-  output(initial);
-  return () => stream.unobserve();
+  output(first);
+  return value => (value !== undefined ? setInput(value) : stream.unobserve());
 };

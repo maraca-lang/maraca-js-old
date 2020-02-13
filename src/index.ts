@@ -7,6 +7,7 @@ import { Config, Data, Source, StreamData } from './typings';
 
 export { fromJs, toJs } from './data';
 export { default as parse } from './parse';
+export { default as process } from './streams';
 export { Data, Source } from './typings';
 
 const nilValue = { type: 'value', value: '' };

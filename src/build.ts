@@ -433,7 +433,6 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
       const result = build(config, subCreate, subContext, info.body);
       return [result, subContext.scope[0].value, subContext.current[0].value];
     };
-    const func = funcMap();
     context.current[0] = {
       type: 'any',
       items: { ...context.current[0].items },
@@ -441,7 +440,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         streamMap(([current]) => ({
           type: 'box',
           value: ((current && current.value) || new Box()).setFunc(
-            info.map ? funcMap : func,
+            info.map ? funcMap : funcMap(),
             info.map,
             !!args[1],
           ),
