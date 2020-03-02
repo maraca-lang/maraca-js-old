@@ -26,6 +26,10 @@ test('interpret', done => {
 });
 
 test('lib', () => {
+  expect(maraca('#[1, 2, 3]', config)).toEqual({
+    type: 'value',
+    value: '3',
+  });
   expect(maraca('#size.[1, 2, 3]', config)).toEqual({
     type: 'value',
     value: '3',

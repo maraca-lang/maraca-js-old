@@ -80,6 +80,9 @@ export default (type, info, config, create, nodes) => {
       const run = () => {
         const resolved = get(nodes[0]);
         const v = resolved.type !== 'box' && toJs(resolved);
+        if (v === null) {
+          return { type: 'value', value: '' };
+        }
         if (typeof v === 'number' && Math.floor(v) === v) {
           return {
             type: 'box',
@@ -94,7 +97,7 @@ export default (type, info, config, create, nodes) => {
           );
         }
         const box = get(nodes[0], true);
-        return fromJs(box.toPairs().filter(d => d.value).length);
+        return fromJs(box.value.toPairs().filter(d => d.value).length);
       };
       return () => set(run());
     });
