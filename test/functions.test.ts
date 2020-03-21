@@ -66,11 +66,11 @@ test('maps', () => {
     value: Box.fromPairs([
       {
         key: { type: 'value', value: 'Item a' },
-        value: { type: 'value', value: 'a' },
+        value: { type: 'value', value: 'a', push: expect.any(Function) },
       },
       {
         key: { type: 'value', value: 'Item b' },
-        value: { type: 'value', value: 'b' },
+        value: { type: 'value', value: 'b', push: expect.any(Function) },
       },
     ] as any),
   });

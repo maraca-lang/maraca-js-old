@@ -157,6 +157,62 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
 
   if (type === 'combine') {
     return args.reduce((a1, a2, i) => {
+      const n1 = nodes[i - 1];
+      const n2 = nodes[i];
+
+      if (
+        (n1.type === 'box' && n2.type === 'value') ||
+        (n2.type === 'box' && n1.type === 'value')
+      ) {
+        const [box, value] = n1.type === 'box' ? [n1, n2] : [n2, n1];
+        if (
+          box.nodes.every(n => n.type !== 'func') &&
+          (value.info.value === '1' ||
+            value.info.value === `${box.nodes.length}`)
+        ) {
+          const ctx = box.info.semi
+            ? { scope: [...context.scope], current: [...context.current] }
+            : { scope: [], current: [] };
+          ctx.current.unshift({
+            type: 'constant',
+            value: { type: 'box', value: new Box() },
+          });
+          ctx.scope.unshift({
+            type: 'any',
+            items: { ...context.scope[0].items },
+            value: create(
+              streamMap(([value]) => ({
+                type: 'box',
+                value:
+                  value.type === 'box' ? value.value.clearIndices() : new Box(),
+              }))([context.scope[0].value]),
+            ),
+          });
+          const compiled = box.nodes.map(n =>
+            compile(n, [config, create, ctx]),
+          );
+          ctx.current.shift();
+          if (box.info.semi) {
+            ctx.scope.shift();
+            context.current = ctx.current;
+            context.scope = ctx.scope;
+          }
+
+          const orBox = value.info.value === '1';
+          return {
+            type: 'any',
+            value: create((set, get) => () => {
+              let result = { type: 'value', value: '' };
+              for (let i = 0; i < box.nodes.length; i++) {
+                result = get(compiled[i].value);
+                if (!orBox === !result.value) break;
+              }
+              set(result);
+            }),
+          };
+        }
+      }
+
       const space = info.space && info.space[i - 1];
       if (
         [a1, a2].some(a => a.items) &&
