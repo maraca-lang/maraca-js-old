@@ -37,7 +37,6 @@ export type FullData = Data | StreamData;
 
 export const isValue = (data: Data): data is ValueData => data.type === 'value';
 
-export interface Config {
-  '@'?: ((emit: (output: Data) => void) => (value?: Data) => void)[];
-  '#'?: Obj<Data | ((emit: (output: Data) => void) => void | (() => void))>;
-}
+export type Library = Obj<
+  Data | ((emit: (output: Data) => void) => void | (() => void))
+>;

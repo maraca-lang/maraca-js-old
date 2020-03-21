@@ -1,3 +1,4 @@
+import Box from './box';
 import { fromJs, isEqual, toJs } from './data';
 import fuzzy from './fuzzy';
 
@@ -60,4 +61,22 @@ export default {
   '/': numericMap(([a, b]) => a / b),
   '%': numericMap(([a, b]) => ((((a - 1) % b) + b) % b) + 1),
   '^': numericMap(([a, b]) => a ** b),
+  '#': {
+    map: ([a]) => {
+      if (a.type === 'box') {
+        return fromJs(a.value.toPairs().filter(d => d.value).length);
+      }
+      const value = toJs(a);
+      if (typeof value === 'number' && Math.floor(value) === value) {
+        return {
+          type: 'box',
+          value: Box.fromArray(
+            Array.from({ length: value }).map((_, i) => fromJs(i + 1)),
+          ),
+        };
+      }
+      return fromJs(null);
+    },
+    deepArgs: [true],
+  },
 };

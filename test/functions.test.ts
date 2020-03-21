@@ -11,6 +11,10 @@ test('basic', () => {
 });
 
 test('maps', () => {
+  expect(maraca('[a, b, c].[=>> ]')).toEqual({
+    type: 'box',
+    value: new Box(),
+  });
   expect(maraca('[5, 10].[v=> k=> [v?, k?]]')).toEqual({
     type: 'box',
     value: Box.fromPairs([
@@ -83,5 +87,6 @@ test('maps', () => {
       },
     ] as any),
   });
+  expect(maraca('1.[=>> ]')).toEqual({ type: 'value', value: '' });
   expect(maraca('1.[v=>> v? + 1]')).toEqual({ type: 'value', value: '' });
 });

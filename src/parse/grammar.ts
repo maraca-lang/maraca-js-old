@@ -9,6 +9,7 @@ export default `Maraca {
     | ExpSet "=>" ExpSet -- func_one
     | "=>>" ExpSet -- map
     | "=>" ExpSet -- func
+    | "=>>" -- map_blank
     | ExpSet
 
   ExpSet
@@ -50,11 +51,7 @@ export default `Maraca {
     | ExpPow
 
   ExpPow
-    = ExpPow "^" ExpDyn -- pow
-    | ExpDyn
-
-  ExpDyn
-    = ("@@@" | "@@" | "@") ExpSep -- dyn
+    = ExpPow "^" ExpSep -- pow
     | ExpSep
 
   ExpSep
@@ -62,11 +59,11 @@ export default `Maraca {
     | ExpComb
 
   ExpComb
-    = ExpComb ExpLib -- comb
-    | ExpLib
+    = ExpComb ExpSize -- comb
+    | ExpSize
 
-  ExpLib
-    = "#" Atom -- lib
+  ExpSize
+    = "#" Atom -- size
     | Atom
 
   Atom

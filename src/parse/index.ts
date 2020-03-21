@@ -14,7 +14,7 @@ const loadSemantics = () => {
   const funcAst = (key, value, body, map, first, last) => ({
     type: 'func',
     nodes: [key && key.ast, value && value.ast],
-    info: { body: body.ast, map },
+    info: { body: body?.ast || { type: 'nil' }, map },
     start: first.source.startIdx,
     end: last.source.endIdx,
   });
@@ -76,6 +76,7 @@ const loadSemantics = () => {
     ExpFunc_func_one: (a, _, b) => funcAst(null, a, b, false, a, b),
     ExpFunc_map: (_, a) => funcAst(null, null, a, true, _, a),
     ExpFunc_func: (_, a) => funcAst(null, null, a, false, _, a),
+    ExpFunc_map_blank: a => funcAst(null, null, null, true, a, a),
     ExpFunc: a => a.ast,
 
     ExpSet_short_context: (a, _) =>
@@ -144,15 +145,6 @@ const loadSemantics = () => {
     ExpPow_pow: mapAst,
     ExpPow: a => a.ast,
 
-    ExpDyn_dyn: (a, b) => ({
-      type: 'interpret',
-      nodes: [b.ast],
-      info: { level: a.sourceString.length },
-      start: a.source.startIdx,
-      end: b.source.endIdx,
-    }),
-    ExpDyn: a => a.ast,
-
     ExpSep_sep: (a, _, b) => ({
       type: 'combine',
       nodes: [
@@ -191,13 +183,14 @@ const loadSemantics = () => {
     },
     ExpComb: a => a.ast,
 
-    ExpLib_lib: (_, a) => ({
-      type: 'library',
-      nodes: [a.ast],
-      start: _.source.startIdx,
-      end: a.source.endIdx,
+    ExpSize_size: (a, b) => ({
+      type: 'map',
+      nodes: [b.ast],
+      info: { func: a.sourceString },
+      start: a.source.startIdx,
+      end: b.source.endIdx,
     }),
-    ExpLib: a => a.ast,
+    ExpSize: a => a.ast,
 
     Atom_space: a => ({
       type: 'value',

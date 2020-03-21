@@ -103,7 +103,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     );
   }
 
-  const [config, create, context] = evalArgs;
+  const [create, context] = evalArgs;
 
   if (
     type === 'nil' ||
@@ -139,7 +139,6 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     });
     nodes.forEach(n => {
       compile({ type: 'assign', nodes: [n], info: { append: true } }, [
-        config,
         create,
         ctx,
       ]);
@@ -188,9 +187,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
               }))([context.scope[0].value]),
             ),
           });
-          const compiled = box.nodes.map(n =>
-            compile(n, [config, create, ctx]),
-          );
+          const compiled = box.nodes.map(n => compile(n, [create, ctx]));
           ctx.current.shift();
           if (box.info.semi) {
             ctx.scope.shift();
@@ -389,7 +386,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
       };
       const compiledBody = compileFuncBody(
         info.body,
-        [config, create, ctx],
+        [create, ctx],
         info.map,
         argTrace,
       );
@@ -486,7 +483,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
           };
         }
       });
-      const result = build(config, subCreate, subContext, info.body);
+      const result = build(subCreate, subContext, info.body);
       return [result, subContext.scope[0].value, subContext.current[0].value];
     };
     context.current[0] = {
@@ -510,15 +507,12 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     type: 'any',
     value: operations(
       type,
-      info,
-      config,
       create,
       args.map(a => a.value),
     ),
   };
 };
 
-const build = (config, create, context, node) =>
-  compile(node, [config, create, context]).value;
+const build = (create, context, node) => compile(node, [create, context]).value;
 
 export default build;

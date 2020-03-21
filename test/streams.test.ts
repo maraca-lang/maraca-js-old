@@ -1,11 +1,29 @@
 import maraca from '../src/index';
 import Box from '../src/box';
+import { fromJs } from '../src/data';
 
-import config from './config';
+const library = {
+  size: fromJs(emit => x =>
+    x &&
+    emit(
+      fromJs(
+        x.type === 'box'
+          ? x.value.toPairs().filter(v => v.value.value).length
+          : '0',
+      ),
+    ),
+  ),
+  tick: emit => {
+    let count = 1;
+    emit(fromJs(count++));
+    const interval = setInterval(() => emit(fromJs(count++)), 1000);
+    return () => clearInterval(interval);
+  },
+};
 
 const testStream = (code, values, done) => {
   let c = 0;
-  const stop = maraca(code, config, data => {
+  const stop = maraca(code, library, data => {
     expect(data).toEqual(values[c]);
     if (!values[++c]) {
       stop();
@@ -14,9 +32,13 @@ const testStream = (code, values, done) => {
   });
 };
 
-test('interpret', done => {
+test('lib', done => {
+  expect(maraca('size?.[1, 2, 3]', library)).toEqual({
+    type: 'value',
+    value: '3',
+  });
   testStream(
-    '@1',
+    'tick?',
     [
       { type: 'value', value: '1' },
       { type: 'value', value: '2' },
@@ -25,20 +47,9 @@ test('interpret', done => {
   );
 });
 
-test('lib', () => {
-  expect(maraca('#[1, 2, 3]', config)).toEqual({
-    type: 'value',
-    value: '3',
-  });
-  expect(maraca('#size.[1, 2, 3]', config)).toEqual({
-    type: 'value',
-    value: '3',
-  });
-});
-
 test('trigger', done => {
   testStream(
-    '@1 | 10',
+    'tick? | 10',
     [
       { type: 'value', value: '10' },
       { type: 'value', value: '10' },
@@ -49,7 +60,7 @@ test('trigger', done => {
 
 test('push', done => {
   testStream(
-    '[x: 10, @1 | x? + 10 -> x?].x',
+    '[x: 10, tick? | x? + 10 -> x?].x',
     [
       { type: 'value', value: '10', push: expect.any(Function) },
       { type: 'value', value: '20', push: expect.any(Function) },
@@ -60,7 +71,7 @@ test('push', done => {
 
 test('push box', done => {
   testStream(
-    '[x: [a], @1 | [: x?, a] -> x?].x',
+    '[x: [a], tick? | [: x?, a] -> x?].x',
     [
       {
         type: 'box',

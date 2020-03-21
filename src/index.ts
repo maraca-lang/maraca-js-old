@@ -3,7 +3,7 @@ import { fromJs } from './data';
 import Box from './box';
 import parse from './parse';
 import process from './streams';
-import { Config, Data, Source, StreamData } from './typings';
+import { Data, Library, Source, StreamData } from './typings';
 
 export { fromJs, toJs } from './data';
 export { default as parse } from './parse';
@@ -42,37 +42,20 @@ const wrapCreate = create => (run, ...args) =>
 
 function maraca(source: Source): Data;
 function maraca(source: Source, onData: (data: Data) => void): () => void;
-function maraca(source: Source, config: Config): Data;
+function maraca(source: Source, library: Library): Data;
 function maraca(
   source: Source,
-  config: Config,
+  library: Library,
   onData: (data: Data) => void,
 ): () => void;
 function maraca(...args) {
-  const [source, { '@': interpret = [], '#': library = {} } = {}, onData] =
+  const [source, library = {}, onData] =
     typeof args[1] === 'function' ? [args[0], {}, args[1]] : args;
   return process(baseCreate => {
     const create = wrapCreate(baseCreate);
-    const config = { '@': interpret, '#': {} };
-    Object.keys(library).forEach(k => {
-      config['#'][k] = create(
-        typeof library[k] !== 'function'
-          ? set => set(library[k])
-          : (set, get) => {
-              const emit = ({ push, ...data }) =>
-                set({
-                  ...data,
-                  push: push && (v => push(get(v, true))),
-                });
-              const stop = library[k](emit);
-              return dispose => dispose && stop && stop();
-            },
-      );
-    });
     const [start, modules] = Array.isArray(source) ? source : [source, {}];
     const buildModule = (create, code) =>
       build(
-        config,
         create,
         {
           scope: [{ type: 'any', value: scope }],
@@ -84,8 +67,24 @@ function maraca(...args) {
       );
     const scope = {
       type: 'box',
-      value: Box.fromPairs(
-        Object.keys(modules).map(k => ({
+      value: Box.fromPairs([
+        ...Object.keys(library).map(k => ({
+          key: fromJs(k),
+          value: create(
+            typeof library[k] !== 'function'
+              ? set => set(library[k])
+              : (set, get) => {
+                  const emit = ({ push, ...data }) =>
+                    set({
+                      ...data,
+                      push: push && (v => push(get(v, true))),
+                    });
+                  const stop = library[k](emit);
+                  return dispose => dispose && stop && stop();
+                },
+          ),
+        })),
+        ...Object.keys(modules).map(k => ({
           key: fromJs(k),
           value: create((set, _, create) => {
             if (typeof modules[k] === 'function') {
@@ -95,10 +94,9 @@ function maraca(...args) {
             }
           }),
         })),
-      ),
+      ]),
     };
     const stream = build(
-      config,
       create,
       {
         scope: [{ type: 'any', value: scope }],
