@@ -2,10 +2,10 @@ import Box from './box';
 
 export const fromJsFunc = (arg, func, deep) => (set, get) => {
   const run = func(set);
-  return dispose => (dispose ? run() : run(get(arg, deep)));
+  return (dispose) => (dispose ? run() : run(get(arg, deep)));
 };
 
-export const fromJs = value => {
+export const fromJs = (value) => {
   if (value === 0) return { type: 'value', value: '0' };
   if (!value) return { type: 'value', value: '' };
   if (value === true) return { type: 'value', value: 'true' };
@@ -26,7 +26,7 @@ export const fromJs = value => {
     return {
       type: 'box',
       value: Box.fromPairs(
-        Object.keys(value).map(k => ({
+        Object.keys(value).map((k) => ({
           key: fromJs(k),
           value: fromJs(value[k]),
         })),
@@ -48,7 +48,7 @@ export const fromJs = value => {
 };
 
 const dateRegex = /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/;
-export const toJs = data => {
+export const toJs = (data) => {
   if (!data.value) return null;
   if (data.type === 'value') {
     const s = data.value;
@@ -68,7 +68,7 @@ export const isEqual = (v1, v2) => {
   return JSON.stringify(v1.value) === JSON.stringify(v2.value);
 };
 
-export const toString = x =>
+export const toString = (x) =>
   x.type === 'value' ? x.value : JSON.stringify(x.value);
 
 export const toIndex = (v: string) => {

@@ -45,14 +45,14 @@ export class Stream {
       const creator = new Creator(queue, index);
       let firstUpdate = true;
       const update = run(
-        v => {
+        (v) => {
           this.value = v;
           if (!firstUpdate) {
             if (this.onChange) this.onChange(v);
             queue.add(this.listeners);
           }
         },
-        s => {
+        (s) => {
           active.add(s);
           s.observe(this);
           return s.value;
@@ -120,7 +120,7 @@ export default (build, output?, initial = null as any) => {
   const queue = new Queue();
   const creator = new Creator(queue, []) as any;
   let setInput;
-  const input = creator.create(set => {
+  const input = creator.create((set) => {
     set(initial);
     setInput = set;
   });
@@ -132,5 +132,6 @@ export default (build, output?, initial = null as any) => {
     return first;
   }
   output(first);
-  return value => (value !== undefined ? setInput(value) : stream.unobserve());
+  return (value) =>
+    value !== undefined ? setInput(value) : stream.unobserve();
 };

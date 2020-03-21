@@ -84,7 +84,7 @@ var exceptions1 = {
 // Note, these are to be treated as full words.
 var rgxException2 = /^(inning|outing|canning|herring|proceed|exceed|succeed|earring)$/;
 
-var prelude = function(s) {
+var prelude = function (s) {
   return (
     s
       // Handle `y`'s.
@@ -97,7 +97,7 @@ var prelude = function(s) {
   );
 };
 
-var isShort = function(s) {
+var isShort = function (s) {
   // (a) a vowel followed by a non-vowel other than w, x or 3 and
   // preceded by a non-vowel, **or** (b) a vowel at the beginning of the word
   // followed by a non-vowel.
@@ -107,7 +107,7 @@ var isShort = function(s) {
   );
 };
 
-var markRegions = function(s) {
+var markRegions = function (s) {
   // Matches of `R1` and `R2`.
   var m1, m2;
   // To detect regions i.e. `R1` and `R2`.
@@ -125,7 +125,7 @@ var markRegions = function(s) {
   return { r1: m1, r2: m2 };
 };
 
-var step1a = function(s) {
+var step1a = function (s) {
   var wordPart;
   if (rgxSFXsses.test(s)) return s.replace(rgxSFXsses, '$1ss');
   if (rgxSFXiedORies2.test(s)) return s.replace(rgxSFXiedORies2, '$1i');
@@ -136,7 +136,7 @@ var step1a = function(s) {
   return s;
 };
 
-var step1b = function(s) {
+var step1b = function (s) {
   var rgn = markRegions(s),
     sd;
   // Search for the longest among the `eedly|eed` suffixes.
@@ -164,11 +164,11 @@ var step1b = function(s) {
   return s;
 };
 
-var step1c = function(s) {
+var step1c = function (s) {
   return s.replace(rgxSFXyOR3, '$1i');
 };
 
-var step2 = function(s) {
+var step2 = function (s) {
   var i,
     imax,
     rgn = markRegions(s),
@@ -187,7 +187,7 @@ var step2 = function(s) {
   return s;
 };
 
-var step3 = function(s) {
+var step3 = function (s) {
   var i,
     imax,
     rgn = markRegions(s),
@@ -208,7 +208,7 @@ var step3 = function(s) {
   return s;
 };
 
-var step4 = function(s) {
+var step4 = function (s) {
   var rgn = markRegions(s);
   var match = s.match(rgxSFXstep4Full);
   match = match === null ? '$$$$$' : match[1];
@@ -222,7 +222,7 @@ var step4 = function(s) {
   return s;
 };
 
-var step5 = function(s) {
+var step5 = function (s) {
   var preceding, rgn;
   // Search for the `e` suffixes.
   rgn = markRegions(s);
@@ -245,7 +245,7 @@ var step5 = function(s) {
   return s;
 };
 
-export default function(word) {
+export default function (word) {
   var str = word.toLowerCase();
   if (str.length < 3) return str;
   if (exceptions1[str]) return exceptions1[str];

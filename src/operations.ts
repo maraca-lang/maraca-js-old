@@ -62,7 +62,7 @@ export default (type, create, nodes) => {
     return create((set, get) => {
       let values = [];
       return () => {
-        const newValues = nodes.map(a => get(a));
+        const newValues = nodes.map((a) => get(a));
         if (values[0] !== newValues[0]) set({ ...newValues[1] });
         values = newValues;
       };

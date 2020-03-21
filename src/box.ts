@@ -1,11 +1,11 @@
 import { fromJs, sortMultiple, toIndex, toString } from './data';
 import { Data, Obj, isValue, StreamData } from './typings';
 
-const tryNumber = s => {
+const tryNumber = (s) => {
   const n = parseFloat(s);
   return !isNaN(s) && !isNaN(n) ? n : s;
 };
-const getMinus = v => {
+const getMinus = (v) => {
   if (!v) return { minus: false, v };
   const minus = typeof v === 'number' ? v < 0 : v[0] === '-';
   if (!minus) return { minus, value: v };
@@ -49,14 +49,14 @@ const compare = (v1, v2): -1 | 0 | 1 => {
   );
   return sortMultiple(
     keys.map(
-      k =>
+      (k) =>
         (v1.value.values[k] && v1.value.values[k].value) || {
           type: 'value',
           value: '',
         },
     ),
     keys.map(
-      k =>
+      (k) =>
         (v2.value.values[k] && v2.value.values[k].value) || {
           type: 'value',
           value: '',
@@ -73,7 +73,7 @@ export default class Box {
 
   static fromPairs(pairs: { key: Data; value: StreamData }[]) {
     const result = new Box();
-    pairs.forEach(pair => {
+    pairs.forEach((pair) => {
       const k = toString(pair.key);
       const i = toIndex(k);
       if (!i || pair.value) {
@@ -104,7 +104,7 @@ export default class Box {
 
   toPairs() {
     return Object.keys(this.values)
-      .map(k => this.values[k])
+      .map((k) => this.values[k])
       .sort((a, b) => compare(a.key, b.key));
   }
   cloneValues() {
@@ -125,7 +125,7 @@ export default class Box {
   }
   extract(keys: Data[], doOffset: boolean) {
     const rest = this.cloneValues();
-    const values = keys.map(key => {
+    const values = keys.map((key) => {
       const k = toString(key);
       const i = toIndex(k);
       const v = (rest.values[k] && rest.values[k].value) || {
@@ -133,7 +133,7 @@ export default class Box {
         value: '',
       };
       delete rest.values[k];
-      if (i) rest.indices = rest.indices.filter(x => x !== i);
+      if (i) rest.indices = rest.indices.filter((x) => x !== i);
       return v;
     });
     const offset = rest.indices[0] - 1;
@@ -153,7 +153,7 @@ export default class Box {
 
   map(map: (value: StreamData, key: Data) => StreamData) {
     const result = Box.fromPairs(
-      Object.keys(this.values).map(k => ({
+      Object.keys(this.values).map((k) => ({
         key: this.values[k].key,
         value: map(this.values[k].value, this.values[k].key),
       })),
@@ -165,7 +165,7 @@ export default class Box {
   clearIndices() {
     const result = new Box();
     result.values = { ...this.values };
-    this.indices.forEach(i => {
+    this.indices.forEach((i) => {
       delete result.values[i];
     });
     result.func = this.func;
@@ -205,7 +205,7 @@ export default class Box {
       }
       const keyPairs = key.value.toPairs();
       const { values } = value.value.extract(
-        keyPairs.map(d => d.key),
+        keyPairs.map((d) => d.key),
         false,
       );
       return values.reduce<Box>(
@@ -225,7 +225,7 @@ export default class Box {
 
   toJSON() {
     return `[${this.toPairs()
-      .filter(x => x.value)
+      .filter((x) => x.value)
       .map(({ key, value }) => `${toString(key)}: ${toString(value)}`)
       .join(', ')}]`;
   }

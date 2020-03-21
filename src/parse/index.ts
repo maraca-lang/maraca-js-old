@@ -56,28 +56,30 @@ const loadSemantics = () => {
       .replace(/(￿2| |\t)+/g, ' ')
       .replace(/￿1/g, '￿');
 
-  const dedent = str => {
+  const dedent = (str) => {
     let s = str;
     // 1. Find all line breaks to determine the highest common indentation level.
     const matches = s.replace(/\n+/g, '\n').match(/\n[\t ]*/g) || [];
     // 2. Remove the common indentation from all strings.
     if (matches.length) {
-      const size = Math.min(...matches.map(value => (value as any).length - 1));
+      const size = Math.min(
+        ...matches.map((value) => (value as any).length - 1),
+      );
       s = s.replace(new RegExp(`\n[\t ]{${size}}`, 'g'), '\n');
     }
     return s;
   };
 
   s.addAttribute('ast', {
-    Exp: a => a.ast,
+    Exp: (a) => a.ast,
 
     ExpFunc_map_all: (a, _1, b, _2, c) => funcAst(b, a, c, true, a, c),
     ExpFunc_map_one: (a, _, b) => funcAst(null, a, b, true, a, b),
     ExpFunc_func_one: (a, _, b) => funcAst(null, a, b, false, a, b),
     ExpFunc_map: (_, a) => funcAst(null, null, a, true, _, a),
     ExpFunc_func: (_, a) => funcAst(null, null, a, false, _, a),
-    ExpFunc_map_blank: a => funcAst(null, null, null, true, a, a),
-    ExpFunc: a => a.ast,
+    ExpFunc_map_blank: (a) => funcAst(null, null, null, true, a, a),
+    ExpFunc: (a) => a.ast,
 
     ExpSet_short_context: (a, _) =>
       assignAst(
@@ -90,8 +92,8 @@ const loadSemantics = () => {
     ExpSet_normal: (a, _, b) => assignAst(b.ast, a.ast, a, b),
     ExpSet_nil_value: (a, _) => assignAst({ type: 'nil' }, a.ast, a, _),
     ExpSet_nil_key: (_, a) => assignAst(a.ast, null, _, a),
-    ExpSet_nil_both: _ => assignAst({ type: 'nil' }, { type: 'nil' }, _, _),
-    ExpSet: a => a.ast,
+    ExpSet_nil_both: (_) => assignAst({ type: 'nil' }, { type: 'nil' }, _, _),
+    ExpSet: (a) => a.ast,
 
     ExpPush_push: (a, _, b) => ({
       type: 'push',
@@ -99,7 +101,7 @@ const loadSemantics = () => {
       start: a.source.startIdx,
       end: b.source.endIdx,
     }),
-    ExpPush: a => a.ast,
+    ExpPush: (a) => a.ast,
 
     ExpEval_eval: (a, _, b) => ({
       type: 'eval',
@@ -107,7 +109,7 @@ const loadSemantics = () => {
       start: a.source.startIdx,
       end: b.source.endIdx,
     }),
-    ExpEval: a => a.ast,
+    ExpEval: (a) => a.ast,
 
     ExpTrigger_trigger: (a, _, b) => ({
       type: 'trigger',
@@ -115,7 +117,7 @@ const loadSemantics = () => {
       start: a.source.startIdx,
       end: b.source.endIdx,
     }),
-    ExpTrigger: a => a.ast,
+    ExpTrigger: (a) => a.ast,
 
     ExpNot_not: (a, b) => ({
       type: 'map',
@@ -124,10 +126,10 @@ const loadSemantics = () => {
       start: a.source.startIdx,
       end: b.source.endIdx,
     }),
-    ExpNot: a => a.ast,
+    ExpNot: (a) => a.ast,
 
     ExpComp_comp: mapAst,
-    ExpComp: a => a.ast,
+    ExpComp: (a) => a.ast,
 
     ExpSum_sum: mapAst,
     ExpSum_minus: (a, b) => ({
@@ -137,13 +139,13 @@ const loadSemantics = () => {
       start: a.source.startIdx,
       end: b.source.endIdx,
     }),
-    ExpSum: a => a.ast,
+    ExpSum: (a) => a.ast,
 
     ExpProd_prod: mapAst,
-    ExpProd: a => a.ast,
+    ExpProd: (a) => a.ast,
 
     ExpPow_pow: mapAst,
-    ExpPow: a => a.ast,
+    ExpPow: (a) => a.ast,
 
     ExpSep_sep: (a, _, b) => ({
       type: 'combine',
@@ -155,7 +157,7 @@ const loadSemantics = () => {
       start: a.source.startIdx,
       end: b.source.endIdx,
     }),
-    ExpSep: a => a.ast,
+    ExpSep: (a) => a.ast,
 
     ExpComb_comb: (a, b) => {
       const nodes = [
@@ -181,7 +183,7 @@ const loadSemantics = () => {
         end: b.source.endIdx,
       };
     },
-    ExpComb: a => a.ast,
+    ExpComb: (a) => a.ast,
 
     ExpSize_size: (a, b) => ({
       type: 'map',
@@ -190,27 +192,27 @@ const loadSemantics = () => {
       start: a.source.startIdx,
       end: b.source.endIdx,
     }),
-    ExpSize: a => a.ast,
+    ExpSize: (a) => a.ast,
 
-    Atom_space: a => ({
+    Atom_space: (a) => ({
       type: 'value',
       info: { value: ' ' },
       start: a.source.startIdx,
       end: a.source.endIdx,
     }),
-    Atom_context: a => ({
+    Atom_context: (a) => ({
       type: 'context',
       start: a.source.startIdx,
       end: a.source.endIdx,
     }),
-    Atom: a => a.ast,
+    Atom: (a) => a.ast,
 
     Box: (a, b, _, c, d) => boxAst(b, c, a, d),
 
     Line_string: (_1, a, _2) => {
       const indices = [
         [_1.source.startIdx, _1.source.endIdx],
-        ...a.ast.map(n => [n.start, n.end]),
+        ...a.ast.map((n) => [n.start, n.end]),
         [_2.source.startIdx, _2.source.endIdx],
       ];
       a.ast.forEach((n, i) => {
@@ -233,14 +235,14 @@ const loadSemantics = () => {
             })),
           ];
         }, [])
-        .map(x => ({ ...x, info: x.info || {} }));
+        .map((x) => ({ ...x, info: x.info || {} }));
       result[0].info.first = true;
       result[result.length - 1].info.last = true;
       return result;
     },
 
-    Line_exp: a => [a.ast],
-    Line_nil: a => [
+    Line_exp: (a) => [a.ast],
+    Line_nil: (a) => [
       {
         type: 'nil',
         start: a.source.startIdx,
@@ -248,7 +250,7 @@ const loadSemantics = () => {
       },
     ],
 
-    Multi_string: a => ({
+    Multi_string: (a) => ({
       type: 'value',
       info: {
         value: parseString(a.sourceString, true)
@@ -276,7 +278,7 @@ const loadSemantics = () => {
       start: a.source.startIdx,
       end: b.source.endIdx,
     }),
-    value_value: a => ({
+    value_value: (a) => ({
       type: 'value',
       info: { value: a.sourceString },
       start: a.source.startIdx,
@@ -313,8 +315,8 @@ const loadSemantics = () => {
       end: _2.source.endIdx,
     }),
 
-    char: a => a.sourceString,
-    char2: a => a.sourceString,
+    char: (a) => a.sourceString,
+    char2: (a) => a.sourceString,
     escape: (_, a) => a.sourceString,
   });
 };

@@ -17,13 +17,13 @@ const joinValues = (v1, v2, space) =>
   );
 
 export const combineValues = (v1, v2, dot, space) => {
-  if ([v1, v2].every(v => v.type !== 'box')) {
-    if (dot && [v1, v2].some(v => !v.value)) {
+  if ([v1, v2].every((v) => v.type !== 'box')) {
+    if (dot && [v1, v2].some((v) => !v.value)) {
       return { type: 'value', value: '' };
     }
     return joinValues(v1, v2, space);
   }
-  if ([v1, v2].every(v => v.type === 'box')) {
+  if ([v1, v2].every((v) => v.type === 'box')) {
     return { type: 'value', value: '' };
   }
   const [l, v] = v1.type === 'box' ? [v1, v2] : [v2, v1];
@@ -59,7 +59,7 @@ const getInfo = ([s1, s2], get, dot) => {
   return { type: getType(big, small), reverse: small === v1, big, small };
 };
 
-const copy = stream => (set, get) => () => set(get(stream));
+const copy = (stream) => (set, get) => () => set(get(stream));
 
 const runGet = (create, value, func, arg) => {
   if (typeof value === 'function') return value(create, arg)[0];
@@ -73,7 +73,7 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
   if (type === 'nil') {
     return {
       result: { type: 'value', value: '' },
-      canContinue: info => info.type === 'nil',
+      canContinue: (info) => info.type === 'nil',
     };
   }
   if (type === 'join') {
@@ -81,7 +81,7 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
       result: create(
         streamMap(([v1, v2]) => joinValues(v1, v2, space))([s1, s2]),
       ),
-      canContinue: info => info.type === 'join',
+      canContinue: (info) => info.type === 'join',
     };
   }
   if (type === 'get') {
@@ -94,7 +94,7 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
     );
     return {
       result: result.type === 'stream' ? create(copy(result)) : result,
-      canContinue: info =>
+      canContinue: (info) =>
         info.type === 'get' &&
         info.big.value.get(info.small) === value &&
         info.big.value.getFunc() === big.value.getFunc(),
@@ -111,7 +111,7 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
       ),
     };
   }
-  const pairs = small.value.toPairs().filter(d => d.value.value);
+  const pairs = small.value.toPairs().filter((d) => d.value.value);
   return {
     result: pairs.reduce(
       (res, { key, value }) => {

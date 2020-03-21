@@ -2,12 +2,12 @@ import Box from './box';
 import { fromJs, isEqual, toJs } from './data';
 import fuzzy from './fuzzy';
 
-const dataMap = map => args => fromJs(map(args));
+const dataMap = (map) => (args) => fromJs(map(args));
 
-const numericMap = map =>
-  dataMap(args => {
-    const values = args.map(a => toJs(a));
-    if (values.some(v => typeof v !== 'number')) return null;
+const numericMap = (map) =>
+  dataMap((args) => {
+    const values = args.map((a) => toJs(a));
+    if (values.some((v) => typeof v !== 'number')) return null;
     return map(values);
   });
 
@@ -64,7 +64,7 @@ export default {
   '#': {
     map: ([a]) => {
       if (a.type === 'box') {
-        return fromJs(a.value.toPairs().filter(d => d.value).length);
+        return fromJs(a.value.toPairs().filter((d) => d.value).length);
       }
       const value = toJs(a);
       if (typeof value === 'number' && Math.floor(value) === value) {

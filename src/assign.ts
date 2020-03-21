@@ -23,7 +23,7 @@ const getType = ([l, v, k], setNil, noDestructure, append, get) => {
 
 const run = (type, [l, v, k]) => {
   if (type === 'none') {
-    return set => set(l);
+    return (set) => set(l);
   }
   if (type === 'append') {
     return streamMap(([box]) => ({
@@ -36,7 +36,7 @@ const run = (type, [l, v, k]) => {
       const keyPairs = key ? key.value.toPairs() : [];
       const func = key ? key.value.getFunc() : { hasArg: true };
       const { values, rest } = value.value.extract(
-        keyPairs.map(d => d.key),
+        keyPairs.map((d) => d.key),
         func && !func.isMap && !func.hasArg,
       );
       const result = values.reduce(
