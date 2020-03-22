@@ -125,6 +125,7 @@ test('nest boxes', () => {
               value: { type: 'value', value: 'b' },
             },
           ] as any),
+          push: expect.any(Function),
         },
       },
     ] as any),

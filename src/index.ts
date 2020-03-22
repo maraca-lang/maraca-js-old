@@ -27,7 +27,7 @@ const wrapCreate = (create) => (run, ...args) =>
               const d2 = d || nilValue;
               if (d2.type === 'stream') return map(get(d2.value));
               if (d2.type !== 'box') return d2;
-              return { type: 'box', value: d2.value.map((v) => map(v)) };
+              return { ...d2, value: d2.value.map((v) => map(v)) };
             };
             return () => set(map(data));
           }),
@@ -54,8 +54,11 @@ function maraca(...args) {
   return process((baseCreate) => {
     const create = wrapCreate(baseCreate);
     const [start, modules] = Array.isArray(source) ? source : [source, {}];
-    const buildModule = (create, code) =>
-      build(
+    const parsedModules = {};
+    const buildModule = (create, key, code) => {
+      parsedModules[key] =
+        parsedModules[key] || (typeof code === 'string' ? parse(code) : code);
+      return build(
         create,
         {
           scope: [{ type: 'any', value: scope }],
@@ -63,8 +66,9 @@ function maraca(...args) {
             { type: 'constant', value: { type: 'box', value: new Box() } },
           ],
         },
-        typeof code === 'string' ? parse(code) : code,
+        parsedModules[key],
       );
+    };
     const scope = {
       type: 'box',
       value: Box.fromPairs([
@@ -88,9 +92,9 @@ function maraca(...args) {
           key: fromJs(k),
           value: create((set, _, create) => {
             if (typeof modules[k] === 'function') {
-              modules[k]().then((code) => set(buildModule(create, code)));
+              modules[k]().then((code) => set(buildModule(create, k, code)));
             } else {
-              set(buildModule(create, modules[k]));
+              set(buildModule(create, k, modules[k]));
             }
           }),
         })),

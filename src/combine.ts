@@ -63,10 +63,12 @@ const copy = (stream) => (set, get) => () => set(get(stream));
 
 const runGet = (create, value, func, arg) => {
   if (typeof value === 'function') return value(create, arg)[0];
-  if (value.type !== 'stream' || !func) return value;
-  return create(
-    streamMap(([v]) => (!v.value ? func(create, arg)[0] : v))([value]),
-  );
+  if (value.type === 'stream' && func) {
+    return create(
+      streamMap(([v]) => (!v.value ? func(create, arg)[0] : v))([value]),
+    );
+  }
+  return value;
 };
 
 const run = (create, { type, reverse, big, small }, [s1, s2], space) => {

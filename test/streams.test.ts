@@ -3,17 +3,17 @@ import Box from '../src/box';
 import { fromJs } from '../src/data';
 
 const library = {
-  size: fromJs(emit => x =>
+  size: fromJs((emit) => (x) =>
     x &&
     emit(
       fromJs(
         x.type === 'box'
-          ? x.value.toPairs().filter(v => v.value.value).length
+          ? x.value.toPairs().filter((v) => v.value.value).length
           : '0',
       ),
     ),
   ),
-  tick: emit => {
+  tick: (emit) => {
     let count = 1;
     emit(fromJs(count++));
     const interval = setInterval(() => emit(fromJs(count++)), 1000);
@@ -23,7 +23,7 @@ const library = {
 
 const testStream = (code, values, done) => {
   let c = 0;
-  const stop = maraca(code, library, data => {
+  const stop = maraca(code, library, (data) => {
     expect(data).toEqual(values[c]);
     if (!values[++c]) {
       stop();
@@ -32,7 +32,7 @@ const testStream = (code, values, done) => {
   });
 };
 
-test('lib', done => {
+test('lib', (done) => {
   expect(maraca('size?.[1, 2, 3]', library)).toEqual({
     type: 'value',
     value: '3',
@@ -47,7 +47,7 @@ test('lib', done => {
   );
 });
 
-test('trigger', done => {
+test('trigger', (done) => {
   testStream(
     'tick? | 10',
     [
@@ -58,7 +58,7 @@ test('trigger', done => {
   );
 });
 
-test('push', done => {
+test('push', (done) => {
   testStream(
     '[x: 10, tick? | x? + 10 -> x?].x',
     [
@@ -69,7 +69,7 @@ test('push', done => {
   );
 });
 
-test('push box', done => {
+test('push box', (done) => {
   testStream(
     '[x: [a], tick? | [: x?, a] -> x?].x',
     [
@@ -81,6 +81,7 @@ test('push box', done => {
             value: { type: 'value', value: 'a' },
           },
         ] as any),
+        push: expect.any(Function),
       },
       {
         type: 'box',
@@ -94,6 +95,7 @@ test('push box', done => {
             value: { type: 'value', value: 'a' },
           },
         ] as any),
+        push: expect.any(Function),
       },
     ],
     done,
