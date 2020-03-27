@@ -1,5 +1,5 @@
 import maraca from '../src/index';
-import Box from '../src/box';
+import Block from '../src/block';
 import { fromJs } from '../src/data';
 
 const library = {
@@ -7,7 +7,7 @@ const library = {
     x &&
     emit(
       fromJs(
-        x.type === 'box'
+        x.type === 'block'
           ? x.value.toPairs().filter((v) => v.value.value).length
           : '0',
       ),
@@ -69,13 +69,13 @@ test('push', (done) => {
   );
 });
 
-test('push box', (done) => {
+test('push block', (done) => {
   testStream(
     '[x: [a], tick? | [: x?, a] -> x?].x',
     [
       {
-        type: 'box',
-        value: Box.fromPairs([
+        type: 'block',
+        value: Block.fromPairs([
           {
             key: { type: 'value', value: '1' },
             value: { type: 'value', value: 'a' },
@@ -84,8 +84,8 @@ test('push box', (done) => {
         push: expect.any(Function),
       },
       {
-        type: 'box',
-        value: Box.fromPairs([
+        type: 'block',
+        value: Block.fromPairs([
           {
             key: { type: 'value', value: '1' },
             value: { type: 'value', value: 'a' },

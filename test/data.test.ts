@@ -1,5 +1,5 @@
 import maraca from '../src/index';
-import Box from '../src/box';
+import Block from '../src/block';
 
 test('nil', () => {
   expect(maraca('')).toEqual({ type: 'value', value: '' });
@@ -32,10 +32,10 @@ test('comments', () => {
   expect(maraca('`This is a comment`')).toEqual({ type: 'value', value: '' });
 });
 
-test('boxes', () => {
+test('blocks', () => {
   expect(maraca('[hello, world]')).toEqual({
-    type: 'box',
-    value: Box.fromPairs([
+    type: 'block',
+    value: Block.fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: 'hello' },
@@ -47,8 +47,8 @@ test('boxes', () => {
     ] as any),
   });
   expect(maraca('[x: a, y: b]')).toEqual({
-    type: 'box',
-    value: Box.fromPairs([
+    type: 'block',
+    value: Block.fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: 'a', push: expect.any(Function) },
@@ -60,8 +60,8 @@ test('boxes', () => {
     ] as any),
   });
   expect(maraca('[10, key: value]')).toEqual({
-    type: 'box',
-    value: Box.fromPairs([
+    type: 'block',
+    value: Block.fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: '10' },
@@ -74,10 +74,10 @@ test('boxes', () => {
   });
 });
 
-test('box nils ignored', () => {
+test('block nils ignored', () => {
   expect(maraca('[a, , b]')).toEqual({
-    type: 'box',
-    value: Box.fromPairs([
+    type: 'block',
+    value: Block.fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: 'a' },
@@ -89,8 +89,8 @@ test('box nils ignored', () => {
     ] as any),
   });
   expect(maraca('[`comment`, 1, c: , 2]')).toEqual({
-    type: 'box',
-    value: Box.fromPairs([
+    type: 'block',
+    value: Block.fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: '1' },
@@ -107,15 +107,15 @@ test('box nils ignored', () => {
   });
 });
 
-test('nest boxes', () => {
+test('nest blocks', () => {
   expect(maraca('[y: [a, b]]')).toEqual({
-    type: 'box',
-    value: Box.fromPairs([
+    type: 'block',
+    value: Block.fromPairs([
       {
         key: { type: 'value', value: 'y' },
         value: {
-          type: 'box',
-          value: Box.fromPairs([
+          type: 'block',
+          value: Block.fromPairs([
             {
               key: { type: 'value', value: '1' },
               value: { type: 'value', value: 'a' },
@@ -131,12 +131,12 @@ test('nest boxes', () => {
     ] as any),
   });
   expect(maraca('[[a, b]: 100]')).toEqual({
-    type: 'box',
-    value: Box.fromPairs([
+    type: 'block',
+    value: Block.fromPairs([
       {
         key: {
-          type: 'box',
-          value: Box.fromPairs([
+          type: 'block',
+          value: Block.fromPairs([
             {
               key: { type: 'value', value: '1' },
               value: { type: 'value', value: 'a' },
@@ -153,10 +153,10 @@ test('nest boxes', () => {
   });
 });
 
-test('box sort', () => {
+test('block sort', () => {
   expect(maraca('[z: 1, y: 2, b, a]')).toEqual({
-    type: 'box',
-    value: Box.fromPairs([
+    type: 'block',
+    value: Block.fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: 'b' },
@@ -177,10 +177,10 @@ test('box sort', () => {
   });
 });
 
-test('box assign shorthand', () => {
+test('block assign shorthand', () => {
   expect(maraca('[item:=]')).toEqual({
-    type: 'box',
-    value: Box.fromPairs([
+    type: 'block',
+    value: Block.fromPairs([
       {
         key: { type: 'value', value: 'item' },
         value: { type: 'value', value: 'item', push: expect.any(Function) },

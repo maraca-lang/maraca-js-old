@@ -1,4 +1,4 @@
-import Box from './box';
+import Block from './block';
 import { fromJs, isEqual, toJs } from './data';
 import fuzzy from './fuzzy';
 
@@ -17,7 +17,7 @@ export default {
     deepArgs: [true, true],
   },
   '~': dataMap(([a, b]) => {
-    if (a.type === 'box' || b.type === 'box') return null;
+    if (a.type === 'block' || b.type === 'block') return null;
     const res = fuzzy(a.value || '', b.value || '');
     return res < 0.3 ? null : 2 - res;
   }),
@@ -63,14 +63,14 @@ export default {
   '^': numericMap(([a, b]) => a ** b),
   '#': {
     map: ([a]) => {
-      if (a.type === 'box') {
+      if (a.type === 'block') {
         return fromJs(a.value.toPairs().filter((d) => d.value).length);
       }
       const value = toJs(a);
       if (typeof value === 'number' && Math.floor(value) === value) {
         return {
-          type: 'box',
-          value: Box.fromArray(
+          type: 'block',
+          value: Block.fromArray(
             Array.from({ length: value }).map((_, i) => fromJs(i + 1)),
           ),
         };

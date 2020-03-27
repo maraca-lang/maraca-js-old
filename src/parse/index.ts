@@ -31,7 +31,7 @@ const loadSemantics = () => {
     start: arg1.source.startIdx,
     end: arg2.source.endIdx,
   });
-  const boxAst = (a, b, first, last) => {
+  const blockAst = (a, b, first, last) => {
     const items = b.ast.reduce((res, x) => [...res, ...x], [...a.ast]);
     let i = items.length - 1;
     while (i >= 0 && items[i].type === 'nil') {
@@ -39,7 +39,7 @@ const loadSemantics = () => {
       i--;
     }
     return {
-      type: 'box',
+      type: 'block',
       nodes: items,
       info: { bracket: first.sourceString },
       start: first.source.startIdx,
@@ -207,7 +207,7 @@ const loadSemantics = () => {
     }),
     Atom: (a) => a.ast,
 
-    Box: (a, b, _, c, d) => boxAst(b, c, a, d),
+    Block: (a, b, _, c, d) => blockAst(b, c, a, d),
 
     Line_string: (_1, a, _2) => {
       const indices = [
@@ -264,7 +264,7 @@ const loadSemantics = () => {
       start: a.source.startIdx,
       end: a.source.endIdx,
     }),
-    Multi_box: (a, b, _, c, d) => boxAst(b, c, a, d),
+    Multi_block: (a, b, _, c, d) => blockAst(b, c, a, d),
 
     value_char: (_, a) => ({
       type: 'value',

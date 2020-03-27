@@ -1,15 +1,15 @@
 import build, { pushable, streamMap } from './build';
 import { toIndex } from './data';
-import Box from './box';
+import Block from './block';
 import parse from './parse';
 
 const snapshot = (create, { push, ...value }, withPush = true) => {
   const result =
-    value.type !== 'box'
+    value.type !== 'block'
       ? value
       : {
-          type: 'box',
-          value: Box.fromPairs(
+          type: 'block',
+          value: Block.fromPairs(
             value.value.toPairs().map(({ key, value }) => ({
               key,
               value: snapshot(
@@ -44,7 +44,7 @@ export default (type, create, nodes) => {
         const subContext = {
           scope: [{ type: 'any', value: nodes[1] }],
           current: [
-            { type: 'constant', value: { type: 'box', value: new Box() } },
+            { type: 'constant', value: { type: 'block', value: new Block() } },
           ],
         };
         let parsed = { type: 'nil' };

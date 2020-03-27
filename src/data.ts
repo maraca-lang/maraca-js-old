@@ -1,4 +1,4 @@
-import Box from './box';
+import Block from './block';
 
 export const fromJsFunc = (arg, func, deep) => (set, get) => {
   const run = func(set);
@@ -13,8 +13,8 @@ export const fromJs = (value) => {
   if (typeof value === 'string') return { type: 'value', value };
   if (typeof value === 'function') {
     return {
-      type: 'box',
-      value: Box.fromFunc((create, arg) => [
+      type: 'block',
+      value: Block.fromFunc((create, arg) => [
         create(fromJsFunc(arg, value, true)),
       ]),
     };
@@ -24,8 +24,8 @@ export const fromJs = (value) => {
   }
   if (Object.prototype.toString.call(value) === '[object Object]') {
     return {
-      type: 'box',
-      value: Box.fromPairs(
+      type: 'block',
+      value: Block.fromPairs(
         Object.keys(value).map((k) => ({
           key: fromJs(k),
           value: fromJs(value[k]),
@@ -35,8 +35,8 @@ export const fromJs = (value) => {
   }
   if (Array.isArray(value)) {
     return {
-      type: 'box',
-      value: Box.fromPairs(
+      type: 'block',
+      value: Block.fromPairs(
         value.map(({ key, value }) => ({
           key: fromJs(key),
           value: fromJs(value),

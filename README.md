@@ -45,7 +45,7 @@ const source = '[x: 1, y: 2, z: x? * y?]';
 const data = maraca(source);
 
 // stream
-maraca(source, data => console.log(data));
+maraca(source, (data) => console.log(data));
 ```
 
 ### `source`
@@ -62,7 +62,7 @@ The Maraca source can be provided in any of the following formats:
 ```
 
 If the object form is used, evaluation starts with the 'start' script, which can
-then access the modules via the context box (i.e. `[key]?`).
+then access the modules via the context block (i.e. `[key]?`).
 
 ### `config` (optional)
 
@@ -108,11 +108,11 @@ given callback.
 }
 ```
 
-**Box**
+**Block**
 
 ```ts
 {
-  type: 'box',
+  type: 'block',
   value: { key: data, value: data }[],
   push: (value: data) => void,
 }
@@ -141,10 +141,10 @@ const source = ['module? + @1', { module: '#(#data)' }];
 
 const config = {
   '@': [
-    emit => {
+    (emit) => {
       let count = 0;
       let interval;
-      return value => {
+      return (value) => {
         if (interval) clearInterval(interval);
         if (value) {
           const inc = toJs(value);
@@ -163,5 +163,5 @@ const config = {
   },
 };
 
-maraca(source, config, data => console.log(data));
+maraca(source, config, (data) => console.log(data));
 ```

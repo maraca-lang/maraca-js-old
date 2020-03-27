@@ -1,10 +1,10 @@
 import maraca from '../src/index';
 import { fromJs } from '../src/data';
-import Box from '../src/box';
+import Block from '../src/block';
 
 const testStream = (code, actions, values, done) => {
   let c = 0;
-  const stop = maraca(code, data => {
+  const stop = maraca(code, (data) => {
     if (actions[c]) actions[c](data);
     if (values[c]) expect(data).toEqual(values[c]);
     if (!values[++c]) {
@@ -14,14 +14,14 @@ const testStream = (code, actions, values, done) => {
   });
 };
 
-test('basic', done => {
+test('basic', (done) => {
   testStream(
     '[x: 1]',
-    [data => data.value.get(fromJs('x')).push(fromJs(2))],
+    [(data) => data.value.get(fromJs('x')).push(fromJs(2))],
     [
       {
-        type: 'box',
-        value: Box.fromPairs([
+        type: 'block',
+        value: Block.fromPairs([
           {
             key: { type: 'value', value: 'x' },
             value: { type: 'value', value: '1', push: expect.any(Function) },
@@ -29,8 +29,8 @@ test('basic', done => {
         ] as any),
       },
       {
-        type: 'box',
-        value: Box.fromPairs([
+        type: 'block',
+        value: Block.fromPairs([
           {
             key: { type: 'value', value: 'x' },
             value: {
@@ -48,8 +48,8 @@ test('basic', done => {
 
 test('auto', () => {
   expect(maraca('[x?]')).toEqual({
-    type: 'box',
-    value: Box.fromPairs([
+    type: 'block',
+    value: Block.fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: '', push: expect.any(Function) },
@@ -58,8 +58,8 @@ test('auto', () => {
   });
 
   expect(maraca('[(x?)]')).toEqual({
-    type: 'box',
-    value: Box.fromPairs([
+    type: 'block',
+    value: Block.fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: '', push: expect.any(Function) },
@@ -68,14 +68,14 @@ test('auto', () => {
   });
 });
 
-test('auto assign', done => {
+test('auto assign', (done) => {
   testStream(
     '[y: x?]',
-    [data => data.value.get(fromJs('x')).push(fromJs('a'))],
+    [(data) => data.value.get(fromJs('x')).push(fromJs('a'))],
     [
       {
-        type: 'box',
-        value: Box.fromPairs([
+        type: 'block',
+        value: Block.fromPairs([
           {
             key: { type: 'value', value: 'x' },
             value: { type: 'value', value: '', push: expect.any(Function) },
@@ -87,8 +87,8 @@ test('auto assign', done => {
         ] as any),
       },
       {
-        type: 'box',
-        value: Box.fromPairs([
+        type: 'block',
+        value: Block.fromPairs([
           {
             key: { type: 'value', value: 'x' },
             value: {
@@ -112,14 +112,14 @@ test('auto assign', done => {
   );
 });
 
-test('auto assign 2', done => {
+test('auto assign 2', (done) => {
   testStream(
     '[y: (x?, 10)]',
-    [data => data.value.get(fromJs('x')).push(fromJs('a'))],
+    [(data) => data.value.get(fromJs('x')).push(fromJs('a'))],
     [
       {
-        type: 'box',
-        value: Box.fromPairs([
+        type: 'block',
+        value: Block.fromPairs([
           {
             key: { type: 'value', value: 'x' },
             value: { type: 'value', value: '', push: expect.any(Function) },
@@ -131,8 +131,8 @@ test('auto assign 2', done => {
         ] as any),
       },
       {
-        type: 'box',
-        value: Box.fromPairs([
+        type: 'block',
+        value: Block.fromPairs([
           {
             key: { type: 'value', value: 'x' },
             value: {

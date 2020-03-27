@@ -1,5 +1,5 @@
 import maraca from '../src/index';
-import Box from '../src/box';
+import Block from '../src/block';
 
 test('basic', () => {
   expect(maraca('z.[x: a, y: b, => c]')).toEqual({ type: 'value', value: 'c' });
@@ -12,17 +12,17 @@ test('basic', () => {
 
 test('maps', () => {
   expect(maraca('[a, b, c].[=>> ]')).toEqual({
-    type: 'box',
-    value: new Box(),
+    type: 'block',
+    value: new Block(),
   });
   expect(maraca('[5, 10].[v=> k=> [v?, k?]]')).toEqual({
-    type: 'box',
-    value: Box.fromPairs([
+    type: 'block',
+    value: Block.fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: {
-          type: 'box',
-          value: Box.fromPairs([
+          type: 'block',
+          value: Block.fromPairs([
             {
               key: { type: 'value', value: '1' },
               value: { type: 'value', value: '5' },
@@ -37,8 +37,8 @@ test('maps', () => {
       {
         key: { type: 'value', value: '2' },
         value: {
-          type: 'box',
-          value: Box.fromPairs([
+          type: 'block',
+          value: Block.fromPairs([
             {
               key: { type: 'value', value: '1' },
               value: { type: 'value', value: '10' },
@@ -53,8 +53,8 @@ test('maps', () => {
     ] as any),
   });
   expect(maraca('[5, 10].[v=>> v? + 5]')).toEqual({
-    type: 'box',
-    value: Box.fromPairs([
+    type: 'block',
+    value: Block.fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: '10' },
@@ -66,8 +66,8 @@ test('maps', () => {
     ] as any),
   });
   expect(maraca('[a, b].[v=>> Item {v?}: v?]')).toEqual({
-    type: 'box',
-    value: Box.fromPairs([
+    type: 'block',
+    value: Block.fromPairs([
       {
         key: { type: 'value', value: 'Item a' },
         value: { type: 'value', value: 'a', push: expect.any(Function) },
@@ -79,8 +79,8 @@ test('maps', () => {
     ] as any),
   });
   expect(maraca('[1, 2, 3].[sum: 0, v=>> sum: sum? + v?]')).toEqual({
-    type: 'box',
-    value: Box.fromPairs([
+    type: 'block',
+    value: Block.fromPairs([
       {
         key: { type: 'value', value: 'sum' },
         value: { type: 'value', value: '6', push: expect.any(Function) },

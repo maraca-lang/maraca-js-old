@@ -1,7 +1,7 @@
 import assign from './assign';
 import { streamMap } from './build';
 import { fromJs } from './data';
-import Box from './box';
+import Block from './block';
 
 const joinValues = (v1, v2, space) =>
   fromJs(
@@ -17,16 +17,16 @@ const joinValues = (v1, v2, space) =>
   );
 
 export const combineValues = (v1, v2, dot, space) => {
-  if ([v1, v2].every((v) => v.type !== 'box')) {
+  if ([v1, v2].every((v) => v.type !== 'block')) {
     if (dot && [v1, v2].some((v) => !v.value)) {
       return { type: 'value', value: '' };
     }
     return joinValues(v1, v2, space);
   }
-  if ([v1, v2].every((v) => v.type === 'box')) {
+  if ([v1, v2].every((v) => v.type === 'block')) {
     return { type: 'value', value: '' };
   }
-  const [l, v] = v1.type === 'box' ? [v1, v2] : [v2, v1];
+  const [l, v] = v1.type === 'block' ? [v1, v2] : [v2, v1];
   return l.value.get(v);
 };
 
@@ -44,7 +44,7 @@ const getType = (big, small) => {
   if (!big.value || (big === null && small === null)) return 'nil';
   if (big.type === 'value') return 'join';
   const func = big.value.getFunc();
-  if (func && func.isMap && small.type !== 'box') return 'nil';
+  if (func && func.isMap && small.type !== 'block') return 'nil';
   return func && func.isMap ? 'map' : 'get';
 };
 
@@ -54,7 +54,7 @@ const getInfo = ([s1, s2], get, dot) => {
   const [b, s] = sortTypes(v1, v2);
   const [big, small] =
     dot && b.type === 'value' && !s.value
-      ? [{ type: 'box', value: new Box() }, b]
+      ? [{ type: 'block', value: new Block() }, b]
       : [b, s];
   return { type: getType(big, small), reverse: small === v1, big, small };
 };
@@ -107,8 +107,8 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
     return {
       result: create(
         streamMap(([b, s]) => ({
-          type: 'box',
-          value: Box.fromPairs([...b.value.toPairs(), ...s.value.toPairs()]),
+          type: 'block',
+          value: Block.fromPairs([...b.value.toPairs(), ...s.value.toPairs()]),
         }))([big, func(create, small)[0]]),
       ),
     };
@@ -124,7 +124,7 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
           create(assign([current, result, key], false, false, false)),
         ];
       },
-      [undefined, { type: 'box', value: big.value.cloneValues() }],
+      [undefined, { type: 'block', value: big.value.cloneValues() }],
     )[1],
   };
 };

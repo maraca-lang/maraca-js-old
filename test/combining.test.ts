@@ -19,7 +19,7 @@ test('values', () => {
   });
 });
 
-test('box lookup', () => {
+test('block lookup', () => {
   expect(maraca('y [x: a, y: b]')).toEqual({
     type: 'value',
     value: 'b',
