@@ -78,7 +78,7 @@ export default `Maraca {
     | "{" Line ("," Line)* "}"
 
   Line
-    = "'" Multi* "'" -- string
+    = "\\"" Multi* "\\"" -- string
     | Exp -- exp
     | space* -- nil
 
@@ -90,18 +90,18 @@ export default `Maraca {
     = "\\\\" any -- char
     | digit+ "." digit+ -- number
     | alnum+ -- value
-    | "\\"" (char | escape)* "\\"" -- string
-    | "'" (char2 | escape)* "'" -- string2
+    | "'" (char | escape)* "'" -- string
+    | "\\"" (char2 | escape)* "\\"" -- string2
     | "\`" (~"\`" any)* "\`" -- comment
 
   char
-    = ~("\\"" | "\\\\") any
+    = ~("'" | "\\\\") any
 
   char2
-    = ~("'" | "<" | ">" | "\\\\") any
+    = ~("\\"" | "<" | ">" | "\\\\") any
 
   char3
-    = ~("'" | "<" | "\\\\") any
+    = ~("\\"" | "<" | "\\\\") any
 
   escape
     = "\\\\" any

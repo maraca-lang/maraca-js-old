@@ -9,7 +9,7 @@ test('values', () => {
     type: 'value',
     value: '£30',
   });
-  expect(maraca('"" WX YZ')).toEqual({
+  expect(maraca("'' WX YZ")).toEqual({
     type: 'value',
     value: 'WX YZ',
   });
@@ -54,7 +54,7 @@ test('dot', () => {
     value: 'c',
     push: expect.any(Function),
   });
-  expect(maraca('"".z')).toEqual({
+  expect(maraca("''.z")).toEqual({
     type: 'value',
     value: '',
   });

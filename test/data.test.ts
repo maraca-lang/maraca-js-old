@@ -3,7 +3,7 @@ import Block from '../src/block';
 
 test('nil', () => {
   expect(maraca('')).toEqual({ type: 'value', value: '' });
-  expect(maraca('""')).toEqual({ type: 'value', value: '' });
+  expect(maraca("''")).toEqual({ type: 'value', value: '' });
 });
 
 test('values', () => {
@@ -18,11 +18,11 @@ test('special chars', () => {
 });
 
 test('double quotes', () => {
-  expect(maraca('"Hello \\"world\\"!"')).toEqual({
+  expect(maraca("'Hello \\'world\\'!'")).toEqual({
     type: 'value',
-    value: 'Hello "world"!',
+    value: "Hello 'world'!",
   });
-  expect(maraca('"A\nB\nC"')).toEqual({
+  expect(maraca("'A\nB\nC'")).toEqual({
     type: 'value',
     value: 'A\nB\nC',
   });
