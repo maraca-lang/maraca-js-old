@@ -5,12 +5,21 @@ import parse from './parse';
 import process from './streams';
 import { Data, Library, Source, StreamData } from './typings';
 
+export { default as Block } from './block';
 export { fromJs, toJs } from './data';
 export { default as parse } from './parse';
 export { default as process } from './streams';
 export { Data, Source } from './typings';
 
 const nilValue = { type: 'value', value: '' };
+const hasStream = (data) =>
+  data.value
+    .toPairs()
+    .some(
+      (x) =>
+        x.value.type === 'stream' ||
+        (x.value.type === 'block' && hasStream(x.value)),
+    );
 const wrapCreate = (create) => (run, ...args) =>
   ({
     type: 'stream',
@@ -26,7 +35,7 @@ const wrapCreate = (create) => (run, ...args) =>
             const map = (d) => {
               const d2 = d || nilValue;
               if (d2.type === 'stream') return map(get(d2.value));
-              if (d2.type !== 'block') return d2;
+              if (d2.type !== 'block' || !hasStream(d2)) return d2;
               return { ...d2, value: d2.value.map((v) => map(v)) };
             };
             return () => set(map(data));
