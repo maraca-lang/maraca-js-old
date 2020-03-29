@@ -26,10 +26,9 @@ export const fromJs = (value) => {
     return {
       type: 'block',
       value: Block.fromPairs(
-        Object.keys(value).map((k) => ({
-          key: fromJs(k),
-          value: fromJs(value[k]),
-        })),
+        Object.keys(value)
+          .map((k) => ({ key: fromJs(k), value: fromJs(value[k]) }))
+          .filter((x) => x.value.value),
       ),
     };
   }
@@ -37,10 +36,9 @@ export const fromJs = (value) => {
     return {
       type: 'block',
       value: Block.fromPairs(
-        value.map(({ key, value }) => ({
-          key: fromJs(key),
-          value: fromJs(value),
-        })),
+        value
+          .map(({ key, value }) => ({ key: fromJs(key), value: fromJs(value) }))
+          .filter((x) => x.value.value),
       ),
     };
   }

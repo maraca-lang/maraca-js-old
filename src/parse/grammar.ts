@@ -51,7 +51,11 @@ export default `Maraca {
     | ExpPow
 
   ExpPow
-    = ExpPow "^" ExpSep -- pow
+    = ExpPow "^" ExpSize -- pow
+    | ExpSize
+  
+  ExpSize
+    = "#" ExpSep -- size
     | ExpSep
 
   ExpSep
@@ -59,11 +63,7 @@ export default `Maraca {
     | ExpComb
 
   ExpComb
-    = ExpComb ExpSize -- comb
-    | ExpSize
-
-  ExpSize
-    = "#" Atom -- size
+    = ExpComb Atom -- comb
     | Atom
 
   Atom
