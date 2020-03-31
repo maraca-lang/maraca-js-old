@@ -49,6 +49,36 @@ const wrapCreate = (create) => (run, ...args) =>
     }, ...args),
   } as StreamData);
 
+const buildModuleLayer = (create, modules, getScope, path) =>
+  Object.keys(modules).reduce(
+    (res, k) => ({
+      ...res,
+      [k]:
+        typeof modules[k] === 'string' || modules[k].__AST
+          ? create((set, _, create) =>
+              set(
+                build(
+                  create,
+                  {
+                    scope: [{ type: 'any', value: getScope(path) }],
+                    current: [
+                      {
+                        type: 'constant',
+                        value: { type: 'block', value: new Block() },
+                      },
+                    ],
+                  },
+                  typeof modules[k] === 'string'
+                    ? parse(modules[k])
+                    : modules[k],
+                ),
+              ),
+            )
+          : buildModuleLayer(create, modules[k], getScope, [...path, k]),
+    }),
+    { __MODULES: true },
+  );
+
 function maraca(source: Source): Data;
 function maraca(source: Source, onData: (data: Data) => void): () => void;
 function maraca(source: Source, library: Library): Data;
@@ -62,64 +92,47 @@ function maraca(...args) {
     typeof args[1] === 'function' ? [args[0], {}, args[1]] : args;
   return process((baseCreate) => {
     const create = wrapCreate(baseCreate);
-    const [start, modules] = Array.isArray(source) ? source : [source, {}];
-    const parsedModules = {};
-    const buildModule = (create, key, code) => {
-      parsedModules[key] =
-        parsedModules[key] || (typeof code === 'string' ? parse(code) : code);
-      return build(
-        create,
-        {
-          scope: [{ type: 'any', value: scope }],
-          current: [
-            { type: 'constant', value: { type: 'block', value: new Block() } },
-          ],
-        },
-        parsedModules[key],
-      );
-    };
-    const scope = {
+
+    const libraryPairs = Object.keys(library).map((k) => ({
+      key: fromJs(k),
+      value: create(
+        typeof library[k] !== 'function'
+          ? (set) => set(library[k])
+          : (set, get) => {
+              const emit = ({ push, ...data }) =>
+                set({
+                  ...data,
+                  push: push && ((v) => push(get(v, true))),
+                });
+              const stop = library[k](emit);
+              return (dispose) => dispose && stop && stop();
+            },
+      ),
+    }));
+
+    const modules = buildModuleLayer(
+      create,
+      typeof source === 'string' || source.__AST ? { start: source } : source,
+      (path) =>
+        buildScopeLayer(
+          path.reduce((res, k) => ({ ...res, ...res[k] }), modules),
+        ),
+      [],
+    );
+    const buildScopeLayer = (moduleLayer, first = true) => ({
       type: 'block',
       value: Block.fromPairs([
-        ...Object.keys(library).map((k) => ({
+        ...(first ? libraryPairs : []),
+        ...Object.keys(moduleLayer).map((k) => ({
           key: fromJs(k),
-          value: create(
-            typeof library[k] !== 'function'
-              ? (set) => set(library[k])
-              : (set, get) => {
-                  const emit = ({ push, ...data }) =>
-                    set({
-                      ...data,
-                      push: push && ((v) => push(get(v, true))),
-                    });
-                  const stop = library[k](emit);
-                  return (dispose) => dispose && stop && stop();
-                },
-          ),
-        })),
-        ...Object.keys(modules).map((k) => ({
-          key: fromJs(k),
-          value: create((set, _, create) => {
-            if (typeof modules[k] === 'function') {
-              modules[k]().then((code) => set(buildModule(create, k, code)));
-            } else {
-              set(buildModule(create, k, modules[k]));
-            }
-          }),
+          value: moduleLayer[k].__MODULES
+            ? buildScopeLayer(moduleLayer[k], false)
+            : moduleLayer[k],
         })),
       ]),
-    };
-    const stream = build(
-      create,
-      {
-        scope: [{ type: 'any', value: scope }],
-        current: [
-          { type: 'constant', value: { type: 'block', value: new Block() } },
-        ],
-      },
-      typeof start === 'string' ? parse(start) : start,
-    );
-    return create((set, get) => () => set(get(stream, true))).value;
+    });
+
+    return create((set, get) => () => set(get(modules.start, true))).value;
   }, onData);
 }
 

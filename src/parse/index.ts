@@ -217,9 +217,16 @@ const loadSemantics = () => {
       ];
       a.ast.forEach((n, i) => {
         if (n.type === 'value') {
-          n.info.value = `${' '.repeat(n.start - indices[i][1])}${
+          const s = `${_1.source.sourceString.slice(indices[i][1], n.start)}${
             n.info.value
-          }${' '.repeat(indices[i + 2][0] - n.end)}`;
+          }${_2.source.sourceString.slice(n.end, indices[i + 2][0])}`;
+          n.info.value = parseString(s, true)
+            .replace(/[‘’]/g, "'")
+            .replace(/[“”]/g, '"')
+            .replace(/(\s)'/g, (_, m) => `${m}‘`)
+            .replace(/'/g, '’')
+            .replace(/(\s)"/g, (_, m) => `${m}“`)
+            .replace(/"/g, '”');
           n.start = indices[i][1];
           n.end = indices[i + 2][0];
         }
@@ -252,15 +259,7 @@ const loadSemantics = () => {
 
     Multi_string: (a) => ({
       type: 'value',
-      info: {
-        value: parseString(a.sourceString, true)
-          .replace(/[‘’]/g, "'")
-          .replace(/[“”]/g, '"')
-          .replace(/(\s)'/g, (_, m) => `${m}‘`)
-          .replace(/'/g, '’')
-          .replace(/(\s)"/g, (_, m) => `${m}“`)
-          .replace(/"/g, '”'),
-      },
+      info: { value: a.sourceString },
       start: a.source.startIdx,
       end: a.source.endIdx,
     }),
@@ -328,5 +327,5 @@ export default (script: string): AST => {
   if (m.failed()) throw new Error('Parser error');
   const res = s(m).ast;
   // console.log(JSON.stringify(res, null, 2));
-  return res;
+  return { ...res, __AST: true };
 };

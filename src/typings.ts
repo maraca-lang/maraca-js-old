@@ -13,10 +13,7 @@ export interface AST {
   end: number;
 }
 
-export type Source =
-  | string
-  | AST
-  | [string | AST, Obj<string | AST | (() => Promise<string | AST>)>];
+export type Source = string | AST | Obj<Source>;
 
 export interface ValueData {
   type: 'value';

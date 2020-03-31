@@ -1,11 +1,11 @@
 {
   "name": "maraca",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "license": "MIT",
   "main": "lib/index.js",
   "types": "./lib/index.d.ts",
   "scripts": {
-    "prettier": "prettier --write \"src/**/*.ts\"",
+    "prettier": "prettier --write \"{src,test}/**/*.ts\"",
     "build": "rimraf lib/* && tsc",
     "prepare": "yarn build",
     "test": "jest"
