@@ -45,21 +45,6 @@ export const fromJs = (value) => {
   return { type: 'value', value: '' };
 };
 
-const dateRegex = /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/;
-export const toJs = (data) => {
-  if (!data.value) return null;
-  if (data.type === 'value') {
-    const s = data.value;
-    if (!isNaN(s as any) && !isNaN(parseFloat(s))) return parseFloat(s);
-    if (dateRegex.test(s)) return new Date(s);
-    return s;
-  }
-  return data
-    .toPairs()
-    .filter(({ value }) => value.value)
-    .map(({ key, value }) => ({ key: toJs(key), value: toJs(value) }));
-};
-
 export const isEqual = (v1, v2) => {
   if (v1.type !== v2.type) return false;
   if (v1.type == 'value') return v1.value === v2.value;
@@ -69,9 +54,14 @@ export const isEqual = (v1, v2) => {
 export const toString = (x) =>
   x.type === 'value' ? x.value : JSON.stringify(x.value);
 
-export const toIndex = (v: string) => {
+export const toNumber = (v: string) => {
   const n = parseFloat(v);
-  return !isNaN(v as any) && !isNaN(n) && n === Math.floor(n) && n > 0 && n;
+  return !isNaN(v as any) && !isNaN(n) ? n : null;
+};
+
+export const toIndex = (v: string) => {
+  const n = toNumber(v);
+  return n !== null && n === Math.floor(n) && n > 0 ? n : null;
 };
 
 export const sortMultiple = <T = any>(

@@ -210,19 +210,26 @@ const loadSemantics = () => {
     Block: (a, b, _, c, d) => blockAst(b, c, a, d),
 
     Line_string: (_1, a, _2) => {
+      const items = [...a.ast];
+      if (items.length === 0) {
+        items.push({
+          type: 'value',
+          info: { value: '' },
+          start: _1.source.endIdx,
+          end: _1.source.endIdx,
+        });
+      }
       const indices = [
         [_1.source.startIdx, _1.source.endIdx],
-        ...a.ast.map((n) => [n.start, n.end]),
+        ...items.map((n) => [n.start, n.end]),
         [_2.source.startIdx, _2.source.endIdx],
       ];
-      a.ast.forEach((n, i) => {
+      items.forEach((n, i) => {
         if (n.type === 'value') {
           const s = `${_1.source.sourceString.slice(indices[i][1], n.start)}${
             n.info.value
           }${_2.source.sourceString.slice(n.end, indices[i + 2][0])}`;
           n.info.value = parseString(s, true)
-            .replace(/[‘’]/g, "'")
-            .replace(/[“”]/g, '"')
             .replace(/(\s)'/g, (_, m) => `${m}‘`)
             .replace(/'/g, '’')
             .replace(/(\s)"/g, (_, m) => `${m}“`)
@@ -231,7 +238,7 @@ const loadSemantics = () => {
           n.end = indices[i + 2][0];
         }
       });
-      const result = a.ast
+      const result = items
         .reduce((res, x) => {
           if (x.type !== 'value') return [...res, x];
           return [
@@ -295,8 +302,6 @@ const loadSemantics = () => {
       type: 'value',
       info: {
         value: parseString(a.sourceString, true)
-          .replace(/[‘’]/g, "'")
-          .replace(/[“”]/g, '"')
           .replace(/(\s)'/g, (_, m) => `${m}‘`)
           .replace(/'/g, '’')
           .replace(/(\s)"/g, (_, m) => `${m}“`)
@@ -322,7 +327,9 @@ const loadSemantics = () => {
 
 export default (script: string): AST => {
   if (!s) loadSemantics();
-  if (!script.trim()) return { type: 'nil', start: 0, end: 0 };
+  if (!script.trim()) {
+    return { type: 'nil', start: 0, end: 0, __AST: true } as any;
+  }
   const m = g.match(script);
   if (m.failed()) throw new Error('Parser error');
   const res = s(m).ast;

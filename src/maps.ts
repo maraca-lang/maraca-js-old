@@ -1,13 +1,13 @@
 import Block from './block';
-import { fromJs, isEqual, toJs } from './data';
+import { fromJs, isEqual, toIndex, toNumber } from './data';
 import fuzzy from './fuzzy';
 
 const dataMap = (map) => (args) => fromJs(map(args));
 
 const numericMap = (map) =>
   dataMap((args) => {
-    const values = args.map((a) => toJs(a));
-    if (values.some((v) => typeof v !== 'number')) return null;
+    const values = args.map((a) => toNumber(a.value));
+    if (values.some((v) => v === null)) return null;
     return map(values);
   });
 
@@ -32,30 +32,8 @@ export default {
   '+': numericMap(([a, b]) => a + b),
   '-': dataMap(([a, b]) => {
     if (!b) return a.type === 'value' ? `-${a.value}` : null;
-    const v1 = toJs(a);
-    const v2 = toJs(b);
-    const t1 = Object.prototype.toString.call(v1);
-    const t2 = Object.prototype.toString.call(v2);
-    if (t1 != t2) return null;
-    if (t1 === '[object Number]') return v1 - v2;
-    if (t1 === '[object Date]') return v1.getTime() - v2.getTime();
-    if (t1 === '[object Object]') {
-      const p = 0.017453292519943295;
-      return (
-        12742 *
-        Math.asin(
-          Math.sqrt(
-            0.5 -
-              Math.cos((v2.lat - v1.lat) * p) / 2 +
-              (Math.cos(v1.lat * p) *
-                Math.cos(v2.lat * p) *
-                (1 - Math.cos((v2.lng - v1.lng) * p))) /
-                2,
-          ),
-        )
-      );
-    }
-    return null;
+    const [x, y] = [toNumber(a.value), toNumber(b.value)];
+    return x !== null && y !== null ? x - y : null;
   }),
   '*': numericMap(([a, b]) => a * b),
   '/': numericMap(([a, b]) => a / b),
@@ -66,8 +44,8 @@ export default {
       if (a.type === 'block') {
         return fromJs(a.value.toPairs().filter((d) => d.value).length);
       }
-      const value = toJs(a);
-      if (typeof value === 'number' && Math.floor(value) === value) {
+      const value = toIndex(a.value);
+      if (value) {
         return {
           type: 'block',
           value: Block.fromArray(

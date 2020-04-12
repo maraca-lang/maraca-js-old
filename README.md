@@ -128,14 +128,10 @@ Convert a Maraca script to ast.
 
 Convert a JavaScript value into Maraca data.
 
-### `toJs: (value: data) => any`
-
-Convert Maraca data into a JavaScript value.
-
 ## Full example
 
 ```ts
-import maraca, { fromJs, toJs } from 'maraca';
+import maraca, { fromJs } from 'maraca';
 
 const source = ['module? + @1', { module: '#(#data)' }];
 
@@ -147,7 +143,7 @@ const config = {
       return (value) => {
         if (interval) clearInterval(interval);
         if (value) {
-          const inc = toJs(value);
+          const inc = parseFloat(value.value);
           if (typeof inc === 'number') {
             emit(fromJs(count++));
             interval = setInterval(() => emit(fromJs(count++)), inc * 1000);

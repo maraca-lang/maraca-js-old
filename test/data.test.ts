@@ -17,7 +17,7 @@ test('special chars', () => {
   expect(maraca('_')).toEqual({ type: 'value', value: ' ' });
 });
 
-test('double quotes', () => {
+test('quotes', () => {
   expect(maraca("'Hello \\'world\\'!'")).toEqual({
     type: 'value',
     value: "Hello 'world'!",
@@ -175,6 +175,36 @@ test('block sort', () => {
       },
     ] as any),
   });
+
+  expect(maraca('[[y]: d, x: c, b, : a]')).toEqual({
+    type: 'block',
+    value: Block.fromPairs([
+      {
+        key: { type: 'value', value: '' },
+        value: { type: 'value', value: 'a' },
+      },
+      {
+        key: { type: 'value', value: '1' },
+        value: { type: 'value', value: 'b' },
+      },
+      {
+        key: { type: 'value', value: 'x' },
+        value: { type: 'value', value: 'c', push: expect.any(Function) },
+      },
+      {
+        key: {
+          type: 'block',
+          value: Block.fromPairs([
+            {
+              key: { type: 'value', value: '1' },
+              value: { type: 'value', value: 'y' },
+            },
+          ] as any),
+        },
+        value: { type: 'value', value: 'd', push: expect.any(Function) },
+      },
+    ] as any),
+  });
 });
 
 test('block assign shorthand', () => {
@@ -184,6 +214,69 @@ test('block assign shorthand', () => {
       {
         key: { type: 'value', value: 'item' },
         value: { type: 'value', value: 'item', push: expect.any(Function) },
+      },
+    ] as any),
+  });
+});
+
+test('double quotes', () => {
+  expect(maraca('["     "]')).toEqual({
+    type: 'block',
+    value: Block.fromPairs([
+      {
+        key: { type: 'value', value: '1' },
+        value: { type: 'value', value: ' ' },
+      },
+    ] as any),
+  });
+
+  expect(
+    maraca(`["  A    
+    B  
+    
+    C  "]`),
+  ).toEqual({
+    type: 'block',
+    value: Block.fromPairs([
+      {
+        key: { type: 'value', value: '1' },
+        value: { type: 'value', value: ' A B\n\nC ' },
+      },
+    ] as any),
+  });
+
+  expect(maraca(`["A <B/> C"]`)).toEqual({
+    type: 'block',
+    value: Block.fromPairs([
+      {
+        key: { type: 'value', value: '1' },
+        value: { type: 'value', value: 'A ' },
+      },
+      {
+        key: { type: 'value', value: '2' },
+        value: {
+          type: 'block',
+          value: Block.fromPairs([
+            {
+              key: { type: 'value', value: '1' },
+              value: { type: 'value', value: 'B' },
+            },
+          ] as any),
+        },
+      },
+      {
+        key: { type: 'value', value: '3' },
+        value: { type: 'value', value: ' C' },
+      },
+    ] as any),
+  });
+
+  expect(maraca(`["we're"]`)).toEqual({
+    type: 'block',
+    value: Block.fromPairs([
+      {
+        key: { type: 'value', value: '1' },
+        value: { type: 'value', value: 'we’re' },
       },
     ] as any),
   });

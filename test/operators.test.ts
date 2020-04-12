@@ -30,6 +30,10 @@ test('arithmetic', () => {
     type: 'value',
     value: '',
   });
+  expect(maraca('1 + [a, b, c]')).toEqual({
+    type: 'value',
+    value: '',
+  });
 });
 
 test('negative', () => {

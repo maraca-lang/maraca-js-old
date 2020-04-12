@@ -6,7 +6,7 @@ import process from './streams';
 import { Data, Library, Source, StreamData } from './typings';
 
 export { default as Block } from './block';
-export { fromJs, toJs } from './data';
+export { fromJs } from './data';
 export { default as parse } from './parse';
 export { default as process } from './streams';
 export { Data, Source } from './typings';
