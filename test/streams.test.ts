@@ -3,21 +3,20 @@ import Block from '../src/block';
 import { fromJs } from '../src/data';
 
 const library = {
-  size: fromJs((emit) => (x) =>
-    x &&
-    emit(
+  size: fromJs((arg) => (set, get) => () => {
+    const v = get(arg, true);
+    return set(
       fromJs(
-        x.type === 'block'
-          ? x.value.toPairs().filter((v) => v.value.value).length
-          : '0',
+        v.type === 'block' &&
+          v.value.toPairs().filter((x) => x.value.value).length,
       ),
-    ),
-  ),
-  tick: (emit) => {
+    );
+  }),
+  tick: (set) => {
     let count = 1;
-    emit(fromJs(count++));
-    const interval = setInterval(() => emit(fromJs(count++)), 1000);
-    return () => clearInterval(interval);
+    set(fromJs(count++));
+    const interval = setInterval(() => set(fromJs(count++)), 1000);
+    return (dispose) => dispose && clearInterval(interval);
   },
 };
 

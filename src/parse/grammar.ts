@@ -26,7 +26,8 @@ export default `Maraca {
     | ExpEval
 
   ExpEval
-    = ExpEval "$" ExpTrigger -- eval
+    = ExpEval ">>" ExpTrigger -- eval
+    | ">>" ExpTrigger -- single
     | ExpTrigger
 
   ExpTrigger
@@ -51,15 +52,15 @@ export default `Maraca {
     | ExpPow
 
   ExpPow
-    = ExpPow "^" ExpSize -- pow
+    = ExpPow "^" ExpSep -- pow
+    | ExpSep
+  
+  ExpSep
+    = ExpSep "." ExpSize -- sep
     | ExpSize
   
   ExpSize
-    = "#" ExpSep -- size
-    | ExpSep
-
-  ExpSep
-    = ExpSep "." ExpComb -- sep
+    = "#" ExpComb -- size
     | ExpComb
 
   ExpComb

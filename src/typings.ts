@@ -34,6 +34,10 @@ export type FullData = Data | StreamData;
 
 export const isValue = (data: Data): data is ValueData => data.type === 'value';
 
-export type Library = Obj<
-  Data | ((emit: (output: Data) => void) => void | (() => void))
->;
+export type StreamBuild = (
+  set?: (data: Data) => void,
+  get?: (stream: Stream) => Data,
+  create?: (build: StreamBuild) => StreamData,
+) => (dispose?: boolean) => void;
+
+export type Library = Obj<Data | StreamBuild>;

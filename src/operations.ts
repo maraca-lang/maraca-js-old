@@ -42,7 +42,9 @@ export default (type, create, nodes) => {
     return create(
       streamMap(([code], create) => {
         const subContext = {
-          scope: [{ type: 'any', value: nodes[1] }],
+          scope: [
+            { type: 'any', value: nodes[1] || { type: 'value', value: '' } },
+          ],
           current: [
             { type: 'constant', value: { type: 'block', value: new Block() } },
           ],

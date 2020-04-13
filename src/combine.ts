@@ -44,6 +44,7 @@ const getType = (big, small) => {
   if (!big.value || (big === null && small === null)) return 'nil';
   if (big.type === 'value') return 'join';
   const func = big.value.getFunc();
+  if (!func && small.type === 'block') return 'nil';
   if (func && func.isMap && small.type !== 'block') return 'nil';
   return func && func.isMap ? 'map' : 'get';
 };

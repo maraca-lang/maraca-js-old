@@ -1,8 +1,53 @@
 import Block from './block';
 
-export const fromJsFunc = (arg, func, deep) => (set, get) => {
-  const run = func(set);
-  return (dispose) => (dispose ? run() : run(get(arg, deep)));
+export const toNumber = (v: string) => {
+  const n = parseFloat(v);
+  return !isNaN(v as any) && !isNaN(n) ? n : null;
+};
+export const toIndex = (v: string) => {
+  const n = toNumber(v);
+  return n !== null && n === Math.floor(n) && n > 0 ? n : null;
+};
+
+export const sortMultiple = <T = any>(
+  items1: T[],
+  items2: T[],
+  sortItems: (a: T, b: T) => number,
+  reverseUndef = false,
+) =>
+  Array.from({ length: Math.max(items1.length, items2.length) }).reduce(
+    (res, _, i) => {
+      if (res !== 0) return res;
+      if (items1[i] === undefined) return reverseUndef ? 1 : -1;
+      if (items2[i] === undefined) return reverseUndef ? -1 : 1;
+      return sortItems(items1[i], items2[i]);
+    },
+    0,
+  ) as -1 | 0 | 1;
+
+export const print = ({ type, value }) => {
+  if (type === 'value') {
+    if (!value) return '';
+    if (
+      /^[a-zA-Z0-9\. ]+$/.test(value) &&
+      !/^\s/.test(value) &&
+      !/\s$/.test(value)
+    ) {
+      return value;
+    }
+    return `'${value.replace(/(['\\])/g, (_, m) => `\\${m}`)}'`;
+  }
+  return `[${value
+    .toPairs()
+    .filter((v) => v.value)
+    .map(({ key, value }) => {
+      if (toIndex(key.value)) return print(value);
+      const [k, v] = [print(key), print(value)];
+      if (!k && value.type === 'block') return `'': ${v}`;
+      if (key.type === 'value' || value.type === 'value') return `${k}: ${v}`;
+      return `[=> ${k}]: ${v}`;
+    })
+    .join(', ')}]`;
 };
 
 export const fromJs = (value) => {
@@ -14,9 +59,7 @@ export const fromJs = (value) => {
   if (typeof value === 'function') {
     return {
       type: 'block',
-      value: Block.fromFunc((create, arg) => [
-        create(fromJsFunc(arg, value, true)),
-      ]),
+      value: Block.fromFunc((create, arg) => [create(value(arg))]),
     };
   }
   if (Object.prototype.toString.call(value) === '[object Date]') {
@@ -44,38 +87,3 @@ export const fromJs = (value) => {
   }
   return { type: 'value', value: '' };
 };
-
-export const isEqual = (v1, v2) => {
-  if (v1.type !== v2.type) return false;
-  if (v1.type == 'value') return v1.value === v2.value;
-  return JSON.stringify(v1.value) === JSON.stringify(v2.value);
-};
-
-export const toString = (x) =>
-  x.type === 'value' ? x.value : JSON.stringify(x.value);
-
-export const toNumber = (v: string) => {
-  const n = parseFloat(v);
-  return !isNaN(v as any) && !isNaN(n) ? n : null;
-};
-
-export const toIndex = (v: string) => {
-  const n = toNumber(v);
-  return n !== null && n === Math.floor(n) && n > 0 ? n : null;
-};
-
-export const sortMultiple = <T = any>(
-  items1: T[],
-  items2: T[],
-  sortItems: (a: T, b: T) => number,
-  reverseUndef = false,
-) =>
-  Array.from({ length: Math.max(items1.length, items2.length) }).reduce(
-    (res, _, i) => {
-      if (res !== 0) return res;
-      if (items1[i] === undefined) return reverseUndef ? 1 : -1;
-      if (items2[i] === undefined) return reverseUndef ? -1 : 1;
-      return sortItems(items1[i], items2[i]);
-    },
-    0,
-  ) as -1 | 0 | 1;

@@ -6,7 +6,7 @@ import process from './streams';
 import { Data, Library, Source, StreamData } from './typings';
 
 export { default as Block } from './block';
-export { fromJs } from './data';
+export { fromJs, print } from './data';
 export { default as parse } from './parse';
 export { default as process } from './streams';
 export { Data, Source } from './typings';
@@ -95,19 +95,7 @@ function maraca(...args) {
 
     const libraryPairs = Object.keys(library).map((k) => ({
       key: fromJs(k),
-      value: create(
-        typeof library[k] !== 'function'
-          ? (set) => set(library[k])
-          : (set, get) => {
-              const emit = ({ push, ...data }) =>
-                set({
-                  ...data,
-                  push: push && ((v) => push(get(v, true))),
-                });
-              const stop = library[k](emit);
-              return (dispose) => dispose && stop && stop();
-            },
-      ),
+      value: typeof library[k] === 'function' ? create(library[k]) : library[k],
     }));
 
     const modules = buildModuleLayer(

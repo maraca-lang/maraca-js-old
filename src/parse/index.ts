@@ -105,7 +105,13 @@ const loadSemantics = () => {
 
     ExpEval_eval: (a, _, b) => ({
       type: 'eval',
-      nodes: [a.ast, b.ast],
+      nodes: [b.ast, a.ast],
+      start: a.source.startIdx,
+      end: b.source.endIdx,
+    }),
+    ExpEval_single: (a, b) => ({
+      type: 'eval',
+      nodes: [b.ast],
       start: a.source.startIdx,
       end: b.source.endIdx,
     }),
@@ -113,7 +119,7 @@ const loadSemantics = () => {
 
     ExpTrigger_trigger: (a, _, b) => ({
       type: 'trigger',
-      nodes: [a.ast, b.ast],
+      nodes: [b.ast, a.ast],
       start: a.source.startIdx,
       end: b.source.endIdx,
     }),
@@ -332,7 +338,5 @@ export default (script: string): AST => {
   }
   const m = g.match(script);
   if (m.failed()) throw new Error('Parser error');
-  const res = s(m).ast;
-  // console.log(JSON.stringify(res, null, 2));
-  return { ...res, __AST: true };
+  return { ...s(m).ast, __AST: true };
 };

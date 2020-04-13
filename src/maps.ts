@@ -1,5 +1,5 @@
 import Block from './block';
-import { fromJs, isEqual, toIndex, toNumber } from './data';
+import { fromJs, print, toIndex, toNumber } from './data';
 import fuzzy from './fuzzy';
 
 const dataMap = (map) => (args) => fromJs(map(args));
@@ -13,7 +13,11 @@ const numericMap = (map) =>
 
 export default {
   '=': {
-    map: dataMap(([a, b]) => isEqual(a, b)),
+    map: dataMap(([a, b]) => {
+      if (a.type !== b.type) return false;
+      if (a.type == 'value') return a.value === b.value;
+      return print(a) === print(b);
+    }),
     deepArgs: [true, true],
   },
   '~': dataMap(([a, b]) => {

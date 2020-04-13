@@ -42,6 +42,14 @@ test('block lookup', () => {
     type: 'value',
     value: '',
   });
+  expect(maraca('[[a, b]: 1] [a, b]')).toEqual({
+    type: 'value',
+    value: '',
+  });
+  expect(maraca('[a, b] [[a, b]: 1] ')).toEqual({
+    type: 'value',
+    value: '',
+  });
 });
 
 test('dot', () => {

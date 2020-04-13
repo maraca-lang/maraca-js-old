@@ -1,4 +1,4 @@
-import { fromJs, sortMultiple, toIndex, toString } from './data';
+import { fromJs, print, sortMultiple, toIndex } from './data';
 import { Data, Obj, isValue, StreamData } from './typings';
 
 const tryNumber = (s) => {
@@ -74,7 +74,7 @@ export default class Block {
   static fromPairs(pairs: { key: Data; value: StreamData }[]) {
     const result = new Block();
     pairs.forEach((pair) => {
-      const k = toString(pair.key);
+      const k = print(pair.key);
       const i = toIndex(k);
       if (!i || pair.value) {
         if (!result.values[k] || pair.value) result.values[k] = pair;
@@ -115,18 +115,20 @@ export default class Block {
   }
 
   has(key: Data) {
-    const k = toString(key);
+    if (key.type === 'block') return false;
+    const k = print(key);
     return !!(this.values[k] && this.values[k].value);
   }
   get(key: Data) {
-    const k = toString(key);
+    if (key.type === 'block') return this.func || { type: 'value', value: '' };
+    const k = print(key);
     const v = this.values[k] && this.values[k].value;
     return v || this.func || { type: 'value', value: '' };
   }
   extract(keys: Data[], doOffset: boolean) {
     const rest = this.cloneValues();
     const values = keys.map((key) => {
-      const k = toString(key);
+      const k = print(key);
       const i = toIndex(k);
       const v = (rest.values[k] && rest.values[k].value) || {
         type: 'value',
@@ -180,7 +182,7 @@ export default class Block {
     return result;
   }
   set(key: Data, value: Data) {
-    const k = toString(key);
+    const k = print(key);
     const i = toIndex(k);
     const result = new Block();
     result.values = { ...this.values, [k]: { key, value } } as any;
@@ -196,7 +198,7 @@ export default class Block {
       if (!key) {
         const offset = this.indices[this.indices.length - 1] || 0;
         return value.value.toPairs().reduce<Block>((res, v) => {
-          const i = toIndex(toString(v.key));
+          const i = toIndex(print(v.key));
           return res.destructure(
             i ? fromJs(i + offset) : v.key,
             v.value as any,
@@ -221,12 +223,5 @@ export default class Block {
     result.indices = this.indices;
     result.func = Object.assign(func, { isMap, hasArg, isPure });
     return result;
-  }
-
-  toJSON() {
-    return `[${this.toPairs()
-      .filter((x) => x.value)
-      .map(({ key, value }) => `${toString(key)}: ${toString(value)}`)
-      .join(', ')}]`;
   }
 }
