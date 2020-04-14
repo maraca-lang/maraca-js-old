@@ -39,7 +39,7 @@ export const print = ({ type, value }) => {
   }
   return `[${value
     .toPairs()
-    .filter((v) => v.value)
+    .filter((x) => x.value.value)
     .map(({ key, value }) => {
       if (toIndex(key.value)) return print(value);
       const [k, v] = [print(key), print(value)];

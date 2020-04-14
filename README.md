@@ -17,13 +17,14 @@ npm install maraca --save
 ## Maraca documentation
 
 Full documentation for the Maraca language itself can be found at
-https://maraca-lang.org/docs.
+https://maraca-lang.org.
 
 ## Table of contents
 
 - [API](#api)
 - [Utilities](#utilities)
-- [Full example](#full-example)
+- [Data format](#data-format)
+- [Example](#example)
 
 ## API
 
@@ -50,46 +51,45 @@ maraca(source, (data) => console.log(data));
 
 ### `source`
 
-The Maraca source can be provided in any of the following formats:
+The Maraca source can either be a string, or a nested set of objects, with each
+key defining a module:
 
 ```ts
-  string
-| ast
-| [
-    start: string | ast,
-    modules: { [key]: string | ast | () => Promise<string | ast> },
-  ]
+type Source =
+  | string
+  | {
+      [key]: Source;
+    };
 ```
 
 If the object form is used, evaluation starts with the 'start' script, which can
-then access the modules via the context block (i.e. `[key]?`).
+then load the modules using the normal `?` syntax.
 
-### `config` (optional)
+### `library` (optional)
 
-If provided, the config parameter sets up custom streams for the `@` and `#`
-Maraca features.
+If provided, the library parameter sets up custom streams that are then
+available to your source code, again using the normal `?` syntax.
+
+Custom streams can either be a constant `Data` value (see Data format below), or
+a stream generator function, with the following API:
 
 ```ts
-{
-  '@': (
-    (emit: (output: data) => void) => ((value?: data) => void)
-  )[],
-  '#': {
-    [key]: data | (emit: (output: data) => void) => void | (() => void)
-  },
-}
+type Generator = (
+  set: (data: Data) => void,
+  get: (stream: Stream) => Data,
+  create: (generator: Generator) => Stream,
+) =>
+  | void
+  | (dispose?) => void;
 ```
 
-So the `@` key accepts an array (mapped to `@`, `@@`, `@@@`), and the `#`
-accepts an object (mapped to `#[key]`).
+So the library has the type:
 
-For `@`, you are given an emit handler, and return a callback which is called
-whenever the argument to the `@` call changes. When the stream is disposed, the
-callback is called without an argument, which should be used to clean up any
-side effects.
-
-For `#`, you either directly provide a Maraca data value, or another map as for
-`@`, except with only a dispose callback (since `#` calls have no argument).
+```ts
+type Library = {
+  [key]: Data | Generator;
+};
+```
 
 ### output (optional)
 
@@ -98,66 +98,57 @@ given callback.
 
 ## Data format
 
-**Value**
+The data output by Maraca has the following format:
 
 ```ts
-{
-  type: 'value',
-  value: string,
-  push: (value: data) => void,
-}
+type Data = ValueData | BlockData;
+
+type ValueData = {
+  type: 'value';
+  value: string;
+  push: (value: Data) => void;
+};
+
+type BlockData = {
+  type: 'block';
+  value: Block;
+  push: (value: Data) => void;
+};
+
+type Block = {
+  toPairs: () => { key: Data; value: Data }[];
+};
 ```
 
-**Block**
-
-```ts
-{
-  type: 'block',
-  value: { key: data, value: data }[],
-  push: (value: data) => void,
-}
-```
+The `push` method on each individual data value can be used to manually push
+updates into your Maraca code.
 
 ## Utilities
 
-### `parse: (source: string) => ast`
+### `parse: (source: string) => AST`
 
-Convert a Maraca script to ast.
+Convert a Maraca script to AST.
 
-### `fromJS: (value: any) => data`
+### `fromJS: (value: any) => Data`
 
 Convert a JavaScript value into Maraca data.
 
-## Full example
+## Example
 
 ```ts
 import maraca, { fromJs } from 'maraca';
 
-const source = ['module? + @1', { module: '#(#data)' }];
+const source = ['module? + tick?', { module: '#data?' }];
 
-const config = {
-  '@': [
-    (emit) => {
-      let count = 0;
-      let interval;
-      return (value) => {
-        if (interval) clearInterval(interval);
-        if (value) {
-          const inc = parseFloat(value.value);
-          if (typeof inc === 'number') {
-            emit(fromJs(count++));
-            interval = setInterval(() => emit(fromJs(count++)), inc * 1000);
-          } else {
-            emit(fromJs(null));
-          }
-        }
-      };
-    },
-  ],
-  '#': {
-    data: fromJs({ a: 1, b: 2, c: 3 }),
+const library = {
+  data: fromJs({ a: 1, b: 2, c: 3 }),
+  tick: (set) => {
+    let count = 1;
+    set(fromJs(count++));
+    const interval = setInterval(() => set(fromJs(count++)), 1000);
+    return (dispose) => dispose && clearInterval(interval);
   },
 };
 
-maraca(source, config, (data) => console.log(data));
+maraca(source, library, (data) => console.log(data));
 ```

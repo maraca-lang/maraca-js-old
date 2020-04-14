@@ -6,6 +6,7 @@ export interface Obj<T = any> {
 }
 
 export interface AST {
+  __AST: true;
   type: string;
   nodes?: (AST | null)[];
   info?: any;

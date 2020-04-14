@@ -13,8 +13,6 @@ const getMinus = (v) => {
 };
 const sortStrings = (s1, s2): -1 | 0 | 1 => {
   if (s1 === s2) return 0;
-  if (!s1) return -1;
-  if (!s2) return 1;
   const n1 = tryNumber(s1);
   const n2 = tryNumber(s2);
   const m1 = getMinus(n1);
@@ -35,7 +33,7 @@ const compare = (v1, v2): -1 | 0 | 1 => {
   const type1 = v1.value ? v1.type : 'nil';
   const type2 = v2.value ? v2.type : 'nil';
   if (type1 !== type2) {
-    return type1 === 'value' || type2 === 'block' ? -1 : 1;
+    return type1 === 'nil' || type2 === 'block' ? -1 : 1;
   }
   if (type1 === 'nil') return 0;
   if (type1 === 'value') return sortStrings(v1.value, v2.value);

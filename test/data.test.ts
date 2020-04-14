@@ -154,57 +154,17 @@ test('nest blocks', () => {
 });
 
 test('block sort', () => {
-  expect(maraca('[z: 1, y: 2, b, a]')).toEqual({
-    type: 'block',
-    value: Block.fromPairs([
-      {
-        key: { type: 'value', value: '1' },
-        value: { type: 'value', value: 'b' },
-      },
-      {
-        key: { type: 'value', value: '2' },
-        value: { type: 'value', value: 'a' },
-      },
-      {
-        key: { type: 'value', value: 'y' },
-        value: { type: 'value', value: '2', push: expect.any(Function) },
-      },
-      {
-        key: { type: 'value', value: 'z' },
-        value: { type: 'value', value: '1', push: expect.any(Function) },
-      },
-    ] as any),
-  });
+  expect(
+    (maraca('[: 1, 2, 3, w: 4, x: 5, [y]: 6, [z]: 7]').value as any)
+      .toPairs()
+      .map((x) => x.value.value),
+  ).toEqual(['1', '2', '3', '4', '5', '6', '7']);
 
-  expect(maraca('[[y]: d, x: c, b, : a]')).toEqual({
-    type: 'block',
-    value: Block.fromPairs([
-      {
-        key: { type: 'value', value: '' },
-        value: { type: 'value', value: 'a' },
-      },
-      {
-        key: { type: 'value', value: '1' },
-        value: { type: 'value', value: 'b' },
-      },
-      {
-        key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: 'c', push: expect.any(Function) },
-      },
-      {
-        key: {
-          type: 'block',
-          value: Block.fromPairs([
-            {
-              key: { type: 'value', value: '1' },
-              value: { type: 'value', value: 'y' },
-            },
-          ] as any),
-        },
-        value: { type: 'value', value: 'd', push: expect.any(Function) },
-      },
-    ] as any),
-  });
+  expect(
+    (maraca('[[A]: 1, [A, B]: 2, [A, C]: 3, [B]: 4, [B, A]: 5]').value as any)
+      .toPairs()
+      .map((x) => x.value.value),
+  ).toEqual(['1', '2', '3', '4', '5']);
 });
 
 test('block assign shorthand', () => {

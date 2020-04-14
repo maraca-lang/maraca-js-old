@@ -22,16 +22,16 @@ export default `Maraca {
     | ExpPush
 
   ExpPush
-    = ExpPush "->" ExpEval -- push
-    | ExpEval
-
-  ExpEval
-    = ExpEval ">>" ExpTrigger -- eval
-    | ">>" ExpTrigger -- single
+    = ExpPush "->" ExpTrigger -- push
     | ExpTrigger
 
   ExpTrigger
-    = ExpTrigger "|" ExpNot -- trigger
+    = ExpTrigger "|" ExpEval -- trigger
+    | ExpEval
+
+  ExpEval
+    = ExpEval ">>" ExpNot -- eval
+    | ">>" ExpNot -- single
     | ExpNot
 
   ExpNot

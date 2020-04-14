@@ -24,6 +24,19 @@ const snapshot = (create, { push, ...value }, withPush = true) => {
 };
 
 export default (type, create, nodes) => {
+  if (type === 'trigger') {
+    return create((set, get) => {
+      let values = [] as any[];
+      return () => {
+        const newValues = nodes.map((a) => get(a));
+        if (values[0] !== newValues[0] && newValues[0].value) {
+          set({ ...newValues[1] });
+        }
+        values = newValues;
+      };
+    });
+  }
+
   if (type === 'push') {
     return create((_, get, create) => {
       let source;
@@ -58,16 +71,5 @@ export default (type, create, nodes) => {
         return build(create, subContext, parsed);
       })([nodes[0]]),
     );
-  }
-
-  if (type === 'trigger') {
-    return create((set, get) => {
-      let values = [];
-      return () => {
-        const newValues = nodes.map((a) => get(a));
-        if (values[0] !== newValues[0]) set({ ...newValues[1] });
-        values = newValues;
-      };
-    });
   }
 };

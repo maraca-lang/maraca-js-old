@@ -103,6 +103,14 @@ const loadSemantics = () => {
     }),
     ExpPush: (a) => a.ast,
 
+    ExpTrigger_trigger: (a, _, b) => ({
+      type: 'trigger',
+      nodes: [a.ast, b.ast],
+      start: a.source.startIdx,
+      end: b.source.endIdx,
+    }),
+    ExpTrigger: (a) => a.ast,
+
     ExpEval_eval: (a, _, b) => ({
       type: 'eval',
       nodes: [b.ast, a.ast],
@@ -116,14 +124,6 @@ const loadSemantics = () => {
       end: b.source.endIdx,
     }),
     ExpEval: (a) => a.ast,
-
-    ExpTrigger_trigger: (a, _, b) => ({
-      type: 'trigger',
-      nodes: [b.ast, a.ast],
-      start: a.source.startIdx,
-      end: b.source.endIdx,
-    }),
-    ExpTrigger: (a) => a.ast,
 
     ExpNot_not: (a, b) => ({
       type: 'map',
@@ -334,7 +334,7 @@ const loadSemantics = () => {
 export default (script: string): AST => {
   if (!s) loadSemantics();
   if (!script.trim()) {
-    return { type: 'nil', start: 0, end: 0, __AST: true } as any;
+    return { type: 'nil', start: 0, end: 0, __AST: true };
   }
   const m = g.match(script);
   if (m.failed()) throw new Error('Parser error');
