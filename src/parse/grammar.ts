@@ -39,7 +39,7 @@ export default `Maraca {
     | ExpComp
 
   ExpComp
-    = ExpComp ("<=" | ">=" | "<" | ">" | "!" | "~" | "=") ExpSum -- comp
+    = ExpComp ("<=" | ">=" | "<" | ">" | "!" | "=") ExpSum -- comp
     | ExpSum
 
   ExpSum
@@ -84,7 +84,7 @@ export default `Maraca {
     | space* -- nil
 
   Multi
-    = (char3 | escape)+ -- string
+    = (char2 | escape)+ -- string
     | "<" Line ("," Line)* "/>" -- block
 
   value
@@ -99,9 +99,6 @@ export default `Maraca {
     = ~("'" | "\\\\") any
 
   char2
-    = ~("\\"" | "<" | ">" | "\\\\") any
-
-  char3
     = ~("\\"" | "<" | "\\\\") any
 
   escape

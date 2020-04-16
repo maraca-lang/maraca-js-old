@@ -47,14 +47,13 @@ const loadSemantics = () => {
     };
   };
 
-  const parseString = (s, withDivider) =>
-    dedent(withDivider ? s.replace(/>/g, '￿1').replace(/\\￿1/g, '>') : s)
-      .replace(/\n/g, '￿2')
-      .replace(/\\(￿2| )/g, '\n')
+  const parseString = (s) =>
+    dedent(s)
+      .replace(/\n/g, '￿')
+      .replace(/\\(￿| )/g, '\n')
       .replace(/\\(.)/g, (_, m) => m)
-      .replace(/(\s|￿2)*(\n|￿2)(\s|￿2)*(\n|￿2)(\s|￿2)*/g, '\n\n')
-      .replace(/(￿2| |\t)+/g, ' ')
-      .replace(/￿1/g, '￿');
+      .replace(/(\s|￿)*(\n|￿)(\s|￿)*(\n|￿)(\s|￿)*/g, '\n\n')
+      .replace(/(￿| |\t)+/g, ' ');
 
   const dedent = (str) => {
     let s = str;
@@ -235,30 +234,22 @@ const loadSemantics = () => {
           const s = `${_1.source.sourceString.slice(indices[i][1], n.start)}${
             n.info.value
           }${_2.source.sourceString.slice(n.end, indices[i + 2][0])}`;
-          n.info.value = parseString(s, true)
+          n.info.value = parseString(s)
             .replace(/(\s)'/g, (_, m) => `${m}‘`)
             .replace(/'/g, '’')
             .replace(/(\s)"/g, (_, m) => `${m}“`)
             .replace(/"/g, '”');
+          n.info.multi = true;
           n.start = indices[i][1];
           n.end = indices[i + 2][0];
         }
       });
-      const result = items
-        .reduce((res, x) => {
-          if (x.type !== 'value') return [...res, x];
-          return [
-            ...res,
-            ...x.info.value.split(/￿/g).map((s, i) => ({
-              type: 'value',
-              info: { value: s, split: i !== 0 },
-            })),
-          ];
-        }, [])
-        .map((x) => ({ ...x, info: x.info || {} }));
-      result[0].info.first = true;
-      result[result.length - 1].info.last = true;
-      return result;
+      items[0].info = { ...(items[0].info || {}), first: true };
+      items[items.length - 1].info = {
+        ...(items[items.length - 1].info || {}),
+        last: true,
+      };
+      return items;
     },
 
     Line_exp: (a) => [a.ast],
@@ -307,7 +298,7 @@ const loadSemantics = () => {
     value_string2: (_1, a, _2) => ({
       type: 'value',
       info: {
-        value: parseString(a.sourceString, true)
+        value: parseString(a.sourceString)
           .replace(/(\s)'/g, (_, m) => `${m}‘`)
           .replace(/'/g, '’')
           .replace(/(\s)"/g, (_, m) => `${m}“`)
@@ -319,7 +310,7 @@ const loadSemantics = () => {
     value_comment: (_1, a, _2) => ({
       type: 'comment',
       info: {
-        value: parseString(a.sourceString.replace(/\\/g, '\\\\'), false),
+        value: parseString(a.sourceString.replace(/\\/g, '\\\\')),
       },
       start: _1.source.startIdx,
       end: _2.source.endIdx,

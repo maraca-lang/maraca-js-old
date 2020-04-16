@@ -1,6 +1,5 @@
 import Block from './block';
 import { compare, fromJs, print, toIndex, toNumber } from './data';
-import fuzzy from './fuzzy';
 
 const dataMap = (map) => (args) => fromJs(map(args));
 
@@ -20,11 +19,6 @@ export default {
     }),
     deepArgs: [true, true],
   },
-  '~': dataMap(([a, b]) => {
-    if (a.type === 'block' || b.type === 'block') return null;
-    const res = fuzzy(a.value || '', b.value || '');
-    return res < 0.3 ? null : 2 - res;
-  }),
   '!': dataMap(([a, b]) => {
     if (!b) return !a.value;
     return a.type !== b.type || a.value !== b.value;
