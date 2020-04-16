@@ -3,10 +3,10 @@ import { fromJs } from './data';
 import Block from './block';
 import parse from './parse';
 import process from './streams';
-import { Data, Library, Source, StreamData } from './typings';
+import { Data, Source, StreamData } from './typings';
 
 export { default as Block } from './block';
-export { fromJs, print } from './data';
+export { fromJs, print, toJs } from './data';
 export { default as parse } from './parse';
 export { default as process } from './streams';
 export { Data, Source } from './typings';
@@ -54,7 +54,9 @@ const buildModuleLayer = (create, modules, getScope, path) =>
     (res, k) => ({
       ...res,
       [k]:
-        typeof modules[k] === 'string' || modules[k].__AST
+        typeof modules[k] === 'function'
+          ? create(modules[k])
+          : typeof modules[k] === 'string' || modules[k].__AST
           ? create((set, _, create) =>
               set(
                 build(
@@ -81,46 +83,33 @@ const buildModuleLayer = (create, modules, getScope, path) =>
 
 function maraca(source: Source): Data;
 function maraca(source: Source, onData: (data: Data) => void): () => void;
-function maraca(source: Source, library: Library): Data;
-function maraca(
-  source: Source,
-  library: Library,
-  onData: (data: Data) => void,
-): () => void;
 function maraca(...args) {
-  const [source, library = {}, onData] =
-    typeof args[1] === 'function' ? [args[0], {}, args[1]] : args;
+  const [source, onData] = args;
   return process((baseCreate) => {
     const create = wrapCreate(baseCreate);
-
-    const libraryPairs = Object.keys(library).map((k) => ({
-      key: fromJs(k),
-      value: typeof library[k] === 'function' ? create(library[k]) : library[k],
-    }));
-
     const modules = buildModuleLayer(
       create,
-      typeof source === 'string' || source.__AST ? { start: source } : source,
+      typeof source === 'string' || source.__AST ? { '': source } : source,
       (path) =>
-        buildScopeLayer(
+        modulesToBlock(
           path.reduce((res, k) => ({ ...res, ...res[k] }), modules),
         ),
       [],
     );
-    const buildScopeLayer = (moduleLayer, first = true) => ({
+    const modulesToBlock = ({ __MODULES, ...moduleLayer }) => ({
       type: 'block',
-      value: Block.fromPairs([
-        ...(first ? libraryPairs : []),
-        ...Object.keys(moduleLayer).map((k) => ({
+      value: Block.fromPairs(
+        Object.keys(moduleLayer).map((k) => ({
           key: fromJs(k),
           value: moduleLayer[k].__MODULES
-            ? buildScopeLayer(moduleLayer[k], false)
+            ? moduleLayer[k][''] || modulesToBlock(moduleLayer[k])
             : moduleLayer[k],
         })),
-      ]),
+      ),
     });
-
-    return create((set, get) => () => set(get(modules.start, true))).value;
+    return create((set, get) => () =>
+      set(get(modules[''] || modulesToBlock(modules), true)),
+    ).value;
   }, onData);
 }
 

@@ -1,5 +1,5 @@
 import Block from './block';
-import { fromJs, print, toIndex, toNumber } from './data';
+import { compare, fromJs, print, toIndex, toNumber } from './data';
 import fuzzy from './fuzzy';
 
 const dataMap = (map) => (args) => fromJs(map(args));
@@ -29,10 +29,22 @@ export default {
     if (!b) return !a.value;
     return a.type !== b.type || a.value !== b.value;
   }),
-  '<': numericMap(([a, b]) => a < b),
-  '>': numericMap(([a, b]) => a > b),
-  '<=': numericMap(([a, b]) => a <= b),
-  '>=': numericMap(([a, b]) => a >= b),
+  '<': {
+    map: dataMap(([a, b]) => compare(a, b) === -1),
+    deepArgs: [true, true],
+  },
+  '>': {
+    map: dataMap(([a, b]) => compare(a, b) === 1),
+    deepArgs: [true, true],
+  },
+  '<=': {
+    map: dataMap(([a, b]) => compare(a, b) !== 1),
+    deepArgs: [true, true],
+  },
+  '>=': {
+    map: dataMap(([a, b]) => compare(a, b) !== -1),
+    deepArgs: [true, true],
+  },
   '+': numericMap(([a, b]) => a + b),
   '-': dataMap(([a, b]) => {
     if (!b) return a.type === 'value' ? `-${a.value}` : null;

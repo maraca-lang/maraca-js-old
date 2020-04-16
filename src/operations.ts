@@ -26,13 +26,13 @@ const snapshot = (create, { push, ...value }, withPush = true) => {
 export default (type, create, nodes) => {
   if (type === 'trigger') {
     return create((set, get) => {
-      let values = [] as any[];
+      let trigger;
       return () => {
-        const newValues = nodes.map((a) => get(a));
-        if (values[0] !== newValues[0] && newValues[0].value) {
-          set({ ...newValues[1] });
+        const newTrigger = get(nodes[0], true);
+        if (trigger !== newTrigger && newTrigger.value) {
+          set({ ...get(nodes[1]) });
         }
-        values = newValues;
+        trigger = newTrigger;
       };
     });
   }

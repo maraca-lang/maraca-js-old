@@ -1,68 +1,5 @@
-import { fromJs, print, sortMultiple, toIndex } from './data';
+import { compare, fromJs, print, toIndex } from './data';
 import { Data, Obj, isValue, StreamData } from './typings';
-
-const tryNumber = (s) => {
-  const n = parseFloat(s);
-  return !isNaN(s) && !isNaN(n) ? n : s;
-};
-const getMinus = (v) => {
-  if (!v) return { minus: false, v };
-  const minus = typeof v === 'number' ? v < 0 : v[0] === '-';
-  if (!minus) return { minus, value: v };
-  return { minus, value: typeof v === 'number' ? -v : v.slice(1) };
-};
-const sortStrings = (s1, s2): -1 | 0 | 1 => {
-  if (s1 === s2) return 0;
-  const n1 = tryNumber(s1);
-  const n2 = tryNumber(s2);
-  const m1 = getMinus(n1);
-  const m2 = getMinus(n2);
-  if (m1.minus !== m2.minus) return m1.minus ? -1 : 1;
-  const dir = m1.minus ? -1 : 1;
-  const t1 = typeof m1.value;
-  const t2 = typeof m2.value;
-  if (t1 === t2) {
-    if (t1 === 'string') {
-      return (dir * m1.value.localeCompare(m2.value)) as -1 | 0 | 1;
-    }
-    return (dir * (m1.value < m2.value ? -1 : 1)) as -1 | 0 | 1;
-  }
-  return (dir * (t1 === 'number' ? -1 : 1)) as -1 | 0 | 1;
-};
-const compare = (v1, v2): -1 | 0 | 1 => {
-  const type1 = v1.value ? v1.type : 'nil';
-  const type2 = v2.value ? v2.type : 'nil';
-  if (type1 !== type2) {
-    return type1 === 'nil' || type2 === 'block' ? -1 : 1;
-  }
-  if (type1 === 'nil') return 0;
-  if (type1 === 'value') return sortStrings(v1.value, v2.value);
-  const keys = Array.from(
-    new Set([...Object.keys(v1.value.values), ...Object.keys(v2.value.values)]),
-  ).sort((a, b) =>
-    compare(
-      (v1.value.values[a] || (v2 as any).value.values[a]).key,
-      (v1.value.values[b] || (v2 as any).value.values[b]).key,
-    ),
-  );
-  return sortMultiple(
-    keys.map(
-      (k) =>
-        (v1.value.values[k] && v1.value.values[k].value) || {
-          type: 'value',
-          value: '',
-        },
-    ),
-    keys.map(
-      (k) =>
-        (v2.value.values[k] && v2.value.values[k].value) || {
-          type: 'value',
-          value: '',
-        },
-    ),
-    compare,
-  );
-};
 
 export default class Block {
   private values: Obj<{ key: Data; value: StreamData }> = {};
@@ -104,6 +41,20 @@ export default class Block {
     return Object.keys(this.values)
       .map((k) => this.values[k])
       .sort((a, b) => compare(a.key, b.key));
+  }
+  toBoth() {
+    const values = { ...this.values };
+    return {
+      indices: this.indices.map((i) => {
+        const v = values[i].value;
+        delete values[i];
+        return v;
+      }),
+      values: Object.keys(values).reduce(
+        (res, k) => ({ ...res, [k]: values[k].value }),
+        {},
+      ),
+    };
   }
   cloneValues() {
     const result = new Block();

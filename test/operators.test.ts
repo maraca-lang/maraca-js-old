@@ -80,6 +80,19 @@ test('comparison', () => {
     type: 'value',
     value: '',
   });
+
+  expect(maraca('a < b')).toEqual({
+    type: 'value',
+    value: 'true',
+  });
+  expect(maraca('b < a')).toEqual({
+    type: 'value',
+    value: '',
+  });
+  expect(maraca('-b < -a')).toEqual({
+    type: 'value',
+    value: 'true',
+  });
 });
 
 test('not', () => {
@@ -87,7 +100,7 @@ test('not', () => {
     type: 'value',
     value: 'true',
   });
-  expect(maraca('!3 < 5')).toEqual({
+  expect(maraca('! 3 < 5')).toEqual({
     type: 'value',
     value: '',
   });

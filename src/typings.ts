@@ -14,7 +14,13 @@ export interface AST {
   end: number;
 }
 
-export type Source = string | AST | Obj<Source>;
+export type Factory = (
+  set?: (data: Data) => void,
+  get?: (stream: Stream) => Data,
+  create?: (build: Factory) => StreamData,
+) => (dispose?: boolean) => void;
+
+export type Source = string | AST | Factory | Obj<Source>;
 
 export interface ValueData {
   type: 'value';
@@ -34,11 +40,3 @@ export type Data = ValueData | BlockData;
 export type FullData = Data | StreamData;
 
 export const isValue = (data: Data): data is ValueData => data.type === 'value';
-
-export type StreamBuild = (
-  set?: (data: Data) => void,
-  get?: (stream: Stream) => Data,
-  create?: (build: StreamBuild) => StreamData,
-) => (dispose?: boolean) => void;
-
-export type Library = Obj<Data | StreamBuild>;

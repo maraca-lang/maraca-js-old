@@ -3,15 +3,18 @@ import Block from '../src/block';
 import { fromJs } from '../src/data';
 
 const library = {
-  size: fromJs((arg) => (set, get) => () => {
-    const v = get(arg, true);
-    return set(
-      fromJs(
-        v.type === 'block' &&
-          v.value.toPairs().filter((x) => x.value.value).length,
-      ),
-    );
-  }),
+  size: (set) =>
+    set(
+      fromJs((arg) => (set, get) => () => {
+        const v = get(arg, true);
+        return set(
+          fromJs(
+            v.type === 'block' &&
+              v.value.toPairs().filter((x) => x.value.value).length,
+          ),
+        );
+      }),
+    ),
   tick: (set) => {
     let count = 1;
     set(fromJs(count++));
@@ -22,7 +25,7 @@ const library = {
 
 const testStream = (code, values, done) => {
   let c = 0;
-  const stop = maraca(code, library, (data) => {
+  const stop = maraca({ '': code, ...library }, (data) => {
     expect(data).toEqual(values[c]);
     if (!values[++c]) {
       stop();
@@ -32,7 +35,7 @@ const testStream = (code, values, done) => {
 };
 
 test('lib', (done) => {
-  expect(maraca('size?.[1, 2, 3]', library)).toEqual({
+  expect(maraca({ '': 'size?.[1, 2, 3]', ...library })).toEqual({
     type: 'value',
     value: '3',
   });
