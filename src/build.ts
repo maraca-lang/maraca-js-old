@@ -108,7 +108,8 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
   if (
     type === 'nil' ||
     type === 'comment' ||
-    (type === 'value' && !info.value)
+    (type === 'value' && !info.value) ||
+    type === 'error'
   ) {
     return { type: 'constant', value: { type: 'value', value: '' } };
   }
