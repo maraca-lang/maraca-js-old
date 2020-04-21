@@ -1,9 +1,8 @@
 import build, { pushable, streamMap } from './build';
-import { toIndex } from './data';
 import Block from './block';
 import parse from './parse';
 
-const snapshot = (create, { push, ...value }, withPush = true) => {
+const snapshot = (create, { push, ...value }) => {
   const result =
     value.type !== 'block'
       ? value
@@ -12,15 +11,11 @@ const snapshot = (create, { push, ...value }, withPush = true) => {
           value: Block.fromPairs(
             value.value.toPairs().map(({ key, value }) => ({
               key,
-              value: snapshot(
-                create,
-                value,
-                !(key.type === 'value' && toIndex(key.value)),
-              ),
+              value: snapshot(create, value),
             })),
           ),
         };
-  return withPush ? create(pushable(result), true) : result;
+  return push ? create(pushable(result), true) : result;
 };
 
 export default (type, create, nodes) => {

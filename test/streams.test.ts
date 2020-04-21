@@ -62,7 +62,7 @@ test('trigger', (done) => {
 
 test('push', (done) => {
   testStream(
-    '[x: 10, tick? | x? + 10 -> x?].x',
+    '[x:~ 10, tick? | x? + 10 -> x?].x',
     [
       { type: 'value', value: '10', push: expect.any(Function) },
       { type: 'value', value: '20', push: expect.any(Function) },
@@ -73,7 +73,7 @@ test('push', (done) => {
 
 test('push block', (done) => {
   testStream(
-    '[x: [a], tick? | [: x?, a] -> x?].x',
+    '[x:~ [a], tick? | [: x?, a] -> x?].x',
     [
       {
         type: 'block',

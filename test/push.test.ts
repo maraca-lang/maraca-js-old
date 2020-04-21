@@ -16,7 +16,7 @@ const testStream = (code, actions, values, done) => {
 
 test('basic', (done) => {
   testStream(
-    '[x: 1]',
+    '[x:~ 1]',
     [(data) => data.value.get(fromJs('x')).push(fromJs(2))],
     [
       {
@@ -146,7 +146,6 @@ test('auto assign 2', (done) => {
             value: {
               type: 'value',
               value: '10',
-              push: expect.any(Function),
             },
           },
         ] as any),

@@ -296,7 +296,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
   if (type === 'assign') {
     if (!(info.append && args[0].type === 'constant' && !args[0].value.value)) {
       const assignArgs = [...args].filter((x) => x);
-      if (!info.append && assignArgs[1]) {
+      if (info.pushable) {
         assignArgs[0] = {
           type: 'any',
           value: create(pushable(assignArgs[0].value)),

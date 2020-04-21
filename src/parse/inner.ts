@@ -37,10 +37,10 @@ const grammar = `Maraca {
   ExpSet
     = ExpSet ":=?" -- short_context
     | ExpSet ":=" -- short_value
-    | ExpPush ":" ExpSet -- normal
-    | ExpSet ":" -- nil_value
-    | ":" ExpSet -- nil_key
-    | ":" -- nil_both
+    | ExpPush (":~" | ":") ExpSet -- normal
+    | ExpSet (":~" | ":") -- nil_value
+    | (":~" | ":") ExpSet -- nil_key
+    | (":~" | ":") -- nil_both
     | ExpPush
 
   ExpPush
@@ -130,9 +130,10 @@ export default () => {
     start: getIndex(first.source.startIdx),
     end: getIndex(last.source.endIdx),
   });
-  const assignAst = (value, key, first, last) => ({
+  const assignAst = (value, key, first, last, type?) => ({
     type: 'assign',
     nodes: [value, key],
+    info: { pushable: type && type.sourceString === ':~' },
     start: getIndex(first.source.startIdx),
     end: getIndex(last.source.endIdx),
   });
@@ -163,10 +164,11 @@ export default () => {
         _,
       ),
     ExpSet_short_value: (a, _) => assignAst(a.ast, a.ast, a, _),
-    ExpSet_normal: (a, _, b) => assignAst(b.ast, a.ast, a, b),
-    ExpSet_nil_value: (a, _) => assignAst({ type: 'nil' }, a.ast, a, _),
-    ExpSet_nil_key: (_, a) => assignAst(a.ast, null, _, a),
-    ExpSet_nil_both: (_) => assignAst({ type: 'nil' }, { type: 'nil' }, _, _),
+    ExpSet_normal: (a, _, b) => assignAst(b.ast, a.ast, a, b, _),
+    ExpSet_nil_value: (a, _) => assignAst({ type: 'nil' }, a.ast, a, _, _),
+    ExpSet_nil_key: (_, a) => assignAst(a.ast, null, _, a, _),
+    ExpSet_nil_both: (_) =>
+      assignAst({ type: 'nil' }, { type: 'nil' }, _, _, _),
     ExpSet: (a) => a.ast,
 
     ExpPush_push: (a, _, b) => ({
@@ -334,7 +336,7 @@ export default () => {
     parts = scriptParts;
     offsets = scriptOffsets;
     const m = g.match(script);
-    if (m.failed()) throw new Error('Parser error');
+    if (m.failed()) throw new Error(m.message);
     return s(m).ast;
   };
 };

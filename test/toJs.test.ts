@@ -18,7 +18,7 @@ test('values', () => {
   expect(toJs(maraca('6'), 'integer')).toEqual(6);
 
   expect(toJs(maraca('6'), () => 'integer')).toEqual({ value: 6 });
-  expect(toJs(maraca('[x: 1].x'), () => 'integer')).toEqual({
+  expect(toJs(maraca('[x:~ 1].x'), () => 'integer')).toEqual({
     value: 1,
     push: expect.any(Function),
   });

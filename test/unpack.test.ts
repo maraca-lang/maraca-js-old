@@ -14,8 +14,8 @@ test('basic', () => {
         value: { type: 'value', value: '2' },
       },
       {
-        key: { type: 'value', value: 'c', push: expect.any(Function) },
-        value: { type: 'value', value: '3', push: expect.any(Function) },
+        key: { type: 'value', value: 'c' },
+        value: { type: 'value', value: '3' },
       },
     ] as any),
   });
@@ -77,12 +77,12 @@ test('partial', () => {
     type: 'block',
     value: Block.fromPairs([
       {
-        key: { type: 'value', value: 'a', push: expect.any(Function) },
-        value: { type: 'value', value: '1', push: expect.any(Function) },
+        key: { type: 'value', value: 'a' },
+        value: { type: 'value', value: '1' },
       },
       {
-        key: { type: 'value', value: 'b', push: expect.any(Function) },
-        value: { type: 'value', value: '2', push: expect.any(Function) },
+        key: { type: 'value', value: 'b' },
+        value: { type: 'value', value: '2' },
       },
     ] as any),
   });
@@ -107,15 +107,15 @@ test('unpack', () => {
     value: Block.fromPairs([
       {
         key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: '1', push: expect.any(Function) },
+        value: { type: 'value', value: '1' },
       },
       {
         key: { type: 'value', value: 'y' },
-        value: { type: 'value', value: '2', push: expect.any(Function) },
+        value: { type: 'value', value: '2' },
       },
       {
         key: { type: 'value', value: 'z' },
-        value: { type: 'value', value: '3', push: expect.any(Function) },
+        value: { type: 'value', value: '3' },
       },
     ] as any),
   });

@@ -54,8 +54,8 @@ const parseParts = (parts, text = false) => {
   }, '');
   try {
     return [inner(script, mapped, offsets)];
-  } catch {
-    return [{ type: 'error', info: { nodes: mapped } }];
+  } catch (error) {
+    return [{ type: 'error', info: { nodes: mapped, message: error.message } }];
   }
 };
 

@@ -7,11 +7,11 @@ test('basic', () => {
     value: Block.fromPairs([
       {
         key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: 'a', push: expect.any(Function) },
+        value: { type: 'value', value: 'a' },
       },
       {
         key: { type: 'value', value: 'y' },
-        value: { type: 'value', value: 'a', push: expect.any(Function) },
+        value: { type: 'value', value: 'a' },
       },
     ] as any),
   });
@@ -23,7 +23,7 @@ test('order', () => {
     value: Block.fromPairs([
       {
         key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: 'a', push: expect.any(Function) },
+        value: { type: 'value', value: 'a' },
       },
       {
         key: { type: 'value', value: 'y' },
@@ -31,7 +31,7 @@ test('order', () => {
       },
       {
         key: { type: 'value', value: 'z' },
-        value: { type: 'value', value: 'b', push: expect.any(Function) },
+        value: { type: 'value', value: 'b' },
       },
     ] as any),
   });
@@ -43,7 +43,7 @@ test('nested', () => {
     value: Block.fromPairs([
       {
         key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: 'a', push: expect.any(Function) },
+        value: { type: 'value', value: 'a' },
       },
       {
         key: { type: 'value', value: 'y' },
@@ -52,10 +52,9 @@ test('nested', () => {
           value: Block.fromPairs([
             {
               key: { type: 'value', value: '1' },
-              value: { type: 'value', value: 'a', push: expect.any(Function) },
+              value: { type: 'value', value: 'a' },
             },
           ] as any),
-          push: expect.any(Function),
         },
       },
     ] as any),
@@ -83,7 +82,7 @@ test('nested', () => {
           value: Block.fromPairs([
             {
               key: { type: 'value', value: 'x' },
-              value: { type: 'value', value: 'a', push: expect.any(Function) },
+              value: { type: 'value', value: 'a' },
             },
           ] as any),
         },
@@ -102,7 +101,7 @@ test('shorthand', () => {
     value: Block.fromPairs([
       {
         key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: '1', push: expect.any(Function) },
+        value: { type: 'value', value: '1' },
       },
       {
         key: { type: 'value', value: 'y' },
@@ -111,10 +110,9 @@ test('shorthand', () => {
           value: Block.fromPairs([
             {
               key: { type: 'value', value: 'x' },
-              value: { type: 'value', value: '1', push: expect.any(Function) },
+              value: { type: 'value', value: '1' },
             },
           ] as any),
-          push: expect.any(Function),
         },
       },
     ] as any),

@@ -51,11 +51,11 @@ test('blocks', () => {
     value: Block.fromPairs([
       {
         key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: 'a', push: expect.any(Function) },
+        value: { type: 'value', value: 'a' },
       },
       {
         key: { type: 'value', value: 'y' },
-        value: { type: 'value', value: 'b', push: expect.any(Function) },
+        value: { type: 'value', value: 'b' },
       },
     ] as any),
   });
@@ -68,7 +68,7 @@ test('blocks', () => {
       },
       {
         key: { type: 'value', value: 'key' },
-        value: { type: 'value', value: 'value', push: expect.any(Function) },
+        value: { type: 'value', value: 'value' },
       },
     ] as any),
   });
@@ -101,7 +101,7 @@ test('block nils ignored', () => {
       },
       {
         key: { type: 'value', value: 'c' },
-        value: { type: 'value', value: '', push: expect.any(Function) },
+        value: { type: 'value', value: '' },
       },
     ] as any),
   });
@@ -125,7 +125,6 @@ test('nest blocks', () => {
               value: { type: 'value', value: 'b' },
             },
           ] as any),
-          push: expect.any(Function),
         },
       },
     ] as any),
@@ -147,7 +146,7 @@ test('nest blocks', () => {
             },
           ] as any),
         },
-        value: { type: 'value', value: '100', push: expect.any(Function) },
+        value: { type: 'value', value: '100' },
       },
     ] as any),
   });
@@ -173,7 +172,7 @@ test('block assign shorthand', () => {
     value: Block.fromPairs([
       {
         key: { type: 'value', value: 'item' },
-        value: { type: 'value', value: 'item', push: expect.any(Function) },
+        value: { type: 'value', value: 'item' },
       },
     ] as any),
   });

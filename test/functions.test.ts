@@ -70,11 +70,11 @@ test('maps', () => {
     value: Block.fromPairs([
       {
         key: { type: 'value', value: 'Item a' },
-        value: { type: 'value', value: 'a', push: expect.any(Function) },
+        value: { type: 'value', value: 'a' },
       },
       {
         key: { type: 'value', value: 'Item b' },
-        value: { type: 'value', value: 'b', push: expect.any(Function) },
+        value: { type: 'value', value: 'b' },
       },
     ] as any),
   });
@@ -83,7 +83,7 @@ test('maps', () => {
     value: Block.fromPairs([
       {
         key: { type: 'value', value: 'sum' },
-        value: { type: 'value', value: '6', push: expect.any(Function) },
+        value: { type: 'value', value: '6' },
       },
     ] as any),
   });

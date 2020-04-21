@@ -19,6 +19,5 @@ test('or', () => {
   expect(maraca('{x: 1, x?}')).toEqual({
     type: 'value',
     value: '1',
-    push: expect.any(Function),
   });
 });
