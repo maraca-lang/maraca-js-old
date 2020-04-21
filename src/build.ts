@@ -53,6 +53,31 @@ const mergeMaps = (create, args, deep, map) => {
   }
 };
 
+const buildContextLayer = (create, context) => ({
+  scope: {
+    type: 'any',
+    items: context.current.items
+      ? { ...context.scope.items, ...context.current.items }
+      : {},
+    value: create(
+      streamMap(([scope, current]) => {
+        if (current.type === 'value') return scope;
+        return {
+          type: 'block',
+          value: Block.fromPairs([
+            ...scope.value.toPairs(),
+            ...current.value.clearIndices().toPairs(),
+          ]),
+        };
+      })([context.scope.value, context.current.value]),
+    ),
+  },
+  current: {
+    type: 'constant',
+    value: { type: 'block', value: new Block() },
+  },
+});
+
 const getCompiledMap = (node, evalArgs, argTrace) => {
   const compiled = compile(node, evalArgs);
   if (compiled.type === 'constant') return () => compiled.value;
@@ -117,46 +142,36 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     return { type: 'constant', value: { type: 'value', value: info.value } };
   }
   if (type === 'context') {
-    return context.scope[0];
+    return {
+      type: 'any',
+      value: create(
+        streamMap(([scope, current]) => {
+          if (current.type === 'value') return current;
+          return {
+            type: 'block',
+            value: Block.fromPairs([
+              ...scope.value.toPairs(),
+              ...current.value.toPairs(),
+            ]),
+          };
+        })([context.scope.value, context.current.value]),
+      ),
+    };
   }
 
   if (type === 'block') {
-    const ctx = info.semi
-      ? { scope: [...context.scope], current: [...context.current] }
-      : { scope: [], current: [] };
-    ctx.current.unshift({
-      type: 'constant',
-      value: { type: 'block', value: new Block() },
-    });
-    ctx.scope.unshift({
-      type: 'any',
-      items: { ...context.scope[0].items },
-      value: create(
-        streamMap(([value]) => ({
-          type: 'block',
-          value:
-            value.type === 'block' ? value.value.clearIndices() : new Block(),
-        }))([context.scope[0].value]),
-      ),
-    });
+    const ctx = buildContextLayer(create, context);
     nodes.forEach((n) => {
       compile({ type: 'assign', nodes: [n], info: { append: true } }, [
         create,
         ctx,
       ]);
     });
-    const result = ctx.current.shift();
-    if (info.semi) {
-      ctx.scope.shift();
-      context.current = ctx.current;
-      context.scope = ctx.scope;
-    }
-    return result;
+    return ctx.current;
   }
 
   const args = nodes.map((n) => n && compile(n, evalArgs));
 
-  // Optimization for () and {}
   if (
     type === 'combine' &&
     nodes.length === 2 &&
@@ -169,29 +184,8 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
       block.nodes.every((n) => n.type !== 'func') &&
       (value.info.value === '1' || value.info.value === `${block.nodes.length}`)
     ) {
-      const ctx = block.info.semi
-        ? { scope: [...context.scope], current: [...context.current] }
-        : { scope: [], current: [] };
-      ctx.current.unshift({
-        type: 'constant',
-        value: { type: 'block', value: new Block() },
-      });
-      ctx.scope.unshift({
-        type: 'any',
-        items: { ...context.scope[0].items },
-        value: create(
-          streamMap(([value]) => ({
-            type: 'block',
-            value:
-              value.type === 'block' ? value.value.clearIndices() : new Block(),
-          }))([context.scope[0].value]),
-        ),
-      });
+      const ctx = buildContextLayer(create, context);
       const compiled = block.nodes.map((n) => compile(n, [create, ctx]));
-      if (block.info.semi) {
-        context.current = ctx.current.slice(1);
-        context.scope = ctx.scope.slice(1);
-      }
       const orBlock = value.info.value === '1';
       return {
         type: 'any',
@@ -268,49 +262,40 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
           value: create(pushable(assignArgs[0].value)),
         };
       }
-      [context.scope, context.current].forEach((l) => {
-        const prevItems = l[0].items || {};
-
-        const allArgs = [l[0], ...assignArgs];
-
-        const merged = mergeMaps(create, allArgs, true, ([l, v, k]) => {
-          if (!k && info.append) {
-            if (!v.value) return l;
-            return { type: 'block', value: l.value.append(v) };
-          }
-          if ((!k || k.type === 'block') && v.type === 'block') {
-            return { type: 'block', value: l.value.destructure(k, v) };
-          }
-          return {
-            type: 'block',
-            value: l.value.set(k || { type: 'value', value: '' }, v),
-          };
-        });
-        l[0] = merged || {
-          type: 'any',
-          value: create(
-            assign(
-              allArgs.map((a) => a.value),
-              true,
-              false,
-              info.append,
-            ),
-          ),
-        };
-
-        if (
-          l === context.scope &&
-          (!allArgs[2] ||
-            (allArgs[2].type === 'constant' &&
-              allArgs[2].value.type !== 'block'))
-        ) {
-          if (!info.append) {
-            prevItems[(allArgs[2] && allArgs[2].value.value) || ''] =
-              allArgs[1];
-          }
-          l[0].items = prevItems;
+      const prevItems = context.current.items || {};
+      const allArgs = [context.current, ...assignArgs];
+      const merged = mergeMaps(create, allArgs, true, ([l, v, k]) => {
+        if (!k && info.append) {
+          if (!v.value) return l;
+          return { type: 'block', value: l.value.append(v) };
         }
+        if ((!k || k.type === 'block') && v.type === 'block') {
+          return { type: 'block', value: l.value.destructure(k, v) };
+        }
+        return {
+          type: 'block',
+          value: l.value.set(k || { type: 'value', value: '' }, v),
+        };
       });
+      context.current = merged || {
+        type: 'any',
+        value: create(
+          assign(
+            allArgs.map((a) => a.value),
+            true,
+            false,
+            info.append,
+          ),
+        ),
+      };
+      if (
+        !info.append &&
+        (!allArgs[2] ||
+          (allArgs[2].type === 'constant' && allArgs[2].value.type !== 'block'))
+      ) {
+        prevItems[(allArgs[2] && allArgs[2].value.value) || ''] = allArgs[1];
+        context.current.items = prevItems;
+      }
     }
     return { type: 'constant', value: { type: 'value', value: '' } };
   }
@@ -327,27 +312,25 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         value: { type: 'block', value: new Block() },
       };
       const ctx = {
-        scope: [
-          {
-            type: 'any',
-            items: args.reduce(
-              (res, a, i) =>
-                a
-                  ? {
-                      ...res,
-                      [a.value.value || '']: {
-                        type: 'map',
-                        arg: argTrace,
-                        map: (x) => x.value.get(fromJs(i + 1)),
-                      },
-                    }
-                  : res,
-              {},
-            ),
-            value: { type: 'nil ' },
-          },
-        ],
-        current: [currentTrace],
+        scope: {
+          type: 'any',
+          items: args.reduce(
+            (res, a, i) =>
+              a
+                ? {
+                    ...res,
+                    [a.value.value || '']: {
+                      type: 'map',
+                      arg: argTrace,
+                      map: (x) => x.value.get(fromJs(i + 1)),
+                    },
+                  }
+                : res,
+            {},
+          ),
+          value: { type: 'nil ' },
+        },
+        current: currentTrace,
       };
       const compiledBody = compileFuncBody(
         info.body,
@@ -355,10 +338,10 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         info.map,
         argTrace,
       );
-      if (compiledBody && ctx.current[0] === currentTrace) {
-        context.current[0] = {
+      if (compiledBody && ctx.current === currentTrace) {
+        context.current = {
           type: 'any',
-          items: { ...context.current[0].items },
+          items: { ...context.current.items },
           value: create(
             streamMap(([current]) => ({
               type: 'block',
@@ -414,7 +397,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
                 !!args[1],
                 true,
               ),
-            }))([context.current[0].value]),
+            }))([context.current.value]),
           ),
         };
         return { type: 'constant', value: { type: 'value', value: '' } };
@@ -422,7 +405,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     }
 
     const argValues = args.map((a) => a && a.value);
-    const scope = context.scope[0].value;
+    const scope = context.scope.value;
     const funcMap = (
       funcScope = scope,
       funcCurrent = { type: 'block', value: new Block() },
@@ -430,16 +413,16 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     ) => (subCreate, value) => {
       const values = [key, value];
       const subContext = {
-        scope: [{ type: 'any', value: funcScope }],
-        current: [{ type: 'any', value: funcCurrent }],
+        scope: { type: 'any', value: funcScope },
+        current: { type: 'any', value: funcCurrent },
       };
       argValues.forEach((key, i) => {
         if (key) {
-          subContext.scope[0] = {
+          subContext.scope = {
             type: 'any',
             value: create(
               assign(
-                [subContext.scope[0].value, values[i], key],
+                [subContext.scope.value, values[i], key],
                 true,
                 false,
                 false,
@@ -449,11 +432,11 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         }
       });
       const result = build(subCreate, subContext, info.body);
-      return [result, subContext.scope[0].value, subContext.current[0].value];
+      return [result, subContext.scope.value, subContext.current.value];
     };
-    context.current[0] = {
+    context.current = {
       type: 'any',
-      items: { ...context.current[0].items },
+      items: { ...context.current.items },
       value: create(
         streamMap(([current]) => ({
           type: 'block',
@@ -462,7 +445,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
             info.map,
             !!args[1],
           ),
-        }))([context.current[0].value]),
+        }))([context.current.value]),
       ),
     };
     return { type: 'constant', value: { type: 'value', value: '' } };

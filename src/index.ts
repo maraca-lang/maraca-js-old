@@ -62,13 +62,11 @@ const buildModuleLayer = (create, modules, getScope, path) =>
                 build(
                   create,
                   {
-                    scope: [{ type: 'any', value: getScope(path) }],
-                    current: [
-                      {
-                        type: 'constant',
-                        value: { type: 'block', value: new Block() },
-                      },
-                    ],
+                    scope: {
+                      type: 'constant',
+                      value: { type: 'block', value: new Block() },
+                    },
+                    current: { type: 'any', value: getScope(path) },
                   },
                   typeof modules[k] === 'string'
                     ? parse(modules[k])

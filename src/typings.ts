@@ -15,10 +15,10 @@ export interface AST {
 }
 
 export type Factory = (
-  set?: (data: Data) => void,
-  get?: (stream: Stream) => Data,
-  create?: (build: Factory) => StreamData,
-) => (dispose?: boolean) => void;
+  set: (data: Data) => void,
+  get: (stream: Stream) => Data,
+  create: (build: Factory) => StreamData,
+) => void | ((dispose?: boolean) => void);
 
 export type Source = string | AST | Factory | Obj<Source>;
 
