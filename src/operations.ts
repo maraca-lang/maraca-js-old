@@ -1,6 +1,7 @@
-import build, { pushable, streamMap } from './build';
 import Block from './block';
+import build from './build';
 import parse from './parse';
+import { pushable, streamMap } from './util';
 
 const snapshot = (create, { push, ...value }) => {
   const result =
@@ -65,7 +66,7 @@ export default (type, create, nodes) => {
         } catch (e) {
           console.log(e.message);
         }
-        return build(create, subContext, parsed);
+        return build(create, subContext, parsed).value;
       })([nodes[0]]),
     );
   }

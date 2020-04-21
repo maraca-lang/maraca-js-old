@@ -1,6 +1,6 @@
+import Block from './block';
 import build from './build';
 import { fromJs } from './data';
-import Block from './block';
 import parse from './parse';
 import process from './streams';
 import { Data, Source, StreamData } from './typings';
@@ -71,7 +71,7 @@ const buildModuleLayer = (create, modules, getScope, path) =>
                   typeof modules[k] === 'string'
                     ? parse(modules[k])
                     : modules[k],
-                ),
+                ).value,
               ),
             )
           : buildModuleLayer(create, modules[k], getScope, [...path, k]),

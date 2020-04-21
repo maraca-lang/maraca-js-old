@@ -1,7 +1,7 @@
 import assign from './assign';
-import { streamMap } from './build';
-import { fromJs } from './data';
 import Block from './block';
+import { fromJs } from './data';
+import { streamMap } from './util';
 
 const joinValues = (v1, v2, space) =>
   fromJs(

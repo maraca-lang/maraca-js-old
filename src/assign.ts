@@ -1,5 +1,5 @@
-import { streamMap } from './build';
 import { fromJs, toIndex } from './data';
+import { streamMap } from './util';
 
 const getType = ([l, v, k], setNil, noDestructure, append, get) => {
   const block = get(l);

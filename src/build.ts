@@ -1,27 +1,10 @@
 import assign from './assign';
-import combine from './combine';
-import { fromJs } from './data';
-import maps from './maps';
-import { combineValues } from './combine';
 import Block from './block';
+import combine, { combineValues } from './combine';
+import func from './func';
+import maps from './maps';
 import operations from './operations';
-
-export const streamMap = (map) => (args, deeps = [] as boolean[]) => (
-  set,
-  get,
-  create,
-) => () =>
-  set(
-    map(
-      args.map((a, i) => get(a, deeps[i] || false)),
-      create,
-    ),
-  );
-
-export const pushable = (arg) => (set, get) => {
-  const push = (v) => set({ ...v, push });
-  return () => set({ push, ...get(arg) });
-};
+import { pushable, streamMap } from './util';
 
 const mergeMaps = (create, args, deep, map) => {
   if (args.every((a) => a.type !== 'any')) {
@@ -53,82 +36,52 @@ const mergeMaps = (create, args, deep, map) => {
   }
 };
 
-const buildContextLayer = (create, context) => ({
-  scope: {
-    type: 'any',
-    items: context.current.items
-      ? { ...context.scope.items, ...context.current.items }
-      : {},
-    value: create(
-      streamMap(([scope, current]) => {
-        if (current.type === 'value') return scope;
-        return {
-          type: 'block',
-          value: Block.fromPairs([
-            ...scope.value.toPairs(),
-            ...current.value.clearIndices().toPairs(),
-          ]),
-        };
-      })([context.scope.value, context.current.value]),
-    ),
-  },
-  current: {
-    type: 'constant',
-    value: { type: 'block', value: new Block() },
-  },
+const mergeScope = (create, context, newLayer = true) => ({
+  type: 'any',
+  items: context.current.items
+    ? { ...context.scope.items, ...context.current.items }
+    : {},
+  value: create(
+    streamMap(([scope, current]) => {
+      if (current.type === 'value') return newLayer ? scope : current;
+      return {
+        type: 'block',
+        value: Block.fromPairs([
+          ...scope.value.toPairs(),
+          ...(newLayer
+            ? current.value.clearIndices()
+            : current.value
+          ).toPairs(),
+        ]),
+      };
+    })([context.scope.value, context.current.value]),
+  ),
 });
 
-const getCompiledMap = (node, evalArgs, argTrace) => {
-  const compiled = compile(node, evalArgs);
-  if (compiled.type === 'constant') return () => compiled.value;
-  if (compiled.type === 'map' && compiled.arg === argTrace) return compiled.map;
-  return null;
-};
-const compileFuncBody = (body, evalArgs, isMap, argTrace) => {
-  if (
-    isMap &&
-    body.type === 'assign' &&
-    body.nodes[1] === null &&
-    body.nodes[0].type === 'block' &&
-    body.nodes[0].info.bracket === '[' &&
-    body.nodes[0].nodes.length === 1
-  ) {
-    const value = getCompiledMap(body.nodes[0].nodes[0], evalArgs, argTrace);
-    return value && { value, index: true };
-  }
-  if (isMap && body.type === 'assign' && body.nodes[0] && body.nodes[1]) {
-    const maps = body.nodes.map((n) => getCompiledMap(n, evalArgs, argTrace));
-    return maps.every((c) => c) && { value: maps[0], key: maps[1] };
-  }
-  const value = getCompiledMap(body, evalArgs, argTrace);
-  return value && { value };
-};
-
-const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
+const build = (
+  create,
+  context,
+  { type, info = {} as any, nodes = [] as any[] },
+) => {
   if (type === 'block' && !['[', '<'].includes(info.bracket)) {
-    return compile(
-      {
-        type: 'combine',
-        info: { dot: true },
-        nodes: [
-          {
-            type: 'value',
-            info: {
-              value: `${
-                info.bracket === '('
-                  ? nodes.filter((n) => n.type !== 'func').length
-                  : 1
-              }`,
-            },
+    return build(create, context, {
+      type: 'combine',
+      info: { dot: true },
+      nodes: [
+        {
+          type: 'value',
+          info: {
+            value: `${
+              info.bracket === '('
+                ? nodes.filter((n) => n.type !== 'func').length
+                : 1
+            }`,
           },
-          { type: 'block', info: { bracket: '[', semi: true }, nodes },
-        ],
-      },
-      evalArgs,
-    );
+        },
+        { type: 'block', info: { bracket: '[' }, nodes },
+      ],
+    });
   }
-
-  const [create, context] = evalArgs;
 
   if (
     type === 'nil' ||
@@ -142,35 +95,28 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     return { type: 'constant', value: { type: 'value', value: info.value } };
   }
   if (type === 'context') {
-    return {
-      type: 'any',
-      value: create(
-        streamMap(([scope, current]) => {
-          if (current.type === 'value') return current;
-          return {
-            type: 'block',
-            value: Block.fromPairs([
-              ...scope.value.toPairs(),
-              ...current.value.toPairs(),
-            ]),
-          };
-        })([context.scope.value, context.current.value]),
-      ),
-    };
+    return mergeScope(create, context, false);
   }
 
   if (type === 'block') {
-    const ctx = buildContextLayer(create, context);
+    const ctx = {
+      scope: mergeScope(create, context),
+      current: {
+        type: 'constant',
+        value: { type: 'block', value: new Block() },
+      },
+    };
     nodes.forEach((n) => {
-      compile({ type: 'assign', nodes: [n], info: { append: true } }, [
-        create,
-        ctx,
-      ]);
+      build(create, ctx, {
+        type: 'assign',
+        nodes: [n],
+        info: { append: true },
+      });
     });
     return ctx.current;
   }
 
-  const args = nodes.map((n) => n && compile(n, evalArgs));
+  const args = nodes.map((n) => n && build(create, context, n));
 
   if (
     type === 'combine' &&
@@ -184,8 +130,14 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
       block.nodes.every((n) => n.type !== 'func') &&
       (value.info.value === '1' || value.info.value === `${block.nodes.length}`)
     ) {
-      const ctx = buildContextLayer(create, context);
-      const compiled = block.nodes.map((n) => compile(n, [create, ctx]));
+      const ctx = {
+        scope: mergeScope(create, context),
+        current: {
+          type: 'constant',
+          value: { type: 'block', value: new Block() },
+        },
+      };
+      const compiled = block.nodes.map((n) => build(create, ctx, n));
       const orBlock = value.info.value === '1';
       return {
         type: 'any',
@@ -301,154 +253,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
   }
 
   if (type === 'func') {
-    if (
-      args
-        .filter((a) => a)
-        .every((a) => a.type === 'constant' && a.value.type !== 'block')
-    ) {
-      const argTrace = { type: 'data', value: { type: 'value', value: '' } };
-      const currentTrace = {
-        type: 'constant',
-        value: { type: 'block', value: new Block() },
-      };
-      const ctx = {
-        scope: {
-          type: 'any',
-          items: args.reduce(
-            (res, a, i) =>
-              a
-                ? {
-                    ...res,
-                    [a.value.value || '']: {
-                      type: 'map',
-                      arg: argTrace,
-                      map: (x) => x.value.get(fromJs(i + 1)),
-                    },
-                  }
-                : res,
-            {},
-          ),
-          value: { type: 'nil ' },
-        },
-        current: currentTrace,
-      };
-      const compiledBody = compileFuncBody(
-        info.body,
-        [create, ctx],
-        info.map,
-        argTrace,
-      );
-      if (compiledBody && ctx.current === currentTrace) {
-        context.current = {
-          type: 'any',
-          items: { ...context.current.items },
-          value: create(
-            streamMap(([current]) => ({
-              type: 'block',
-              value: ((current && current.value) || new Block()).setFunc(
-                info.map
-                  ? (create, block) => [
-                      create(
-                        streamMap(([y]) => {
-                          const mapped = y.value
-                            .toPairs()
-                            .filter((d) => d.value.value)
-                            .map(({ key, value }) => ({
-                              key: compiledBody.key
-                                ? compiledBody.key({
-                                    type: 'block',
-                                    value: Block.fromArray([key, value]),
-                                  })
-                                : key,
-                              value: compiledBody.value({
-                                type: 'block',
-                                value: Block.fromArray([key, value]),
-                              }),
-                            }))
-                            .filter((d) => d.value.value);
-                          return {
-                            type: 'block',
-                            value: Block.fromPairs(
-                              compiledBody.index
-                                ? mapped.map((d, i) => ({
-                                    key: fromJs(i + 1),
-                                    value: d.value,
-                                  }))
-                                : mapped,
-                            ),
-                          };
-                        })([block], [true]),
-                      ),
-                    ]
-                  : (create, value) => [
-                      create(
-                        streamMap(([y]) =>
-                          compiledBody.value({
-                            type: 'block',
-                            value: Block.fromArray([
-                              { type: 'value', value: '' },
-                              y,
-                            ]),
-                          }),
-                        )([value]),
-                      ),
-                    ],
-                info.map,
-                !!args[1],
-                true,
-              ),
-            }))([context.current.value]),
-          ),
-        };
-        return { type: 'constant', value: { type: 'value', value: '' } };
-      }
-    }
-
-    const argValues = args.map((a) => a && a.value);
-    const scope = context.scope.value;
-    const funcMap = (
-      funcScope = scope,
-      funcCurrent = { type: 'block', value: new Block() },
-      key = null,
-    ) => (subCreate, value) => {
-      const values = [key, value];
-      const subContext = {
-        scope: { type: 'any', value: funcScope },
-        current: { type: 'any', value: funcCurrent },
-      };
-      argValues.forEach((key, i) => {
-        if (key) {
-          subContext.scope = {
-            type: 'any',
-            value: create(
-              assign(
-                [subContext.scope.value, values[i], key],
-                true,
-                false,
-                false,
-              ),
-            ),
-          };
-        }
-      });
-      const result = build(subCreate, subContext, info.body);
-      return [result, subContext.scope.value, subContext.current.value];
-    };
-    context.current = {
-      type: 'any',
-      items: { ...context.current.items },
-      value: create(
-        streamMap(([current]) => ({
-          type: 'block',
-          value: ((current && current.value) || new Block()).setFunc(
-            info.map ? funcMap : funcMap(),
-            info.map,
-            !!args[1],
-          ),
-        }))([context.current.value]),
-      ),
-    };
-    return { type: 'constant', value: { type: 'value', value: '' } };
+    return func(create, context, info, args);
   }
 
   return {
@@ -460,7 +265,5 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
     ),
   };
 };
-
-const build = (create, context, node) => compile(node, [create, context]).value;
 
 export default build;
