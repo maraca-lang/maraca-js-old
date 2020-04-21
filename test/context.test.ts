@@ -27,7 +27,7 @@ test('order', () => {
       },
       {
         key: { type: 'value', value: 'y' },
-        value: { type: 'value', value: '', push: expect.any(Function) },
+        value: { type: 'value', value: '' },
       },
       {
         key: { type: 'value', value: 'z' },
@@ -86,10 +86,6 @@ test('nested', () => {
             },
           ] as any),
         },
-      },
-      {
-        key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: '', push: expect.any(Function) },
       },
     ] as any),
   });

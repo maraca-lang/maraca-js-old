@@ -1,6 +1,6 @@
 import assign from './assign';
 import combine from './combine';
-import { fromJs, toIndex } from './data';
+import { fromJs } from './data';
 import maps from './maps';
 import { combineValues } from './combine';
 import Block from './block';
@@ -156,6 +156,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
 
   const args = nodes.map((n) => n && compile(n, evalArgs));
 
+  // Optimization for () and {}
   if (
     type === 'combine' &&
     nodes.length === 2 &&
@@ -218,42 +219,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
           return block.items[key.value.value || ''];
         }
       }
-      const argPair = [a1, a2];
-      if (
-        (i === 1 && nodes[0].type === 'context') !==
-        (nodes[i].type === 'context')
-      ) {
-        const v = create(pushable({ type: 'value', value: '' }));
-        const k = argPair[nodes[i].type === 'context' ? 0 : 1];
-        const prevScopes = [...context.scope];
-        [context.scope, context.current].forEach((l) => {
-          for (
-            let j = l === context.current ? context.current.length - 1 : 0;
-            j < l.length;
-            j++
-          ) {
-            l[j] = {
-              type: 'any',
-              value: create(
-                streamMap(([block, key, scope]) => {
-                  if (
-                    block.type === 'block' &&
-                    !block.value.getFunc() &&
-                    key.type !== 'block' &&
-                    !toIndex(key.value) &&
-                    !scope.value.has(key)
-                  ) {
-                    return { type: 'block', value: block.value.set(key, v) };
-                  }
-                  return block;
-                })([l[j], k, prevScopes[j]].map((a) => a.value)),
-              ),
-            };
-          }
-        });
-        argPair[nodes[i].type === 'context' ? 1 : 0] = context.scope[0];
-      }
-      const merged = mergeMaps(create, argPair, true, ([v1, v2]) =>
+      const merged = mergeMaps(create, [a1, a2], true, ([v1, v2]) =>
         combineValues(v1, v2, info.dot, space),
       );
       if (merged) return merged;
@@ -261,7 +227,7 @@ const compile = ({ type, info = {} as any, nodes = [] as any[] }, evalArgs) => {
         type: 'any',
         value: combine(
           create,
-          argPair.map((a) => a.value),
+          [a1, a2].map((a) => a.value),
           info.dot,
           space,
         ),
