@@ -103,6 +103,10 @@ test('size', () => {
     type: 'value',
     value: '3',
   });
+  expect(maraca('#[a, , c, x: 1, y: ]')).toEqual({
+    type: 'value',
+    value: '3',
+  });
   expect(maraca('#3')).toEqual({
     type: 'block',
     value: Block.fromPairs([

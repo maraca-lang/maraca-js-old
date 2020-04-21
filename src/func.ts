@@ -37,7 +37,12 @@ const compileFuncBody = (create, context, body, isMap, argTrace) => {
   return value && { value };
 };
 
-export default (create, context, info, args) => {
+const getFuncArgs = (create, context, info, args) => {
+  if (args.every((a) => !a) && !info.map) {
+    const value = build(create, context, info.body).value;
+    return [value];
+  }
+
   if (
     args
       .filter((a) => a)
@@ -77,68 +82,54 @@ export default (create, context, info, args) => {
       argTrace,
     );
     if (compiledBody && ctx.current === currentTrace) {
-      context.current = {
-        type: 'any',
-        items: { ...context.current.items },
-        value: create(
-          streamMap(([current]) => ({
-            type: 'block',
-            value: ((current && current.value) || new Block()).setFunc(
-              info.map
-                ? (create, block) => [
-                    create(
-                      streamMap(([y]) => {
-                        const mapped = y.value
-                          .toPairs()
-                          .filter((d) => d.value.value)
-                          .map(({ key, value }) => ({
-                            key: compiledBody.key
-                              ? compiledBody.key({
-                                  type: 'block',
-                                  value: Block.fromArray([key, value]),
-                                })
-                              : key,
-                            value: compiledBody.value({
-                              type: 'block',
-                              value: Block.fromArray([key, value]),
-                            }),
+      return [
+        info.map
+          ? (create, block) => [
+              create(
+                streamMap(([y]) => {
+                  const mapped = y.value
+                    .toPairs()
+                    .filter((d) => d.value.value)
+                    .map(({ key, value }) => ({
+                      key: compiledBody.key
+                        ? compiledBody.key({
+                            type: 'block',
+                            value: Block.fromArray([key, value]),
+                          })
+                        : key,
+                      value: compiledBody.value({
+                        type: 'block',
+                        value: Block.fromArray([key, value]),
+                      }),
+                    }))
+                    .filter((d) => d.value.value);
+                  return {
+                    type: 'block',
+                    value: Block.fromPairs(
+                      compiledBody.index
+                        ? mapped.map((d, i) => ({
+                            key: fromJs(i + 1),
+                            value: d.value,
                           }))
-                          .filter((d) => d.value.value);
-                        return {
-                          type: 'block',
-                          value: Block.fromPairs(
-                            compiledBody.index
-                              ? mapped.map((d, i) => ({
-                                  key: fromJs(i + 1),
-                                  value: d.value,
-                                }))
-                              : mapped,
-                          ),
-                        };
-                      })([block], [true]),
+                        : mapped,
                     ),
-                  ]
-                : (create, value) => [
-                    create(
-                      streamMap(([y]) =>
-                        compiledBody.value({
-                          type: 'block',
-                          value: Block.fromArray([
-                            { type: 'value', value: '' },
-                            y,
-                          ]),
-                        }),
-                      )([value]),
-                    ),
-                  ],
-              info.map,
-              !!args[1],
-              true,
-            ),
-          }))([context.current.value]),
-        ),
-      };
-      return { type: 'constant', value: { type: 'value', value: '' } };
+                  };
+                })([block], [true]),
+              ),
+            ]
+          : (create, value) => [
+              create(
+                streamMap(([y]) =>
+                  compiledBody.value({
+                    type: 'block',
+                    value: Block.fromArray([{ type: 'value', value: '' }, y]),
+                  }),
+                )([value]),
+              ),
+            ],
+        info.map,
+        true,
+      ];
     }
   }
 
@@ -156,15 +147,11 @@ export default (create, context, info, args) => {
     };
     argValues.forEach((key, i) => {
       if (key) {
+        const prev = subContext.scope.value;
         subContext.scope = {
           type: 'any',
-          value: create(
-            assign(
-              [subContext.scope.value, values[i], key],
-              true,
-              false,
-              false,
-            ),
+          value: create((set, get) => () =>
+            set(assign(get, [prev, values[i], key], true, false, false)),
           ),
         };
       }
@@ -172,17 +159,18 @@ export default (create, context, info, args) => {
     const result = build(subCreate, subContext, info.body);
     return [result.value, subContext.scope.value, subContext.current.value];
   };
+  return [info.map ? funcMap : funcMap(), info.map];
+};
+
+export default (create, context, info, args) => {
+  const funcArgs = getFuncArgs(create, context, info, args);
   context.current = {
     type: 'any',
     items: { ...context.current.items },
     value: create(
       streamMap(([current]) => ({
         type: 'block',
-        value: ((current && current.value) || new Block()).setFunc(
-          info.map ? funcMap : funcMap(),
-          info.map,
-          !!args[1],
-        ),
+        value: current.value.setFunc(...funcArgs),
       }))([context.current.value]),
     ),
   };

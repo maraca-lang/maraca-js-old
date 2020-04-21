@@ -26,11 +26,11 @@ const grammar = `Maraca {
     = ExpFunc
 
   ExpFunc
-    = ExpSet "=>" ExpSet "=>" ExpSet -- map_all
-    | ExpSet "=>>" ExpSet -- map_one
-    | ExpSet "=>" ExpSet -- func_one
-    | "=>>" ExpSet -- map
-    | "=>" ExpSet -- func
+    = ExpSet "=>" ExpSet "=>" ExpSet -- map_keys
+    | ExpSet "=>>" ExpSet -- map
+    | ExpSet "=>" ExpSet -- func
+    | "=>>" ExpSet -- map_default
+    | "=>" ExpSet -- default
     | "=>>" -- map_blank
     | ExpSet
 
@@ -148,11 +148,11 @@ export default () => {
   s.addAttribute('ast', {
     Exp: (a) => a.ast,
 
-    ExpFunc_map_all: (a, _1, b, _2, c) => funcAst(b, a, c, true, a, c),
-    ExpFunc_map_one: (a, _, b) => funcAst(null, a, b, true, a, b),
-    ExpFunc_func_one: (a, _, b) => funcAst(null, a, b, false, a, b),
-    ExpFunc_map: (_, a) => funcAst(null, null, a, true, _, a),
-    ExpFunc_func: (_, a) => funcAst(null, null, a, false, _, a),
+    ExpFunc_map_keys: (a, _1, b, _2, c) => funcAst(b, a, c, true, a, c),
+    ExpFunc_map: (a, _, b) => funcAst(null, a, b, true, a, b),
+    ExpFunc_func: (a, _, b) => funcAst(null, a, b, false, a, b),
+    ExpFunc_map_default: (_, a) => funcAst(null, null, a, true, _, a),
+    ExpFunc_default: (_, a) => funcAst(null, null, a, false, _, a),
     ExpFunc_map_blank: (a) => funcAst(null, null, null, true, a, a),
     ExpFunc: (a) => a.ast,
 

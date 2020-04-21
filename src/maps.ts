@@ -52,7 +52,7 @@ export default {
   '#': {
     map: ([a]) => {
       if (a.type === 'block') {
-        return fromJs(a.value.toPairs().filter((d) => d.value).length);
+        return fromJs(a.value.toPairs().filter((d) => d.value.value).length);
       }
       const value = toIndex(a.value);
       if (value) {

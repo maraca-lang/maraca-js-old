@@ -1,5 +1,5 @@
 import { compare, fromJs, print, toIndex } from './data';
-import { Data, Obj, isValue, StreamData } from './typings';
+import { Data, Obj, StreamData } from './typings';
 
 export default class Block {
   private values: Obj<{ key: Data; value: StreamData }> = {};
@@ -142,35 +142,26 @@ export default class Block {
     result.func = this.func;
     return result;
   }
-  destructure(key: Data, value: Data): Block {
-    if ((!key || !isValue(key)) && !isValue(value)) {
-      if (!key) {
-        const offset = this.indices[this.indices.length - 1] || 0;
-        return value.value.toPairs().reduce<Block>((res, v) => {
-          const i = toIndex(print(v.key));
-          return res.destructure(
-            i ? fromJs(i + offset) : v.key,
-            v.value as any,
-          );
-        }, this);
-      }
-      const keyPairs = key.value.toPairs();
-      const { values } = value.value.extract(
-        keyPairs.map((d) => d.key),
-        false,
-      );
-      return values.reduce<Block>(
-        (res, v, i) => res.destructure(keyPairs[i].value as any, v as any),
-        this,
-      );
-    }
-    return this.set(key || { type: 'value', value: '' }, value);
+  unpack(value: Block) {
+    const offset = this.indices[this.indices.length - 1] || 0;
+    const result = Block.fromPairs([
+      ...this.toPairs(),
+      ...value.toPairs().map((v) => {
+        const i = toIndex(print(v.key));
+        return { key: i ? fromJs(i + offset) : v.key, value: v.value };
+      }),
+    ]);
+    result.func = this.func;
+    return result;
   }
-  setFunc(func, isMap?, hasArg?, isPure?) {
+  setFunc(func, isMap?, isPure?) {
     const result = new Block();
     result.values = this.values;
     result.indices = this.indices;
-    result.func = Object.assign(func, { isMap, hasArg, isPure });
+    result.func =
+      typeof func === 'function'
+        ? Object.assign(func, { isMap, isPure })
+        : func;
     return result;
   }
 }

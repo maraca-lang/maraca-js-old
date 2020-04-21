@@ -215,31 +215,26 @@ const build = (
         };
       }
       const prevItems = context.current.items || {};
+
       const allArgs = [context.current, ...assignArgs];
-      const merged = mergeMaps(create, allArgs, true, ([l, v, k]) => {
-        if (!k && info.append) {
-          if (!v.value) return l;
-          return { type: 'block', value: l.value.append(v) };
-        }
-        if ((!k || k.type === 'block') && v.type === 'block') {
-          return { type: 'block', value: l.value.destructure(k, v) };
-        }
-        return {
-          type: 'block',
-          value: l.value.set(k || { type: 'value', value: '' }, v),
-        };
-      });
+      const merged = mergeMaps(create, allArgs, true, ([l, v, k]) =>
+        assign((x) => x, [l, v, k], true, false, info.append),
+      );
       context.current = merged || {
         type: 'any',
-        value: create(
-          assign(
-            allArgs.map((a) => a.value),
-            true,
-            false,
-            info.append,
+        value: create((set, get) => () =>
+          set(
+            assign(
+              get,
+              allArgs.map((a) => a.value),
+              true,
+              false,
+              info.append,
+            ),
           ),
         ),
       };
+
       if (
         !info.append &&
         (!allArgs[2] ||
