@@ -1,7 +1,8 @@
 import Block from './block';
 import build from './build';
 import parse from './parse';
-import { pushable, streamMap } from './util';
+import { streamMap } from './streams';
+import { pushable } from './util';
 
 const snapshot = (create, { push, ...value }) => {
   const result =
@@ -49,7 +50,8 @@ export default (type, create, nodes) => {
 
   if (type === 'eval') {
     return create(
-      streamMap(([code], create) => {
+      streamMap((get, create) => {
+        const code = get(nodes[0]);
         const subContext = {
           scope: {
             type: 'constant',
@@ -67,7 +69,7 @@ export default (type, create, nodes) => {
           console.log(e.message);
         }
         return build(create, subContext, parsed).value;
-      })([nodes[0]]),
+      }),
     );
   }
 };

@@ -8,7 +8,7 @@ import { Data, Source, StreamData } from './typings';
 export { default as Block } from './block';
 export { fromJs, print, toJs } from './data';
 export { default as parse } from './parse';
-export { default as process } from './streams';
+export { default as process, streamMap } from './streams';
 export { Data, Source } from './typings';
 
 const nilValue = { type: 'value', value: '' };

@@ -2,7 +2,7 @@ import assign from './assign';
 import Block from './block';
 import build from './build';
 import { fromJs } from './data';
-import { streamMap } from './util';
+import { streamMap } from './streams';
 
 const getCompiledMap = (create, context, node, argTrace) => {
   const compiled = build(create, context, node);
@@ -86,7 +86,8 @@ const getFuncArgs = (create, context, info, args) => {
         info.map
           ? (create, block) => [
               create(
-                streamMap(([y]) => {
+                streamMap((get) => {
+                  const y = get(block, true);
                   const mapped = y.value
                     .toPairs()
                     .filter((d) => d.value.value)
@@ -114,17 +115,20 @@ const getFuncArgs = (create, context, info, args) => {
                         : mapped,
                     ),
                   };
-                })([block], [true]),
+                }),
               ),
             ]
           : (create, value) => [
               create(
-                streamMap(([y]) =>
+                streamMap((get) =>
                   compiledBody.value({
                     type: 'block',
-                    value: Block.fromArray([{ type: 'value', value: '' }, y]),
+                    value: Block.fromArray([
+                      { type: 'value', value: '' },
+                      get(value),
+                    ]),
                   }),
-                )([value]),
+                ),
               ),
             ],
         info.map,
@@ -164,14 +168,15 @@ const getFuncArgs = (create, context, info, args) => {
 
 export default (create, context, info, args) => {
   const funcArgs = getFuncArgs(create, context, info, args);
+  const currentValue = context.current.value;
   context.current = {
     type: 'any',
     items: { ...context.current.items },
     value: create(
-      streamMap(([current]) => ({
+      streamMap((get) => ({
         type: 'block',
-        value: current.value.setFunc(...funcArgs),
-      }))([context.current.value]),
+        value: get(currentValue).value.setFunc(...funcArgs),
+      })),
     ),
   };
   return { type: 'constant', value: { type: 'value', value: '' } };

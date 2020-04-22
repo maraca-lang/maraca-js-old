@@ -4,7 +4,8 @@ import combine, { combineValues } from './combine';
 import func from './func';
 import maps from './maps';
 import operations from './operations';
-import { pushable, streamMap } from './util';
+import { streamMap } from './streams';
+import { pushable } from './util';
 
 const mergeMaps = (create, args, deep, map) => {
   if (args.every((a) => a.type !== 'any')) {
@@ -29,32 +30,28 @@ const mergeMaps = (create, args, deep, map) => {
         deep,
         map: combinedMap,
         value: create(
-          streamMap(([x]) => combinedMap(x))([allArgs[0].value], [deep]),
+          streamMap((get) => combinedMap(get(allArgs[0].value, deep))),
         ),
       };
     }
   }
 };
 
-const mergeScope = (create, context, newLayer = true) => ({
+const mergeScope = (create, { scope, current }, newLayer = true) => ({
   type: 'any',
-  items: context.current.items
-    ? { ...context.scope.items, ...context.current.items }
-    : {},
+  items: current.items ? { ...scope.items, ...current.items } : {},
   value: create(
-    streamMap(([scope, current]) => {
-      if (current.type === 'value') return newLayer ? scope : current;
+    streamMap((get) => {
+      const [s, c] = [get(scope.value), get(current.value)];
+      if (c.type === 'value') return newLayer ? s : c;
       return {
         type: 'block',
         value: Block.fromPairs([
-          ...scope.value.toPairs(),
-          ...(newLayer
-            ? current.value.clearIndices()
-            : current.value
-          ).toPairs(),
+          ...s.value.toPairs(),
+          ...(newLayer ? c.value.clearIndices() : c.value).toPairs(),
         ]),
       };
-    })([context.scope.value, context.current.value]),
+    }),
   ),
 });
 
@@ -197,10 +194,7 @@ const build = (
     return {
       type: 'any',
       value: create(
-        streamMap(map)(
-          args.map((a) => a.value),
-          deepArgs,
-        ),
+        streamMap((get) => map(args.map((a, i) => get(a.value, deepArgs[i])))),
       ),
     };
   }

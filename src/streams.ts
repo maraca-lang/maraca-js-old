@@ -1,5 +1,8 @@
 import { sortMultiple } from './util';
 
+export const streamMap = (map) => (set, get, create) => () =>
+  set(map(get, create));
+
 const obj = {};
 
 class Queue {

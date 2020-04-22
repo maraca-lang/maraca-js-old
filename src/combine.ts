@@ -1,7 +1,7 @@
 import assign from './assign';
 import Block from './block';
 import { fromJs } from './data';
-import { streamMap } from './util';
+import { streamMap } from './streams';
 
 const joinValues = (v1, v2, space) =>
   fromJs(
@@ -67,7 +67,10 @@ const runGet = (create, value, func, arg) => {
   if (value.type === 'stream' && func) {
     if (typeof func === 'object') return func;
     return create(
-      streamMap(([v]) => (!v.value ? func(create, arg)[0] : v))([value]),
+      streamMap((get, create) => {
+        const v = get(value);
+        return !v.value ? func(create, arg)[0] : v;
+      }),
     );
   }
   return value;
@@ -82,9 +85,7 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
   }
   if (type === 'join') {
     return {
-      result: create(
-        streamMap(([v1, v2]) => joinValues(v1, v2, space))([s1, s2]),
-      ),
+      result: create(streamMap((get) => joinValues(get(s1), get(s2), space))),
       canContinue: (info) => info.type === 'join',
     };
   }
@@ -108,10 +109,13 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
   if (func.isPure) {
     return {
       result: create(
-        streamMap(([b, s]) => ({
+        streamMap((get, create) => ({
           type: 'block',
-          value: Block.fromPairs([...b.value.toPairs(), ...s.value.toPairs()]),
-        }))([big, func(create, small)[0]]),
+          value: Block.fromPairs([
+            ...get(big).value.toPairs(),
+            ...get(func(create, small)[0]).value.toPairs(),
+          ]),
+        })),
       ),
     };
   }
