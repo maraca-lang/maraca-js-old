@@ -1,6 +1,6 @@
 import assign from './assign';
 import Block from './block';
-import combine, { combineValues } from './combine';
+import { combineConfig, combineRun } from './combine';
 import func from './func';
 import maps from './maps';
 import operations from './operations';
@@ -185,19 +185,38 @@ const build = (
         create,
         [a1, a2],
         true,
-        ([v1, v2]) => combineValues(v1, v2, info.dot, space),
+        (args) => {
+          const conf = combineConfig(args, (x) => x, info.dot);
+          return combineRun((x) => x, null, conf, space).result;
+        },
         false,
       );
-      if (merged) return merged;
-      return {
-        type: 'any',
-        value: combine(
-          create,
-          [a1, a2].map((a) => a.value),
-          info.dot,
-          space,
-        ),
-      };
+      return (
+        merged || {
+          type: 'any',
+          value: create((set, get, create) => {
+            let result;
+            let canContinue;
+            return () => {
+              const conf = combineConfig(
+                [a1, a2].map((a) => a.value),
+                get,
+                info.dot,
+              );
+              if (!canContinue || !canContinue(conf)) {
+                if (result && result.type === 'stream') result.value.cancel();
+                ({ result, canContinue } = combineRun(
+                  get,
+                  create,
+                  conf,
+                  space,
+                ));
+                set(result);
+              }
+            };
+          }),
+        }
+      );
     });
   }
 
