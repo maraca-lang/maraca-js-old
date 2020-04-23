@@ -27,6 +27,3 @@ export const streamMap = (map) => (set, get, create) => {
     set(result);
   };
 };
-
-// export const streamMap = (map) => (set, get, create) => () =>
-//   set(map(get, create));

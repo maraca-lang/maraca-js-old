@@ -21,27 +21,24 @@ const sortTypes = (v1, v2) => {
   return [null, null];
 };
 
-export const combineConfig = ([s1, s2]: any[], get, dot): any => {
+export const combineConfig = (dot, space) => ([s1, s2]: any[], get) => {
   const [v1, v2] = [get(s1), get(s2)];
   if (v1.type === 'value' && v2.type === 'value') {
-    if (dot && (!v1.value || !v2.value)) return { type: 'nil' };
-    return { type: 'join', values: [v1, v2] };
+    if (dot && (!v1.value || !v2.value)) return ['nil'];
+    return ['join', joinValues(v1, v2, space)];
   }
   const [big, small] = sortTypes(v1, v2);
-  if (big === null && small === null) return { type: 'nil' };
+  if (big === null && small === null) return ['nil'];
   const func = big.value.getFunc();
   if (
     (small.type === 'block' && small.value.getFunc()) ||
     (!func && small.type === 'block') ||
     (func && func.isMap && small.type !== 'block')
   ) {
-    return { type: 'nil' };
+    return ['nil'];
   }
-  return {
-    type: func && func.isMap ? 'map' : 'get',
-    values: [big, small],
-    arg: small === v1 ? s1 : s2,
-  };
+  if (func && func.isMap) return ['map', func, big, small, {}];
+  return ['get', func, big.value.get(small), small === v1 ? s1 : s2];
 };
 
 const runGet = (get, create, func, v, arg) => {
@@ -51,56 +48,40 @@ const runGet = (get, create, func, v, arg) => {
   return v;
 };
 
-export const combineRun = (get, create, { type, values, arg }, space) => {
-  if (type === 'nil') {
-    return { result: { type: 'value', value: '' } };
-  }
-  if (type === 'join') {
-    return { result: joinValues(values[0], values[1], space) };
-  }
-  const [big, small] = values;
-  const func = big.value.getFunc();
+export const combineRun = ([type, ...config], get, create) => {
+  if (type === 'nil') return { type: 'value', value: '' };
+  if (type === 'join') return config[0];
   if (type === 'get') {
-    const v = big.value.get(small);
+    const [func, v, arg] = config;
     const result = runGet(get, create, func, v, arg);
-    return {
-      result:
-        result.type === 'stream'
-          ? create(streamMap((get) => get(result)))
-          : result,
-      canContinue: (info) =>
-        info.type === 'get' &&
-        info.values[0].value.get(info.values[1]) === v &&
-        info.values[0].value.getFunc() === func,
-    };
+    return result.type === 'stream'
+      ? create(streamMap((get) => get(result)))
+      : result;
   }
+  const [func, big, small] = config;
   if (func.isPure) {
-    return {
-      result: create(
-        streamMap((get, create) => ({
-          type: 'block',
-          value: Block.fromPairs([
-            ...get(big).value.toPairs(),
-            ...get(func(create, small)[0]).value.toPairs(),
-          ]),
-        })),
-      ),
-    };
+    return create(
+      streamMap((get, create) => ({
+        type: 'block',
+        value: Block.fromPairs([
+          ...get(big).value.toPairs(),
+          ...get(func(create, small)[0]).value.toPairs(),
+        ]),
+      })),
+    );
   }
   const pairs = small.value.toPairs().filter((d) => d.value.value);
-  return {
-    result: pairs.reduce(
-      (res, { key, value }) => {
-        const map = func(...res, key);
-        const [result, scope, current] = map(create, value);
-        return [
-          scope,
-          create((set, get) => () =>
-            set(assign(false, false, false)([current, result, key], get)),
-          ),
-        ];
-      },
-      [undefined, { type: 'block', value: big.value.cloneValues() }],
-    )[1],
-  };
+  return pairs.reduce(
+    (res, { key, value }) => {
+      const map = func(...res, key);
+      const [result, scope, current] = map(create, value);
+      return [
+        scope,
+        create((set, get) => () =>
+          set(assign(false, false, false)([current, result, key], get)),
+        ),
+      ];
+    },
+    [undefined, { type: 'block', value: big.value.cloneValues() }],
+  )[1];
 };

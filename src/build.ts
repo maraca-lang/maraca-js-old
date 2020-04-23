@@ -6,30 +6,30 @@ import maps from './maps';
 import operations from './operations';
 import { pushable, streamMap } from './util';
 
-const mergeMaps = (create, args, deep, map, doAny) => {
+const id = (x) => x;
+const mergeMaps = (create, args, deep, ...maps) => {
+  const map = maps.pop();
+  const configMap = maps.pop();
   if (args.every((a) => a.type !== 'any')) {
     if (args.every((a) => a.type === 'constant')) {
+      const mapped = args.map((a) => a.value);
       return {
         type: 'constant',
-        value: map(
-          args.map((a) => a.value),
-          (x) => x,
-        ),
+        value: map(configMap ? configMap(mapped, id) : mapped, id),
       };
     }
     const allArgs = args
       .filter((a) => a.type !== 'constant')
       .map((a) => (a.type === 'map' ? a.arg : a));
     if (allArgs.every((a) => a === allArgs[0])) {
-      const combinedMap = (x) =>
-        map(
-          args.map((a) => {
-            if (a.type === 'constant') return a.value;
-            if (a.type === 'map') return a.map(x);
-            return x;
-          }),
-          (x) => x,
-        );
+      const combinedMap = (x) => {
+        const mapped = args.map((a) => {
+          if (a.type === 'constant') return a.value;
+          if (a.type === 'map') return a.map(x);
+          return x;
+        });
+        return map(configMap ? configMap(mapped, id) : mapped, id);
+      };
       return {
         type: 'map',
         arg: allArgs[0],
@@ -41,19 +41,27 @@ const mergeMaps = (create, args, deep, map, doAny) => {
       };
     }
   }
-  if (doAny) {
-    return {
-      type: 'any',
-      value: create(
-        streamMap((get) =>
-          map(
-            args.map((a) => a.value),
-            get,
-          ),
-        ),
-      ),
-    };
-  }
+  const mapped = args.map((a) => a.value);
+  return {
+    type: 'any',
+    value: create((set, get, create) => {
+      let result;
+      let prev = [];
+      return () => {
+        const next = configMap ? configMap(mapped, get) : mapped;
+        if (
+          !configMap ||
+          prev.length !== next.length ||
+          prev.some((x, i) => x !== next[i])
+        ) {
+          if (result && result.type === 'stream') result.value.cancel();
+          result = map(next, get, create);
+          set(result);
+          prev = next;
+        }
+      };
+    }),
+  };
 };
 
 const mergeScope = (create, { scope, current }, newLayer = true) => ({
@@ -181,41 +189,12 @@ const build = (
           return block.items[key.value.value || ''];
         }
       }
-      const merged = mergeMaps(
+      return mergeMaps(
         create,
         [a1, a2],
         true,
-        (args) => {
-          const conf = combineConfig(args, (x) => x, info.dot);
-          return combineRun((x) => x, null, conf, space).result;
-        },
-        false,
-      );
-      return (
-        merged || {
-          type: 'any',
-          value: create((set, get, create) => {
-            let result;
-            let canContinue;
-            return () => {
-              const conf = combineConfig(
-                [a1, a2].map((a) => a.value),
-                get,
-                info.dot,
-              );
-              if (!canContinue || !canContinue(conf)) {
-                if (result && result.type === 'stream') result.value.cancel();
-                ({ result, canContinue } = combineRun(
-                  get,
-                  create,
-                  conf,
-                  space,
-                ));
-                set(result);
-              }
-            };
-          }),
-        }
+        combineConfig(info.dot, space),
+        combineRun,
       );
     });
   }
@@ -231,7 +210,6 @@ const build = (
       args.some((a) => a.type === 'map' && a.deep) ||
         args.some((a, i) => a.type === 'data' && deepArgs[i]),
       (args, get) => map(args.map((a, i) => get(a, deepArgs[i]))),
-      true,
     );
   }
 
@@ -245,16 +223,13 @@ const build = (
         };
       }
       const prevItems = context.current.items || {};
-
       const allArgs = [context.current, ...assignArgs];
       context.current = mergeMaps(
         create,
         allArgs,
         true,
         assign(true, false, info.append),
-        true,
       );
-
       if (
         !info.append &&
         (!allArgs[2] ||
