@@ -26,7 +26,7 @@ export default (type, create, nodes) => {
       return () => {
         const newTrigger = get(nodes[0], true);
         if (trigger !== newTrigger && newTrigger.value) {
-          set({ ...get(nodes[1]) });
+          set({ ...get(nodes[1], true, true) });
         }
         trigger = newTrigger;
       };
@@ -38,9 +38,9 @@ export default (type, create, nodes) => {
       let source;
       return () => {
         const dest = get(nodes[1]);
-        const newSource = get(nodes[0]);
+        const newSource = get(nodes[0], true);
         if (source && dest.push && source !== newSource) {
-          dest.push(snapshot(create, get(nodes[0], true)));
+          dest.push(snapshot(create, newSource));
         }
         source = newSource;
       };

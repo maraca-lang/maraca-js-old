@@ -52,9 +52,10 @@ export class Stream {
             queue.add(this.listeners);
           }
         },
-        (s) => {
+        (s, snapshot) => {
           active.add(s);
           s.observe(this);
+          if (snapshot) s.unobserve(this);
           return s.value;
         },
         (...args) => (creator.create as any)(...args),

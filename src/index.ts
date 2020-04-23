@@ -25,26 +25,30 @@ const wrapCreate = (create) => (run, ...args) =>
   ({
     type: 'stream',
     value: create((set, get, create) => {
-      const resolve = (data) => {
+      const resolve = (data, snapshot) => {
         const d = data || nilValue;
-        if (d.type === 'stream') return resolve(get(d.value));
+        if (d.type === 'stream') {
+          return resolve(get(d.value, snapshot), snapshot);
+        }
         return d;
       };
-      const resolveDeep = (data) =>
+      const resolveDeep = (data, snapshot) =>
         get(
           create((set, get) => {
             const map = (d) => {
               const d2 = d || nilValue;
-              if (d2.type === 'stream') return map(get(d2.value));
+              if (d2.type === 'stream') return map(get(d2.value, snapshot));
               if (d2.type !== 'block' || !hasStream(d2)) return d2;
               return { ...d2, value: d2.value.map((v) => map(v)) };
             };
             return () => set(map(data));
           }),
+          snapshot,
         );
       return run(
         set,
-        (data, deep) => (deep ? resolveDeep(data) : resolve(data)),
+        (data, deep, snapshot) =>
+          deep ? resolveDeep(data, snapshot) : resolve(data, snapshot),
         wrapCreate(create),
       );
     }, ...args),
