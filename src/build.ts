@@ -4,13 +4,18 @@ import combine, { combineValues } from './combine';
 import func from './func';
 import maps from './maps';
 import operations from './operations';
-import { streamMap } from './streams';
-import { pushable } from './util';
+import { pushable, streamMap } from './util';
 
-const mergeMaps = (create, args, deep, map) => {
+const mergeMaps = (create, args, deep, map, doAny) => {
   if (args.every((a) => a.type !== 'any')) {
     if (args.every((a) => a.type === 'constant')) {
-      return { type: 'constant', value: map(args.map((a) => a.value)) };
+      return {
+        type: 'constant',
+        value: map(
+          args.map((a) => a.value),
+          (x) => x,
+        ),
+      };
     }
     const allArgs = args
       .filter((a) => a.type !== 'constant')
@@ -23,6 +28,7 @@ const mergeMaps = (create, args, deep, map) => {
             if (a.type === 'map') return a.map(x);
             return x;
           }),
+          (x) => x,
         );
       return {
         type: 'map',
@@ -34,6 +40,19 @@ const mergeMaps = (create, args, deep, map) => {
         ),
       };
     }
+  }
+  if (doAny) {
+    return {
+      type: 'any',
+      value: create(
+        streamMap((get) =>
+          map(
+            args.map((a) => a.value),
+            get,
+          ),
+        ),
+      ),
+    };
   }
 };
 
@@ -162,8 +181,12 @@ const build = (
           return block.items[key.value.value || ''];
         }
       }
-      const merged = mergeMaps(create, [a1, a2], true, ([v1, v2]) =>
-        combineValues(v1, v2, info.dot, space),
+      const merged = mergeMaps(
+        create,
+        [a1, a2],
+        true,
+        ([v1, v2]) => combineValues(v1, v2, info.dot, space),
+        false,
       );
       if (merged) return merged;
       return {
@@ -183,20 +206,14 @@ const build = (
       typeof maps[info.func] === 'function'
         ? { map: maps[info.func] }
         : maps[info.func];
-    const merged = mergeMaps(
+    return mergeMaps(
       create,
       args,
       args.some((a) => a.type === 'map' && a.deep) ||
         args.some((a, i) => a.type === 'data' && deepArgs[i]),
-      (vals) => map(vals),
+      (args, get) => map(args.map((a, i) => get(a, deepArgs[i]))),
+      true,
     );
-    if (merged) return merged;
-    return {
-      type: 'any',
-      value: create(
-        streamMap((get) => map(args.map((a, i) => get(a.value, deepArgs[i])))),
-      ),
-    };
   }
 
   if (type === 'assign') {
@@ -211,23 +228,13 @@ const build = (
       const prevItems = context.current.items || {};
 
       const allArgs = [context.current, ...assignArgs];
-      const merged = mergeMaps(create, allArgs, true, ([l, v, k]) =>
-        assign((x) => x, [l, v, k], true, false, info.append),
+      context.current = mergeMaps(
+        create,
+        allArgs,
+        true,
+        assign(true, false, info.append),
+        true,
       );
-      context.current = merged || {
-        type: 'any',
-        value: create((set, get) => () =>
-          set(
-            assign(
-              get,
-              allArgs.map((a) => a.value),
-              true,
-              false,
-              info.append,
-            ),
-          ),
-        ),
-      };
 
       if (
         !info.append &&

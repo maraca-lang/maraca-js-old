@@ -18,3 +18,15 @@ export const pushable = (arg) => (set, get) => {
   const push = (v) => set({ ...v, push });
   return () => set({ push, ...get(arg) });
 };
+
+export const streamMap = (map) => (set, get, create) => {
+  let result;
+  return () => {
+    if (result && result.type === 'stream') result.value.cancel();
+    result = map(get, create);
+    set(result);
+  };
+};
+
+// export const streamMap = (map) => (set, get, create) => () =>
+//   set(map(get, create));

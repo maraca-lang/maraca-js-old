@@ -2,7 +2,7 @@ import assign from './assign';
 import Block from './block';
 import build from './build';
 import { fromJs } from './data';
-import { streamMap } from './streams';
+import { streamMap } from './util';
 
 const getCompiledMap = (create, context, node, argTrace) => {
   const compiled = build(create, context, node);
@@ -155,7 +155,7 @@ const getFuncArgs = (create, context, info, args) => {
         subContext.scope = {
           type: 'any',
           value: create((set, get) => () =>
-            set(assign(get, [prev, values[i], key], true, false, false)),
+            set(assign(true, false, false)([prev, values[i], key], get)),
           ),
         };
       }

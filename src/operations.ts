@@ -1,8 +1,7 @@
 import Block from './block';
 import build from './build';
 import parse from './parse';
-import { streamMap } from './streams';
-import { pushable } from './util';
+import { pushable, streamMap } from './util';
 
 const snapshot = (create, { push, ...value }) => {
   const result =

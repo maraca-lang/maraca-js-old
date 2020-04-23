@@ -1,7 +1,7 @@
 import assign from './assign';
 import Block from './block';
 import { fromJs } from './data';
-import { streamMap } from './streams';
+import { streamMap } from './util';
 
 const joinValues = (v1, v2, space) =>
   fromJs(
@@ -128,7 +128,7 @@ const run = (create, { type, reverse, big, small }, [s1, s2], space) => {
         return [
           scope,
           create((set, get) => () =>
-            set(assign(get, [current, result, key], false, false, false)),
+            set(assign(false, false, false)([current, result, key], get)),
           ),
         ];
       },

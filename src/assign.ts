@@ -1,4 +1,4 @@
-const assign = (get, [l, v, k]: any[], setNil, noDestructure, append) => {
+const assign = (setNil, noDestructure, append) => ([l, v, k]: any[], get) => {
   if (!k && append) {
     const value = get(v);
     if (!value.value) return l;
@@ -24,17 +24,15 @@ const assign = (get, [l, v, k]: any[], setNil, noDestructure, append) => {
       );
       const result = values.reduce(
         (res, v, i) =>
-          assign(get, [res, v, keyPairs[i].value], true, false, false),
+          assign(true, false, false)([res, v, keyPairs[i].value], get),
         l,
       );
       if (!funcDefault) return result;
       return assign(
-        get,
-        [result, { type: 'block', value: rest }, funcDefault],
         true,
         true,
         false,
-      );
+      )([result, { type: 'block', value: rest }, funcDefault], get);
     }
   }
   return {
