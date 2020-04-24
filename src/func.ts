@@ -70,7 +70,7 @@ export default (create, context, info, args) => {
               : res,
           {},
         ),
-        value: { type: 'nil ' },
+        value: { type: 'block', value: new Block() },
       },
       current: currentTrace,
     };
