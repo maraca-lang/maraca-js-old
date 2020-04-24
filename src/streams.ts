@@ -117,15 +117,38 @@ class Creator {
   }
 }
 
-export default (build, output?, initial = null as any) => {
+class StaticStream {
+  run;
+  value = null;
+  hasRun = false;
+  constructor(run) {
+    this.run = run;
+  }
+  get() {
+    if (this.hasRun) return this.value;
+    const update = this.run(
+      (v) => {
+        this.value = v;
+      },
+      (s) => s.get(),
+      (run) => new StaticStream(run),
+    );
+    if (update) {
+      update();
+      if (update.length === 1) update(true);
+    }
+    this.hasRun = true;
+    return this.value;
+  }
+}
+
+export default (build, output?) => {
+  if (!output) {
+    return build((run) => new StaticStream(run)).get();
+  }
   const queue = new Queue();
   const creator = new Creator(queue, []) as any;
-  let setInput;
-  const input = creator.create((set) => {
-    set(initial);
-    setInput = set;
-  });
-  const stream = build((...args) => creator.create(...args), input);
+  const stream = build((...args) => creator.create(...args));
   stream.observe(output);
   const first = stream.value;
   if (!output) {
@@ -133,6 +156,5 @@ export default (build, output?, initial = null as any) => {
     return first;
   }
   output(first);
-  return (value) =>
-    value !== undefined ? setInput(value) : stream.unobserve();
+  return () => stream.unobserve();
 };
