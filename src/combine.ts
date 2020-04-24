@@ -48,40 +48,36 @@ const runGet = (get, create, func, v, arg) => {
   return v;
 };
 
+const wrapStream = (create, x) =>
+  x.type === 'stream' ? create(streamMap((get) => get(x))) : x;
+
 export const combineRun = ([type, ...config], get, create) => {
   if (type === 'nil') return { type: 'value', value: '' };
   if (type === 'join') return config[0];
   if (type === 'get') {
     const [func, v, arg] = config;
-    const result = runGet(get, create, func, v, arg);
-    return result.type === 'stream'
-      ? create(streamMap((get) => get(result)))
-      : result;
+    return wrapStream(create, runGet(get, create, func, v, arg));
   }
   const [func, big, small] = config;
   if (func.isPure) {
-    return create(
-      streamMap((get, create) => ({
-        type: 'block',
-        value: Block.fromPairs([
-          ...get(big).value.toPairs(),
-          ...get(func(create, small)[0]).value.toPairs(),
-        ]),
-      })),
-    );
+    return {
+      type: 'block',
+      value: Block.fromPairs([
+        ...big.value.toPairs(),
+        ...get(func(create, small)[0]).value.toPairs(),
+      ]),
+    };
   }
-  const pairs = small.value.toPairs().filter((d) => d.value.value);
+  const pairs = small.value
+    .toPairs()
+    .map(({ key, value }) => ({ key, value: get(value) }))
+    .filter((d) => d.value.value);
   return pairs.reduce(
     (res, { key, value }) => {
-      const map = func(...res, key);
-      const [result, scope, current] = map(create, value);
-      return [
-        scope,
-        create((set, get) => () =>
-          set(assign(false, false, false)([current, result, key], get)),
-        ),
-      ];
+      const map = func(res, key);
+      const [result, current] = map(create, value);
+      return assign(false, false, false)([current, result, key], get);
     },
-    [undefined, { type: 'block', value: big.value.cloneValues() }],
-  )[1];
+    { type: 'block', value: big.value.cloneValues() },
+  );
 };

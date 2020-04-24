@@ -4,6 +4,7 @@ import { fromJs } from './data';
 import parse from './parse';
 import process from './streams';
 import { Data, Source, StreamData } from './typings';
+import { streamMap } from './util';
 
 export { default as Block } from './block';
 export { fromJs, print, toJs } from './data';
@@ -110,8 +111,8 @@ function maraca(...args) {
         })),
       ),
     });
-    return create((set, get) => () =>
-      set(get(modules[''] || modulesToBlock(modules), true)),
+    return create(
+      streamMap((get) => get(modules[''] || modulesToBlock(modules), true)),
     ).value;
   }, onData);
 }

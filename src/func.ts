@@ -37,7 +37,7 @@ const compileFuncBody = (create, context, body, isMap, argTrace) => {
   return value && { value };
 };
 
-const getFuncArgs = (create, context, info, args) => {
+export default (create, context, info, args) => {
   if (args.every((a) => !a) && !info.map) {
     const value = build(create, context, info.body).value;
     return [value];
@@ -140,44 +140,29 @@ const getFuncArgs = (create, context, info, args) => {
   const argValues = args.map((a) => a && a.value);
   const scope = context.scope.value;
   const funcMap = (
-    funcScope = scope,
     funcCurrent = { type: 'block', value: new Block() },
     key = null,
-  ) => (subCreate, value) => {
+  ) => (create, value) => {
     const values = [key, value];
-    const subContext = {
-      scope: { type: 'any', value: funcScope },
+    const ctx = {
+      scope: { type: 'any', value: scope },
       current: { type: 'any', value: funcCurrent },
     };
     argValues.forEach((key, i) => {
       if (key) {
-        const prev = subContext.scope.value;
-        subContext.scope = {
+        const prev = ctx.scope.value;
+        ctx.scope = {
           type: 'any',
-          value: create((set, get) => () =>
-            set(assign(true, false, false)([prev, values[i], key], get)),
+          value: create(
+            streamMap((get) =>
+              assign(true, false, false)([prev, values[i], key], get),
+            ),
           ),
         };
       }
     });
-    const result = build(subCreate, subContext, info.body);
-    return [result.value, subContext.scope.value, subContext.current.value];
+    const result = build(create, ctx, info.body);
+    return [result.value, ctx.current.value];
   };
   return [info.map ? funcMap : funcMap(), info.map];
-};
-
-export default (create, context, info, args) => {
-  const funcArgs = getFuncArgs(create, context, info, args);
-  const currentValue = context.current.value;
-  context.current = {
-    type: 'any',
-    items: { ...context.current.items },
-    value: create(
-      streamMap((get) => ({
-        type: 'block',
-        value: get(currentValue).value.setFunc(...funcArgs),
-      })),
-    ),
-  };
-  return { type: 'constant', value: { type: 'value', value: '' } };
 };

@@ -165,14 +165,16 @@ const build = (
       const orBlock = value.info.value === '1';
       return {
         type: 'any',
-        value: create((set, get) => () => {
-          let result = { type: 'value', value: '' };
-          for (let i = 0; i < block.nodes.length; i++) {
-            result = get(compiled[i].value);
-            if (!orBlock === !result.value) break;
-          }
-          set(result);
-        }),
+        value: create(
+          streamMap((get) => {
+            for (let i = 0; i < block.nodes.length; i++) {
+              const result = get(compiled[i].value);
+              if (!orBlock === !result.value || i === block.nodes.length - 1) {
+                return result;
+              }
+            }
+          }),
+        ),
       };
     }
   }
@@ -243,7 +245,19 @@ const build = (
   }
 
   if (type === 'func') {
-    return func(create, context, info, args);
+    const funcArgs = func(create, context, info, args);
+    const current = context.current.value;
+    context.current = {
+      type: 'any',
+      items: { ...context.current.items },
+      value: create(
+        streamMap((get) => ({
+          type: 'block',
+          value: get(current).value.setFunc(...funcArgs),
+        })),
+      ),
+    };
+    return { type: 'constant', value: { type: 'value', value: '' } };
   }
 
   return {
