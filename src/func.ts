@@ -51,6 +51,7 @@ export default (create, context, info, args) => {
     const argTrace = { type: 'data', value: { type: 'value', value: '' } };
     const currentTrace = {
       type: 'constant',
+      items: {},
       value: { type: 'block', value: new Block() },
     };
     const ctx = {
@@ -138,14 +139,14 @@ export default (create, context, info, args) => {
   }
 
   const argValues = args.map((a) => a && a.value);
-  const scope = context.scope.value;
+  const scope = context.scope;
   const funcMap = (
-    funcCurrent = { type: 'block', value: new Block() },
+    funcCurrent = { type: 'block', items: {}, value: new Block() },
     key = null,
   ) => (create, value) => {
     const values = [key, value];
     const ctx = {
-      scope: { type: 'any', value: scope },
+      scope,
       current: { type: 'any', value: funcCurrent },
     };
     argValues.forEach((key, i) => {

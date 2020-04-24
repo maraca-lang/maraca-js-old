@@ -127,6 +127,7 @@ const build = (
       scope: mergeScope(create, context),
       current: {
         type: 'constant',
+        items: {},
         value: { type: 'block', value: new Block() },
       },
     };
@@ -158,24 +159,20 @@ const build = (
         scope: mergeScope(create, context),
         current: {
           type: 'constant',
+          items: {},
           value: { type: 'block', value: new Block() },
         },
       };
       const compiled = block.nodes.map((n) => build(create, ctx, n));
       const orBlock = value.info.value === '1';
-      return {
-        type: 'any',
-        value: create(
-          streamMap((get) => {
-            for (let i = 0; i < block.nodes.length; i++) {
-              const result = get(compiled[i].value);
-              if (!orBlock === !result.value || i === block.nodes.length - 1) {
-                return result;
-              }
-            }
-          }),
-        ),
-      };
+      return mergeMaps(create, compiled, false, (args, get) => {
+        for (let i = 0; i < block.nodes.length; i++) {
+          const result = get(args[i]);
+          if (!orBlock === !result.value || i === block.nodes.length - 1) {
+            return result;
+          }
+        }
+      });
     }
   }
 
@@ -232,12 +229,15 @@ const build = (
         true,
         assign(true, false, info.append),
       );
-      if (
-        !info.append &&
-        (!allArgs[2] ||
-          (allArgs[2].type === 'constant' && allArgs[2].value.type !== 'block'))
-      ) {
-        prevItems[(allArgs[2] && allArgs[2].value.value) || ''] = allArgs[1];
+      if (!info.append || allArgs[1].type !== 'any') {
+        if (
+          !info.append &&
+          (!allArgs[2] ||
+            (allArgs[2].type === 'constant' &&
+              allArgs[2].value.type !== 'block'))
+        ) {
+          prevItems[(allArgs[2] && allArgs[2].value.value) || ''] = allArgs[1];
+        }
         context.current.items = prevItems;
       }
     }
