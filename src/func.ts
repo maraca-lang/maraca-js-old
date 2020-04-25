@@ -2,6 +2,7 @@ import assign from './assign';
 import Block from './block';
 import build from './build';
 import { fromJs } from './data';
+import { createStaticBlock } from './static';
 import { streamMap } from './util';
 
 const getCompiledMap = (create, context, node, argTrace) => {
@@ -38,41 +39,27 @@ const compileFuncBody = (create, context, body, isMap, argTrace) => {
 };
 
 export default (create, context, info, args) => {
-  if (args.every((a) => !a) && !info.map) {
-    const value = build(create, context, info.body).value;
-    return [value];
-  }
-
   if (
     args
       .filter((a) => a)
       .every((a) => a.type === 'constant' && a.value.type !== 'block')
   ) {
     const argTrace = { type: 'data', value: { type: 'value', value: '' } };
-    const currentTrace = {
-      type: 'constant',
-      items: {},
-      value: { type: 'block', value: new Block() },
-    };
+    const currentTrace = createStaticBlock();
     const ctx = {
-      scope: {
-        type: 'any',
-        items: args.reduce(
-          (res, a, i) =>
-            a
-              ? {
-                  ...res,
-                  [a.value.value || '']: {
-                    type: 'map',
-                    arg: argTrace,
-                    map: (x) => x.value.get(fromJs(i + 1)),
-                  },
-                }
-              : res,
-          {},
-        ),
-        value: { type: 'block', value: new Block() },
-      },
+      scope: createStaticBlock(
+        args.reduce((res, a, i) => {
+          if (!a) return res;
+          return {
+            ...res,
+            [a.value.value || '']: {
+              type: 'map',
+              arg: argTrace,
+              map: (x) => x.value.get(fromJs(i + 1)),
+            },
+          };
+        }, {}),
+      ),
       current: currentTrace,
     };
     const compiledBody = compileFuncBody(
@@ -140,15 +127,12 @@ export default (create, context, info, args) => {
 
   const argValues = args.map((a) => a && a.value);
   const scope = context.scope;
-  const funcMap = (
-    funcCurrent = { type: 'block', items: {}, value: new Block() },
-    key = null,
-  ) => (create, value) => {
+  const funcMap = (current = createStaticBlock(), key = null) => (
+    create,
+    value,
+  ) => {
     const values = [key, value];
-    const ctx = {
-      scope,
-      current: { type: 'any', value: funcCurrent },
-    };
+    const ctx = { scope, current };
     argValues.forEach((key, i) => {
       if (key) {
         const prev = ctx.scope.value;

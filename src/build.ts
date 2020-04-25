@@ -4,69 +4,18 @@ import { combineConfig, combineRun } from './combine';
 import func from './func';
 import maps from './maps';
 import operations from './operations';
+import {
+  createStaticBlock,
+  mergeStatic,
+  staticAssign,
+  staticCombine,
+  staticMerge,
+} from './static';
 import { pushable, streamMap } from './util';
-
-const id = (x) => x;
-const mergeMaps = (create, args, deep, ...maps) => {
-  const map = maps.pop();
-  const configMap = maps.pop();
-  if (args.every((a) => a.type !== 'any')) {
-    if (args.every((a) => a.type === 'constant')) {
-      const mapped = args.map((a) => a.value);
-      return {
-        type: 'constant',
-        value: map(configMap ? configMap(mapped, id) : mapped, id),
-      };
-    }
-    const allArgs = args
-      .filter((a) => a.type !== 'constant')
-      .map((a) => (a.type === 'map' ? a.arg : a));
-    if (allArgs.every((a) => a === allArgs[0])) {
-      const combinedMap = (x) => {
-        const mapped = args.map((a) => {
-          if (a.type === 'constant') return a.value;
-          if (a.type === 'map') return a.map(x);
-          return x;
-        });
-        return map(configMap ? configMap(mapped, id) : mapped, id);
-      };
-      return {
-        type: 'map',
-        arg: allArgs[0],
-        deep,
-        map: combinedMap,
-        value: create(
-          streamMap((get) => combinedMap(get(allArgs[0].value, deep))),
-        ),
-      };
-    }
-  }
-  const mapped = args.map((a) => a.value);
-  return {
-    type: 'any',
-    value: create((set, get, create) => {
-      let result;
-      let prev = [];
-      return () => {
-        const next = configMap ? configMap(mapped, get) : mapped;
-        if (
-          !configMap ||
-          prev.length !== next.length ||
-          prev.some((x, i) => x !== next[i])
-        ) {
-          if (result && result.type === 'stream') result.value.cancel();
-          result = map(next, get, create);
-          set(result);
-          prev = next;
-        }
-      };
-    }),
-  };
-};
 
 const mergeScope = (create, { scope, current }, newLayer = true) => ({
   type: 'any',
-  items: current.items ? { ...scope.items, ...current.items } : {},
+  static: staticMerge(scope.static, current.static),
   value: create(
     streamMap((get) => {
       const [s, c] = [get(scope.value), get(current.value)];
@@ -125,11 +74,7 @@ const build = (
   if (type === 'block') {
     const ctx = {
       scope: mergeScope(create, context),
-      current: {
-        type: 'constant',
-        items: {},
-        value: { type: 'block', value: new Block() },
-      },
+      current: createStaticBlock(),
     };
     nodes.forEach((n) => {
       build(create, ctx, {
@@ -157,15 +102,11 @@ const build = (
     ) {
       const ctx = {
         scope: mergeScope(create, context),
-        current: {
-          type: 'constant',
-          items: {},
-          value: { type: 'block', value: new Block() },
-        },
+        current: createStaticBlock(),
       };
       const compiled = block.nodes.map((n) => build(create, ctx, n));
       const orBlock = value.info.value === '1';
-      return mergeMaps(create, compiled, false, (args, get) => {
+      return mergeStatic(create, compiled, false, (args, get) => {
         for (let i = 0; i < block.nodes.length; i++) {
           const result = get(args[i]);
           if (!orBlock === !result.value || i === block.nodes.length - 1) {
@@ -177,25 +118,17 @@ const build = (
   }
 
   if (type === 'combine') {
-    return args.reduce((a1, a2, i) => {
-      const space = info.space && info.space[i - 1];
-      if (
-        [a1, a2].some((a) => a.items) &&
-        [a1, a2].some((a) => a.type === 'constant' && a.value.type !== 'block')
-      ) {
-        const [block, key] = a1.items ? [a1, a2] : [a2, a1];
-        if (block.items[key.value.value || '']) {
-          return block.items[key.value.value || ''];
-        }
-      }
-      return mergeMaps(
-        create,
-        [a1, a2],
-        true,
-        combineConfig(info.dot, space),
-        combineRun,
-      );
-    });
+    return args.reduce(
+      (a1, a2, i) =>
+        staticCombine(a1, a2) ||
+        mergeStatic(
+          create,
+          [a1, a2],
+          true,
+          combineConfig(info.dot, info.space && info.space[i - 1]),
+          combineRun,
+        ),
+    );
   }
 
   if (type === 'map') {
@@ -203,7 +136,7 @@ const build = (
       typeof maps[info.func] === 'function'
         ? { map: maps[info.func] }
         : maps[info.func];
-    return mergeMaps(
+    return mergeStatic(
       create,
       args,
       args.some((a) => a.type === 'map' && a.deep) ||
@@ -221,35 +154,38 @@ const build = (
           value: create(pushable(assignArgs[0].value)),
         };
       }
-      const prevItems = context.current.items || {};
       const allArgs = [context.current, ...assignArgs];
-      context.current = mergeMaps(
+      const stat = staticAssign(allArgs, info.append);
+      context.current = mergeStatic(
         create,
         allArgs,
         true,
         assign(true, false, info.append),
       );
-      if (!info.append || allArgs[1].type !== 'any') {
-        if (
-          !info.append &&
-          (!allArgs[2] ||
-            (allArgs[2].type === 'constant' &&
-              allArgs[2].value.type !== 'block'))
-        ) {
-          prevItems[(allArgs[2] && allArgs[2].value.value) || ''] = allArgs[1];
-        }
-        context.current.items = prevItems;
-      }
+      context.current.static = stat;
     }
     return { type: 'constant', value: { type: 'value', value: '' } };
   }
 
   if (type === 'func') {
+    if (args.every((a) => !a) && !info.map) {
+      const value = build(create, context, info.body);
+      context.current = mergeStatic(
+        create,
+        [context.current, value],
+        false,
+        ([c, v], get) => ({
+          type: 'block',
+          value: get(c).value.setFunc(get(v)),
+        }),
+      );
+      return { type: 'constant', value: { type: 'value', value: '' } };
+    }
     const funcArgs = func(create, context, info, args);
     const current = context.current.value;
     context.current = {
       type: 'any',
-      items: { ...context.current.items },
+      static: context.current.static,
       value: create(
         streamMap((get) => ({
           type: 'block',

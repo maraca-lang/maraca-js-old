@@ -4,6 +4,7 @@ import { fromJs } from './data';
 import parse from './parse';
 import process from './streams';
 import { Data, Source, StreamData } from './typings';
+import { createStaticBlock } from './static';
 import { streamMap } from './util';
 
 export { default as Block } from './block';
@@ -69,11 +70,7 @@ const buildModuleLayer = (create, modules, getScope, path) =>
                   create,
                   {
                     scope: { type: 'any', value: getScope(path) },
-                    current: {
-                      type: 'constant',
-                      items: {},
-                      value: { type: 'block', value: new Block() },
-                    },
+                    current: createStaticBlock(),
                   },
                   typeof modules[k] === 'string'
                     ? parse(modules[k])
