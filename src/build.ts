@@ -56,12 +56,7 @@ const build = (
     });
   }
 
-  if (
-    type === 'nil' ||
-    type === 'comment' ||
-    (type === 'value' && !info.value) ||
-    type === 'error'
-  ) {
+  if (type === 'nil' || (type === 'value' && !info.value) || type === 'error') {
     return { type: 'constant', value: { type: 'value', value: '' } };
   }
   if (type === 'value') {

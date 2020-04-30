@@ -1,10 +1,18 @@
 import { AST } from '../typings';
 
-import loadInner, { parseString } from './inner';
+import loadInner, { dedent } from './inner';
 import loadOuter from './outer';
 
 let inner;
 let outer;
+
+const parseString = (s) =>
+  dedent(s)
+    .replace(/\n/g, '￿')
+    .replace(/\\(￿| )/g, '\n')
+    .replace(/\\(.)/g, (_, m) => m)
+    .replace(/(\s|￿)*(\n|￿)(\s|￿)*(\n|￿)(\s|￿)*/g, '\n\n')
+    .replace(/(￿| |\t)+/g, ' ');
 
 const parseParts = (parts, text = false) => {
   const mapped = parts.map((p) => {

@@ -1,19 +1,20 @@
 import maraca from '../src/index';
 import Block from '../src/block';
 import { fromJs } from '../src/data';
+import { streamMap } from '../src/util';
 
 const library = {
   size: (set) =>
     set(
-      fromJs((arg) => (set, get) => () => {
-        const v = get(arg, true);
-        return set(
-          fromJs(
+      fromJs((arg) =>
+        streamMap((get) => {
+          const v = get(arg, true);
+          return fromJs(
             v.type === 'block' &&
               v.value.toPairs().filter((x) => x.value.value).length,
-          ),
-        );
-      }),
+          );
+        }),
+      ),
     ),
   tick: (set) => {
     let count = 1;

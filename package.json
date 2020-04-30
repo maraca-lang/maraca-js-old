@@ -1,6 +1,6 @@
 {
   "name": "maraca",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "license": "MIT",
   "main": "lib/index.js",
   "types": "./lib/index.d.ts",
@@ -19,13 +19,13 @@
     "ohm-js": "^0.14.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.9.0",
-    "@babel/preset-env": "^7.9.5",
+    "@babel/core": "^7.9.6",
+    "@babel/preset-env": "^7.9.6",
     "@babel/preset-typescript": "^7.9.0",
     "@types/jest": "^25.2.1",
-    "babel-jest": "^25.4.0",
+    "babel-jest": "^25.5.1",
     "babel-plugin-transform-class-properties": "^6.24.1",
-    "jest": "^25.4.0",
+    "jest": "^25.5.2",
     "prettier": "^2.0.5",
     "rimraf": "^3.0.2",
     "typescript": "^3.8.3"

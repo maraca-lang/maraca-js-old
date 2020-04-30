@@ -34,9 +34,8 @@ const grammar = `Maraca {
     = block
     | "\\"" (textchar | escape)* "\\"" -- text
     | "'" (stringchar | escape)* "'" -- string
-    | "\`" (~"\`" any)* "\`" -- comment
     | escape
-    | ~("[" | "]" | "(" | ")" | "{" | "}" | "￿" | "," | "\\\\" | "\\"" | "'" | "\`") any -- other
+    | ~("[" | "]" | "(" | ")" | "{" | "}" | "￿" | "," | "\\\\" | "\\"" | "'") any -- other
   
   block
     = "[" item ("," item)* "]"
@@ -112,12 +111,6 @@ export default () => {
     chunk_string: (_1, a, _2) => ({
       type: 'part',
       info: { value: `'${a.sourceString}'` },
-      start: _1.source.startIdx,
-      end: _2.source.endIdx,
-    }),
-    chunk_comment: (_1, a, _2) => ({
-      type: 'part',
-      info: { value: `\`${a.sourceString}\`` },
       start: _1.source.startIdx,
       end: _2.source.endIdx,
     }),

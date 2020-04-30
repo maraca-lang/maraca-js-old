@@ -98,7 +98,7 @@ export const print = ({ type, value }) => {
     .join(', ')}]`;
 };
 
-export const fromJs = (value) => {
+export const fromJs = (value, arrayPairs = false) => {
   if (value === 0) return { type: 'value', value: '0' };
   if (!value) return { type: 'value', value: '' };
   if (value === true) return { type: 'value', value: 'true' };
@@ -128,7 +128,10 @@ export const fromJs = (value) => {
       type: 'block',
       value: Block.fromPairs(
         value
-          .map(({ key, value }) => ({ key: fromJs(key), value: fromJs(value) }))
+          .map((x, i) => {
+            if (!arrayPairs) return { key: fromJs(i + 1), value: fromJs(x) };
+            return { key: fromJs(x.key), value: fromJs(x.value) };
+          })
           .filter((x) => x.value.value),
       ),
     };

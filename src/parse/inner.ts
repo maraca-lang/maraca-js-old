@@ -1,6 +1,6 @@
 import * as ohm from 'ohm-js';
 
-const dedent = (str) => {
+export const dedent = (str) => {
   let s = str;
   // 1. Find all line breaks to determine the highest common indentation level.
   const matches = s.replace(/\n+/g, '\n').match(/\n[\t ]*/g) || [];
@@ -11,14 +11,6 @@ const dedent = (str) => {
   }
   return s;
 };
-
-export const parseString = (s) =>
-  dedent(s)
-    .replace(/\n/g, '￿')
-    .replace(/\\(￿| )/g, '\n')
-    .replace(/\\(.)/g, (_, m) => m)
-    .replace(/(\s|￿)*(\n|￿)(\s|￿)*(\n|￿)(\s|￿)*/g, '\n\n')
-    .replace(/(￿| |\t)+/g, ' ');
 
 const grammar = `Maraca {
 
@@ -100,7 +92,6 @@ const grammar = `Maraca {
     | digit+ "." digit+ -- number
     | alnum+ -- value
     | "'" (char | escape)* "'" -- string
-    | "\`" (~"\`" any)* "\`" -- comment
 
   char
     = ~("'" | "\\\\") any
@@ -312,14 +303,6 @@ export default () => {
       type: 'value',
       info: {
         value: dedent(a.sourceString.replace(/\\([\s\S])/g, (_, m) => m)),
-      },
-      start: getIndex(_1.source.startIdx),
-      end: getIndex(_2.source.endIdx),
-    }),
-    value_comment: (_1, a, _2) => ({
-      type: 'comment',
-      info: {
-        value: parseString(a.sourceString.replace(/\\/g, '\\\\')),
       },
       start: getIndex(_1.source.startIdx),
       end: getIndex(_2.source.endIdx),
