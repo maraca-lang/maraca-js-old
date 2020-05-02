@@ -140,31 +140,36 @@ export const fromJs = (value, arrayPairs = false) => {
 };
 
 export const toJs = (data = { type: 'value', value: '' } as any, config) => {
+  if (!config) return undefined;
   if (config === true) return data;
   if (typeof config === 'function') {
     return { value: toJs(data, config()), push: data.push };
   }
-  if (!data.value) return null;
+  if (!data.value) return undefined;
   if (config === 'boolean') return true;
   if (Array.isArray(config) && config.length > 1) {
     for (const c of config) {
       const v = toJs(data, c);
       if (v) return v;
     }
-    return null;
+    return undefined;
   }
   if (data.type === 'value') {
     if (config === 'string') return data.value;
-    if (config === 'number') return toNumber(data.value);
-    if (config === 'integer') return toIndex(data.value);
-    return null;
+    if (config === 'number') {
+      const result = toNumber(data.value);
+      return result === null ? undefined : result;
+    }
+    if (config === 'integer') {
+      const result = toIndex(data.value);
+      return result === null ? undefined : result;
+    }
+    return undefined;
   }
   if (typeof config === 'object') {
     const { indices, values } = data.value.toBoth();
     if (Array.isArray(config)) {
-      return indices
-        .map((d, i) => toJs(d, config[i % config.length]))
-        .filter((x) => x);
+      return indices.map((d, i) => toJs(d, config[i % config.length]));
     }
     const allValues = indices.reduce(
       (res, d, i) => ({ ...res, [i + 1]: d }),
@@ -185,5 +190,5 @@ export const toJs = (data = { type: 'value', value: '' } as any, config) => {
       return v ? { ...res, [k]: v } : res;
     }, {});
   }
-  return null;
+  return undefined;
 };

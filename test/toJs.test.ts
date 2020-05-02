@@ -5,16 +5,16 @@ import { toJs } from '../src/data';
 test('values', () => {
   expect(toJs(maraca('test'), true)).toEqual({ type: 'value', value: 'test' });
 
-  expect(toJs(maraca(''), 'string')).toEqual(null);
+  expect(toJs(maraca(''), 'string')).toEqual(undefined);
   expect(toJs(maraca('test'), 'string')).toEqual('test');
 
   expect(toJs(maraca('test'), 'boolean')).toEqual(true);
-  expect(toJs(maraca(''), 'boolean')).toEqual(null);
+  expect(toJs(maraca(''), 'boolean')).toEqual(undefined);
 
-  expect(toJs(maraca('test'), 'number')).toEqual(null);
+  expect(toJs(maraca('test'), 'number')).toEqual(undefined);
   expect(toJs(maraca('10.5'), 'number')).toEqual(10.5);
 
-  expect(toJs(maraca('10.5'), 'integer')).toEqual(null);
+  expect(toJs(maraca('10.5'), 'integer')).toEqual(undefined);
   expect(toJs(maraca('6'), 'integer')).toEqual(6);
 
   expect(toJs(maraca('6'), () => 'integer')).toEqual({ value: 6 });
@@ -42,11 +42,13 @@ test('blocks', () => {
   ]);
   expect(toJs(maraca('[hello, 3: there, [30]]'), ['string'])).toEqual([
     'hello',
+    undefined,
     'there',
+    undefined,
   ]);
 
   expect(toJs(maraca('[23, 45.7]'), ['number'])).toEqual([23, 45.7]);
-  expect(toJs(maraca('[23, 45.7]'), ['integer'])).toEqual([23]);
+  expect(toJs(maraca('[23, 45.7]'), ['integer'])).toEqual([23, undefined]);
 
   expect(toJs(maraca('[a: 1, b: 2.5]'), { a: 'string', b: 'string' })).toEqual({
     a: '1',
@@ -84,7 +86,7 @@ test('blocks', () => {
 
 test('or', () => {
   expect(toJs(maraca('test'), ['number', 'string'])).toEqual('test');
-  expect(toJs(maraca('test'), ['number', 'integer'])).toEqual(null);
+  expect(toJs(maraca('test'), ['number', 'integer'])).toEqual(undefined);
 
   expect(toJs(maraca('[1, test, 4.6]'), [['number', 'string']])).toEqual([
     1,

@@ -76,7 +76,11 @@ export const combineRun = ([type, ...config], get, create) => {
     (res, { key, value }) => {
       const map = func({ type: 'any', value: res }, key);
       const [result, current] = map(create, value);
-      return assign(false, false, false)([current, result, key], get);
+      return create(
+        streamMap((get) =>
+          assign(false, false, false)([current, result, key], get),
+        ),
+      );
     },
     { type: 'block', value: big.value.cloneValues() },
   );

@@ -38,22 +38,31 @@ export default class Block {
   }
 
   toPairs() {
+    if (Object.keys(this.values).length === this.indices.length) {
+      return this.indices.map((i) => this.values[i]);
+    }
     return Object.keys(this.values)
       .map((k) => this.values[k])
       .sort((a, b) => compare(a.key, b.key));
   }
   toBoth() {
     const values = { ...this.values };
+    const indices = [] as any[];
+    this.indices.forEach((i) => {
+      indices[i - 1] = values[i].value;
+      delete values[i];
+    });
+    for (let i = 0; i < indices.length; i++) {
+      indices[i] = indices[i] || undefined;
+    }
     return {
-      indices: this.indices.map((i) => {
-        const v = values[i].value;
-        delete values[i];
-        return v;
-      }),
-      values: Object.keys(values).reduce(
-        (res, k) => ({ ...res, [k]: values[k].value }),
-        {},
-      ),
+      indices,
+      values: Object.keys(values).reduce((res, k) => {
+        const key = k.startsWith("'")
+          ? k.slice(1, -1).replace(/\\([\s\S])/g, (_, m) => m)
+          : k;
+        return { ...res, [key]: values[k].value };
+      }, {}),
     };
   }
   cloneValues() {
