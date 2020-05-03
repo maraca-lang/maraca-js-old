@@ -64,7 +64,13 @@ export const combineRun = ([type, ...config], get, create) => {
       type: 'block',
       value: Block.fromPairs([
         ...big.value.toPairs(),
-        ...get(func(create, small)[0]).value.toPairs(),
+        ...small.value
+          .toPairs()
+          .map(({ key, value }) => {
+            const [v, k] = func(value, key);
+            return { key: k, value: v };
+          })
+          .filter((d) => d.value.value),
       ]),
     };
   }
@@ -75,10 +81,10 @@ export const combineRun = ([type, ...config], get, create) => {
   return pairs.reduce(
     (res, { key, value }) => {
       const map = func({ type: 'any', value: res }, key);
-      const [result, current] = map(create, value);
+      const [newValue, newKey] = map(create, value);
       return create(
         streamMap((get) =>
-          assign(false, false, false)([current, result, key], get),
+          assign(false, false, false)([res, newValue, newKey], get),
         ),
       );
     },

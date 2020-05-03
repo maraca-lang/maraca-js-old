@@ -14,71 +14,68 @@ export const dedent = (str) => {
 
 const grammar = `Maraca {
 
+  Main
+    = Func
+    | Set
+    | Push
+    | Exp
+
+  Func
+    = Exp? "=>" Exp "=>" (Exp? ":")? Exp? -- map_keys
+    | Exp? "=>>" (Exp? ":")? Exp? -- map
+    | Exp? "=>" Exp? -- func
+
+  Set
+    = Exp ":=?" -- context
+    | Exp ":=" -- value
+    | Exp? ":~" Exp? -- push
+    | Exp? ":" Exp? -- set
+
+  Push
+    = Exp "->" Exp -- push
+  
   Exp
-    = ExpFunc
+    = Trigger
 
-  ExpFunc
-    = ExpSet "=>" ExpSet "=>" ExpSet -- map_keys
-    | ExpSet "=>>" ExpSet -- map
-    | ExpSet "=>" ExpSet -- func
-    | "=>>" ExpSet -- map_default
-    | "=>" ExpSet -- default
-    | "=>>" -- map_blank
-    | ExpSet
+  Trigger
+    = Eval "|" Eval -- trigger
+    | Eval
 
-  ExpSet
-    = ExpSet ":=?" -- short_context
-    | ExpSet ":=" -- short_value
-    | ExpPush (":~" | ":") ExpSet -- normal
-    | ExpSet (":~" | ":") -- nil_value
-    | (":~" | ":") ExpSet -- nil_key
-    | (":~" | ":") -- nil_both
-    | ExpPush
+  Eval
+    = Not? ">>" Not -- eval
+    | Not
 
-  ExpPush
-    = ExpPush "->" ExpTrigger -- push
-    | ExpTrigger
+  Not
+    = "!" Comp -- not
+    | Comp
 
-  ExpTrigger
-    = ExpTrigger "|" ExpEval -- trigger
-    | ExpEval
+  Comp
+    = Comp ("<=" | ">=" | "<" | ">" | "!" | "=") Sum -- comp
+    | Sum
 
-  ExpEval
-    = ExpEval ">>" ExpNot -- eval
-    | ">>" ExpNot -- single
-    | ExpNot
+  Sum
+    = Sum ("+" | "-") Prod -- sum
+    | "-" Prod -- minus
+    | Prod
 
-  ExpNot
-    = "!" ExpComp -- not
-    | ExpComp
+  Prod
+    = Prod ("*" | "/" | "%") Pow -- prod
+    | Pow
 
-  ExpComp
-    = ExpComp ("<=" | ">=" | "<" | ">" | "!" | "=") ExpSum -- comp
-    | ExpSum
-
-  ExpSum
-    = ExpSum ("+" | "-") ExpProd -- sum
-    | "-" ExpProd -- minus
-    | ExpProd
-
-  ExpProd
-    = ExpProd ("*" | "/" | "%") ExpPow -- prod
-    | ExpPow
-
-  ExpPow
-    = ExpPow "^" ExpSep -- pow
-    | ExpSep
+  Pow
+    = Pow "^" Sep -- pow
+    | Sep
   
-  ExpSep
-    = ExpSep "." ExpSize -- sep
-    | ExpSize
+  Sep
+    = Sep "." Size -- sep
+    | Size
   
-  ExpSize
-    = "#" ExpComb -- size
-    | ExpComb
+  Size
+    = "#" Comb -- size
+    | Comb
 
-  ExpComb
-    = ExpComb Atom -- comb
+  Comb
+    = Comb Atom -- comb
     | Atom
 
   Atom
@@ -114,17 +111,21 @@ export default () => {
     return index + offsets[i - 1][1];
   };
 
-  const funcAst = (key, value, body, map, first, last) => ({
+  const funcAst = (key, value, bodyKey, bodyValue, map, first, last) => ({
     type: 'func',
-    nodes: [key && key.ast, value && value.ast],
-    info: { body: body?.ast || { type: 'nil' }, map },
+    nodes: [key, value],
+    info: {
+      key: bodyKey ? bodyKey[0] : true,
+      value: bodyValue || { type: 'nil' },
+      map,
+    },
     start: getIndex(first.source.startIdx),
     end: getIndex(last.source.endIdx),
   });
-  const assignAst = (value, key, first, last, type?) => ({
+  const assignAst = (value, key, first, last, pushable = false) => ({
     type: 'assign',
-    nodes: [value, key],
-    info: { pushable: type && type.sourceString === ':~' },
+    nodes: [value || { type: 'nil' }, key],
+    info: { pushable },
     start: getIndex(first.source.startIdx),
     end: getIndex(last.source.endIdx),
   });
@@ -137,90 +138,80 @@ export default () => {
   });
 
   s.addAttribute('ast', {
-    Exp: (a) => a.ast,
+    Main: (a) => a.ast,
 
-    ExpFunc_map_keys: (a, _1, b, _2, c) => funcAst(b, a, c, true, a, c),
-    ExpFunc_map: (a, _, b) => funcAst(null, a, b, true, a, b),
-    ExpFunc_func: (a, _, b) => funcAst(null, a, b, false, a, b),
-    ExpFunc_map_default: (_, a) => funcAst(null, null, a, true, _, a),
-    ExpFunc_default: (_, a) => funcAst(null, null, a, false, _, a),
-    ExpFunc_map_blank: (a) => funcAst(null, null, null, true, a, a),
-    ExpFunc: (a) => a.ast,
+    Func_map_keys: (a, _1, b, _2, c, _3, d) =>
+      funcAst(b.ast, a.ast[0], c.ast[0], d.ast[0], true, a, c),
+    Func_map: (a, _1, b, _2, c) =>
+      funcAst(null, a.ast[0], b.ast[0], c.ast[0], true, a, b),
+    Func_func: (a, _, b) =>
+      funcAst(null, a.ast[0], null, b.ast[0], false, a, b),
 
-    ExpSet_short_context: (a, _) =>
+    Set_context: (a, _) =>
       assignAst(
         { type: 'combine', nodes: [a.ast, { type: 'context' }] },
         a.ast,
         a,
         _,
       ),
-    ExpSet_short_value: (a, _) => assignAst(a.ast, a.ast, a, _),
-    ExpSet_normal: (a, _, b) => assignAst(b.ast, a.ast, a, b, _),
-    ExpSet_nil_value: (a, _) => assignAst({ type: 'nil' }, a.ast, a, _, _),
-    ExpSet_nil_key: (_, a) => assignAst(a.ast, null, _, a, _),
-    ExpSet_nil_both: (_) =>
-      assignAst({ type: 'nil' }, { type: 'nil' }, _, _, _),
-    ExpSet: (a) => a.ast,
+    Set_value: (a, _) => assignAst(a.ast, a.ast, a, _),
+    Set_push: (a, _, b) => assignAst(b.ast[0], a.ast[0], a, b, true),
+    Set_set: (a, _, b) => assignAst(b.ast[0], a.ast[0], a, b),
 
-    ExpPush_push: (a, _, b) => ({
+    Push_push: (a, _, b) => ({
       type: 'push',
       nodes: [a.ast, b.ast],
       start: getIndex(a.source.startIdx),
       end: getIndex(b.source.endIdx),
     }),
-    ExpPush: (a) => a.ast,
 
-    ExpTrigger_trigger: (a, _, b) => ({
+    Exp: (a) => a.ast,
+
+    Trigger_trigger: (a, _, b) => ({
       type: 'trigger',
       nodes: [a.ast, b.ast],
       start: getIndex(a.source.startIdx),
       end: getIndex(b.source.endIdx),
     }),
-    ExpTrigger: (a) => a.ast,
+    Trigger: (a) => a.ast,
 
-    ExpEval_eval: (a, _, b) => ({
+    Eval_eval: (a, _, b) => ({
       type: 'eval',
-      nodes: [b.ast, a.ast],
+      nodes: [b.ast, a.ast[0]].filter((x) => x),
       start: getIndex(a.source.startIdx),
       end: getIndex(b.source.endIdx),
     }),
-    ExpEval_single: (a, b) => ({
-      type: 'eval',
-      nodes: [b.ast],
-      start: getIndex(a.source.startIdx),
-      end: getIndex(b.source.endIdx),
-    }),
-    ExpEval: (a) => a.ast,
+    Eval: (a) => a.ast,
 
-    ExpNot_not: (a, b) => ({
+    Not_not: (a, b) => ({
       type: 'map',
       nodes: [b.ast],
       info: { func: a.sourceString },
       start: getIndex(a.source.startIdx),
       end: getIndex(b.source.endIdx),
     }),
-    ExpNot: (a) => a.ast,
+    Not: (a) => a.ast,
 
-    ExpComp_comp: mapAst,
-    ExpComp: (a) => a.ast,
+    Comp_comp: mapAst,
+    Comp: (a) => a.ast,
 
-    ExpSum_sum: mapAst,
-    ExpSum_minus: (a, b) => ({
+    Sum_sum: mapAst,
+    Sum_minus: (a, b) => ({
       type: 'map',
       nodes: [b.ast],
       info: { func: a.sourceString },
       start: getIndex(a.source.startIdx),
       end: getIndex(b.source.endIdx),
     }),
-    ExpSum: (a) => a.ast,
+    Sum: (a) => a.ast,
 
-    ExpProd_prod: mapAst,
-    ExpProd: (a) => a.ast,
+    Prod_prod: mapAst,
+    Prod: (a) => a.ast,
 
-    ExpPow_pow: mapAst,
-    ExpPow: (a) => a.ast,
+    Pow_pow: mapAst,
+    Pow: (a) => a.ast,
 
-    ExpSep_sep: (a, _, b) => ({
+    Sep_sep: (a, _, b) => ({
       type: 'combine',
       nodes: [
         ...(a.ast.type === 'combine' && a.ast.info.dot ? a.ast.nodes : [a.ast]),
@@ -230,18 +221,18 @@ export default () => {
       start: getIndex(a.source.startIdx),
       end: getIndex(b.source.endIdx),
     }),
-    ExpSep: (a) => a.ast,
+    Sep: (a) => a.ast,
 
-    ExpSize_size: (a, b) => ({
+    Size_size: (a, b) => ({
       type: 'map',
       nodes: [b.ast],
       info: { func: a.sourceString },
       start: getIndex(a.source.startIdx),
       end: getIndex(b.source.endIdx),
     }),
-    ExpSize: (a) => a.ast,
+    Size: (a) => a.ast,
 
-    ExpComb_comb: (a, b) => {
+    Comb_comb: (a, b) => {
       const nodes = [
         ...(a.ast.type === 'combine' ? a.ast.nodes : [a.ast]),
         b.ast,
@@ -265,7 +256,7 @@ export default () => {
         end: getIndex(b.source.endIdx),
       };
     },
-    ExpComb: (a) => a.ast,
+    Comb: (a) => a.ast,
 
     Atom_space: (a) => ({
       type: 'value',

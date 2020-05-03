@@ -158,7 +158,7 @@ const build = (
 
   if (type === 'func') {
     if (args.every((a) => !a) && !info.map) {
-      const value = build(create, context, info.body);
+      const value = build(create, context, info.value);
       context.current = mergeStatic(
         create,
         [context.current, value],

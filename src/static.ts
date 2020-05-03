@@ -1,9 +1,9 @@
 import Block from './block';
 import { streamMap } from './util';
 
-export const createStaticBlock = (items = {}) => ({
-  type: 'constant',
-  static: items,
+export const createStaticBlock = (type = 'constant', stat = {}) => ({
+  type,
+  static: stat,
   value: { type: 'block', value: new Block() },
 });
 

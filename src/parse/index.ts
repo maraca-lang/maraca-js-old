@@ -61,7 +61,7 @@ const parseParts = (parts, text = false) => {
     return `${res}${part.type === 'part' ? part.info.value : `￿${i}￿`}`;
   }, '');
   try {
-    return [inner(script, mapped, offsets)];
+    return [inner(script.replace(/￿>/g, '/>'), mapped, offsets)];
   } catch (error) {
     return [{ type: 'error', info: { nodes: mapped, message: error.message } }];
   }

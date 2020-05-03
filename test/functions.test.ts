@@ -89,4 +89,21 @@ test('maps', () => {
   });
   expect(maraca('1.[=>> ]')).toEqual({ type: 'value', value: '' });
   expect(maraca('1.[v=>> v? + 1]')).toEqual({ type: 'value', value: '' });
+  expect(maraca('[a: 1, b: 2, c: 3].[v=>> : [v?]]')).toEqual({
+    type: 'block',
+    value: Block.fromPairs([
+      {
+        key: { type: 'value', value: '1' },
+        value: { type: 'value', value: '1' },
+      },
+      {
+        key: { type: 'value', value: '2' },
+        value: { type: 'value', value: '2' },
+      },
+      {
+        key: { type: 'value', value: '3' },
+        value: { type: 'value', value: '3' },
+      },
+    ] as any),
+  });
 });
