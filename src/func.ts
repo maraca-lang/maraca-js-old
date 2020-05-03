@@ -81,15 +81,21 @@ export default (create, context, info, args) => {
                     .filter((d) => d.value.value)
                     .map(({ key, value }) => ({
                       key: compiledBody.key
-                        ? compiledBody.key({
-                            type: 'block',
-                            value: Block.fromArray([key, value]),
-                          })
+                        ? compiledBody.key(
+                            {
+                              type: 'block',
+                              value: Block.fromArray([key, value]),
+                            },
+                            get,
+                          )
                         : key,
-                      value: compiledBody.value({
-                        type: 'block',
-                        value: Block.fromArray([key, value]),
-                      }),
+                      value: compiledBody.value(
+                        {
+                          type: 'block',
+                          value: Block.fromArray([key, value]),
+                        },
+                        get,
+                      ),
                     }))
                     .filter((d) => d.value.value);
                   return {
@@ -109,13 +115,16 @@ export default (create, context, info, args) => {
           : (create, value) => [
               create(
                 streamMap((get) =>
-                  compiledBody.value({
-                    type: 'block',
-                    value: Block.fromArray([
-                      { type: 'value', value: '' },
-                      get(value),
-                    ]),
-                  }),
+                  compiledBody.value(
+                    {
+                      type: 'block',
+                      value: Block.fromArray([
+                        { type: 'value', value: '' },
+                        get(value),
+                      ]),
+                    },
+                    get,
+                  ),
                 ),
               ),
             ],

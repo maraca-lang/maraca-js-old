@@ -101,7 +101,7 @@ const build = (
       };
       const compiled = block.nodes.map((n) => build(create, ctx, n));
       const orBlock = value.info.value === '1';
-      return mergeStatic(create, compiled, false, (args, get) => {
+      return mergeStatic(create, compiled, (args, get) => {
         for (let i = 0; i < block.nodes.length; i++) {
           const result = get(args[i]);
           if (!orBlock === !result.value || i === block.nodes.length - 1) {
@@ -119,7 +119,6 @@ const build = (
         mergeStatic(
           create,
           [a1, a2],
-          true,
           combineConfig(info.dot, info.space && info.space[i - 1]),
           combineRun,
         ),
@@ -131,12 +130,8 @@ const build = (
       typeof maps[info.func] === 'function'
         ? { map: maps[info.func] }
         : maps[info.func];
-    return mergeStatic(
-      create,
-      args,
-      args.some((a) => a.type === 'map' && a.deep) ||
-        args.some((a, i) => a.type === 'data' && deepArgs[i]),
-      (args, get) => map(args.map((a, i) => get(a, deepArgs[i]))),
+    return mergeStatic(create, args, (args, get) =>
+      map(args.map((a, i) => get(a, deepArgs[i]))),
     );
   }
 
@@ -154,7 +149,6 @@ const build = (
       context.current = mergeStatic(
         create,
         allArgs,
-        true,
         assign(true, false, info.append),
       );
       context.current.static = stat;
@@ -168,7 +162,6 @@ const build = (
       context.current = mergeStatic(
         create,
         [context.current, value],
-        false,
         ([c, v], get) => ({
           type: 'block',
           value: get(c).value.setFunc(get(v)),

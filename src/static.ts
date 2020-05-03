@@ -7,8 +7,7 @@ export const createStaticBlock = (items = {}) => ({
   value: { type: 'block', value: new Block() },
 });
 
-const id = (x) => x;
-export const mergeStatic = (create, args, deep, ...maps) => {
+export const mergeStatic = (create, args, ...maps) => {
   const map = maps.pop();
   const configMap = maps.pop();
   if (args.every((a) => a.type !== 'any')) {
@@ -16,29 +15,26 @@ export const mergeStatic = (create, args, deep, ...maps) => {
       const mapped = args.map((a) => a.value);
       return {
         type: 'constant',
-        value: map(configMap ? configMap(mapped, id) : mapped, id),
+        value: map(configMap ? configMap(mapped, (x) => x) : mapped, (x) => x),
       };
     }
     const allArgs = args
       .filter((a) => a.type !== 'constant')
       .map((a) => (a.type === 'map' ? a.arg : a));
     if (allArgs.every((a) => a === allArgs[0])) {
-      const combinedMap = (x) => {
+      const combinedMap = (x, get) => {
         const mapped = args.map((a) => {
           if (a.type === 'constant') return a.value;
-          if (a.type === 'map') return a.map(x);
+          if (a.type === 'map') return a.map(x, get);
           return x;
         });
-        return map(configMap ? configMap(mapped, id) : mapped, id);
+        return map(configMap ? configMap(mapped, get) : mapped, get);
       };
       return {
         type: 'map',
         arg: allArgs[0],
-        deep,
         map: combinedMap,
-        value: create(
-          streamMap((get) => combinedMap(get(allArgs[0].value, deep))),
-        ),
+        value: create(streamMap((get) => combinedMap(allArgs[0].value, get))),
       };
     }
   }
