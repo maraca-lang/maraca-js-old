@@ -82,7 +82,7 @@ const grammar = `Maraca {
     = value
     | "_" -- space
     | "?" -- context
-    | "￿" digit+ "￿" -- placeholder
+    | "￿" digit+ "￿X" -- placeholder
 
   value
     = "\\\\" any -- char

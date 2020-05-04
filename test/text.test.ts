@@ -2,6 +2,16 @@ import maraca from '../src/index';
 import Block from '../src/block';
 
 test('basic', () => {
+  expect(maraca('["     "]')).toEqual({
+    type: 'block',
+    value: Block.fromPairs([
+      {
+        key: { type: 'value', value: '1' },
+        value: { type: 'value', value: ' ' },
+      },
+    ] as any),
+  });
+
   expect(maraca(`["hello    there"]`)).toEqual({
     type: 'block',
     value: Block.fromPairs([

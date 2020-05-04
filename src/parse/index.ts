@@ -58,7 +58,7 @@ const parseParts = (parts, text = false) => {
   const offsets = [] as any[];
   const script = mapped.reduce((res, part, i) => {
     offsets.push([res.length, part.start - res.length]);
-    return `${res}${part.type === 'part' ? part.info.value : `￿${i}￿`}`;
+    return `${res}${part.type === 'part' ? part.info.value : `￿${i}￿X`}`;
   }, '');
   try {
     return [inner(script.replace(/￿>/g, '/>'), mapped, offsets)];
