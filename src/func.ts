@@ -1,5 +1,6 @@
 import assign from './assign';
 import build from './build';
+import { fromJs } from './data';
 import { createStaticBlock } from './static';
 import { streamMap } from './util';
 
@@ -9,7 +10,7 @@ const getStatic = (keys, arg) =>
     return { ...res, [k.value.value]: { type: 'map', arg, map: (x) => x[i] } };
   }, {});
 
-const getCompiled = (create, keys, bodyKey, bodyValue) => {
+const getCompiled = (create, keys, map, bodyKey, bodyValue) => {
   const trace = {};
   if (
     keys
@@ -25,6 +26,15 @@ const getCompiled = (create, keys, bodyKey, bodyValue) => {
       if (result.type === 'constant') return () => result.value;
       if (result.type === 'map' && result.arg === trace) return result.map;
     };
+    if (
+      map &&
+      !bodyKey &&
+      bodyValue.type === 'block' &&
+      bodyValue.info.bracket === '[' &&
+      bodyValue.nodes.length === 1
+    ) {
+      return { key: true, value: compileBody(bodyValue.nodes[0]) };
+    }
     return {
       key: bodyKey === true ? (x) => x[0] : bodyKey && compileBody(bodyKey),
       value: compileBody(bodyValue),
@@ -33,15 +43,19 @@ const getCompiled = (create, keys, bodyKey, bodyValue) => {
 };
 
 export default (create, context, info, args) => {
-  const compiled = getCompiled(create, args, info.key, info.value);
+  const compiled = getCompiled(create, args, info.map, info.key, info.value);
   if (compiled) {
     if (info.map) {
       if (compiled.key && compiled.value) {
         return [
-          (value, key) => [
-            compiled.value([key, value], (x) => x),
-            compiled.key([key, value], (x) => x),
-          ],
+          (pairs) =>
+            pairs.map(({ key, value }, i) => ({
+              key:
+                compiled.key === true
+                  ? fromJs(i + 1)
+                  : compiled.key([key, value], (x) => x),
+              value: compiled.value([key, value], (x) => x),
+            })),
           true,
           true,
         ];

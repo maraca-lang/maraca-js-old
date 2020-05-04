@@ -64,13 +64,7 @@ export const combineRun = ([type, ...config], get, create) => {
       type: 'block',
       value: Block.fromPairs([
         ...big.value.toPairs(),
-        ...small.value
-          .toPairs()
-          .map(({ key, value }) => {
-            const [v, k] = func(value, key);
-            return { key: k, value: v };
-          })
-          .filter((d) => d.value.value),
+        ...func(small.value.toPairs()).filter((d) => d.value.value),
       ]),
     };
   }
