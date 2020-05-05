@@ -60,7 +60,7 @@ export const combineRun = ([type, ...config], get, create) => {
     .filter((d) => d.value.value);
   return pairs.reduce(
     (res, { key, value }) => {
-      const map = func({ type: 'any', value: res }, key);
+      const map = func(res, key);
       const [newValue, newKey] = map(create, value);
       return create(
         streamMap((get) =>

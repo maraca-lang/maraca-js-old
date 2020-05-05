@@ -52,14 +52,8 @@ export default (type, create, nodes) => {
       streamMap((get, create) => {
         const code = get(nodes[0]);
         const subContext = {
-          scope: {
-            type: 'constant',
-            value: { type: 'block', value: new Block() },
-          },
-          current: {
-            type: 'any',
-            value: nodes[1] || { type: 'value', value: '' },
-          },
+          scope: { type: 'block', value: new Block() },
+          current: nodes[1] || { type: 'value', value: '' },
         };
         let parsed = { type: 'nil' };
         try {
@@ -67,7 +61,7 @@ export default (type, create, nodes) => {
         } catch (e) {
           console.log(e.message);
         }
-        return build(create, subContext, parsed).value;
+        return build(create, subContext, parsed);
       }),
     );
   }

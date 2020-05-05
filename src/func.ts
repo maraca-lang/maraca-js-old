@@ -1,29 +1,32 @@
 import assign from './assign';
+import Block from './block';
 import build from './build';
 import { fromJs } from './data';
-import { createStaticBlock } from './static';
 import { streamMap } from './util';
 
 const getStatic = (keys, arg) =>
-  keys.reduce((res, k, i) => {
-    if (!k || !(k.type === 'constant' && k.value.type === 'value')) return res;
-    return { ...res, [k.value.value]: { type: 'map', arg, map: (x) => x[i] } };
-  }, {});
+  keys
+    .map((key, i) => {
+      if (!key || key.type !== 'value') return null;
+      return { key, value: { type: 'map', arg, map: (x) => x[i] } };
+    })
+    .filter((x) => x);
 
 const getCompiled = (create, keys, map, bodyKey, bodyValue) => {
   const trace = {};
-  if (
-    keys
-      .filter((a) => a)
-      .every((a) => a.type === 'constant' && a.value.type !== 'block')
-  ) {
+  if (keys.filter((a) => a).every((a) => a.type === 'value')) {
     const ctx = {
-      scope: createStaticBlock('any', getStatic(keys, trace)),
-      current: createStaticBlock('any'),
+      scope: { type: 'block', value: Block.fromPairs(getStatic(keys, trace)) },
+      current: { type: 'block', value: new Block() },
     };
     const compileBody = (body) => {
       const result = build(create, ctx, body);
-      if (result.type === 'constant') return () => result.value;
+      if (
+        result.type === 'value' ||
+        (result.type === 'block' && !result.value.hasStreams())
+      ) {
+        return () => result;
+      }
       if (result.type === 'map' && result.arg === trace) return result.map;
     };
     if (
@@ -72,35 +75,25 @@ export default (create, context, info, args) => {
   }
 
   const scope = context.scope;
-  const funcMap = (current = createStaticBlock(), key = null) => (
-    create,
-    value,
-  ) => {
+  const funcMap = (
+    current = { type: 'block', value: new Block() },
+    key = null,
+  ) => (create, value) => {
     const argValues = [key, value];
     const ctx = { scope, current };
     args.forEach((k, i) => {
       if (k) {
-        const prev = ctx.scope.value;
-        ctx.scope = {
-          ...ctx.scope,
-          value: create(
-            streamMap((get) =>
-              assign(true, false, false)([prev, argValues[i], k.value], get),
-            ),
+        const prevScope = ctx.scope;
+        ctx.scope = create(
+          streamMap((get) =>
+            assign(true, false, false)([prevScope, argValues[i], k], get),
           ),
-        };
+        );
       }
     });
-    ctx.scope = {
-      ...ctx.scope,
-      static: {
-        ...ctx.scope.static,
-        ...getStatic(args, { type: 'any', value: argValues }),
-      },
-    };
     return [
-      build(create, ctx, info.value).value,
-      info.key === true ? key : info.key && build(create, ctx, info.key).value,
+      build(create, ctx, info.value),
+      info.key === true ? key : info.key && build(create, ctx, info.key),
     ];
   };
   return [info.map ? funcMap : funcMap(), info.map];

@@ -4,21 +4,59 @@ import { combineConfig, combineRun } from './combine';
 import func from './func';
 import maps from './maps';
 import operations from './operations';
-import {
-  createStaticBlock,
-  mergeStatic,
-  staticAssign,
-  staticCombine,
-  staticMerge,
-} from './static';
 import { pushable, streamMap } from './util';
 
-const mergeScope = (create, { scope, current }, newLayer = true) => ({
-  type: 'any',
-  static: staticMerge(scope.static, current.static),
-  value: create(
+const mergeStatic = (create, args, ...maps) => {
+  const map = maps.pop();
+  const configMap = maps.pop();
+  if (
+    args.every(
+      (a) =>
+        a.type === 'value' ||
+        (a.type === 'block' && !a.value.hasStreams()) ||
+        a.type === 'map',
+    )
+  ) {
+    const mapArgs = args.filter((a) => a.type === 'map').map((a) => a.arg);
+    if (mapArgs.length === 0) {
+      return map(configMap ? configMap(args, (x) => x) : args, (x) => x);
+    }
+    if (mapArgs.every((a) => a === mapArgs[0])) {
+      return {
+        type: 'map',
+        arg: mapArgs[0],
+        map: (x, get) => {
+          const mapped = args.map((a) =>
+            a.type === 'map' ? a.map(x, get) : a,
+          );
+          return map(configMap ? configMap(mapped, get) : mapped, get);
+        },
+      };
+    }
+  }
+  return create((set, get, create) => {
+    let result;
+    let prev = [];
+    return () => {
+      const next = configMap ? configMap(args, get) : args;
+      if (
+        !configMap ||
+        prev.length !== next.length ||
+        prev.some((x, i) => x !== next[i])
+      ) {
+        if (result && result.type === 'stream') result.value.cancel();
+        result = map(next, get, create);
+        set(result);
+        prev = next;
+      }
+    };
+  });
+};
+
+const mergeScope = (create, { scope, current }, newLayer = true) =>
+  create(
     streamMap((get) => {
-      const [s, c] = [get(scope.value), get(current.value)];
+      const [s, c] = [get(scope), get(current)];
       if (c.type === 'value') return newLayer ? s : c;
       return {
         type: 'block',
@@ -28,8 +66,7 @@ const mergeScope = (create, { scope, current }, newLayer = true) => ({
         ]),
       };
     }),
-  ),
-});
+  );
 
 const build = (
   create,
@@ -64,10 +101,10 @@ const build = (
   }
 
   if (type === 'nil' || (type === 'value' && !info.value) || type === 'error') {
-    return { type: 'constant', value: { type: 'value', value: '' } };
+    return { type: 'value', value: '' };
   }
   if (type === 'value') {
-    return { type: 'constant', value: { type: 'value', value: info.value } };
+    return { type: 'value', value: info.value };
   }
   if (type === 'context') {
     return mergeScope(create, context, false);
@@ -76,7 +113,7 @@ const build = (
   if (type === 'block') {
     const ctx = {
       scope: mergeScope(create, context),
-      current: createStaticBlock(),
+      current: { type: 'block', value: new Block() },
     };
     nodes.forEach((n) => {
       build(create, ctx, {
@@ -115,7 +152,7 @@ const build = (
     ) {
       const ctx = {
         scope: mergeScope(create, context),
-        current: createStaticBlock(),
+        current: { type: 'block', value: new Block() },
       };
       const compiled = block.nodes.map((n) => build(create, ctx, n));
       const orBlock = value.info.value === '1';
@@ -131,10 +168,8 @@ const build = (
   }
 
   if (type === 'combine') {
-    return args.reduce(
-      (a1, a2) =>
-        staticCombine(a1, a2) ||
-        mergeStatic(create, [a1, a2], combineConfig, combineRun),
+    return args.reduce((a1, a2) =>
+      mergeStatic(create, [a1, a2], combineConfig, combineRun),
     );
   }
 
@@ -149,24 +184,16 @@ const build = (
   }
 
   if (type === 'assign') {
-    if (!(info.append && args[0].type === 'constant' && !args[0].value.value)) {
-      const assignArgs = [...args].filter((x) => x);
-      if (info.pushable) {
-        assignArgs[0] = {
-          type: 'any',
-          value: create(pushable(assignArgs[0].value)),
-        };
-      }
-      const allArgs = [context.current, ...assignArgs];
-      const stat = staticAssign(allArgs, info.append);
+    if (!(info.append && args[0].type === 'value' && !args[0].value)) {
+      const assignArgs = [context.current, ...[...args].filter((x) => x)];
+      if (info.pushable) assignArgs[1] = create(pushable(assignArgs[1]));
       context.current = mergeStatic(
         create,
-        allArgs,
+        assignArgs,
         assign(true, false, info.append),
       );
-      context.current.static = stat;
     }
-    return { type: 'constant', value: { type: 'value', value: '' } };
+    return { type: 'value', value: '' };
   }
 
   if (type === 'func') {
@@ -180,31 +207,20 @@ const build = (
           value: get(c).value.setFunc(get(v)),
         }),
       );
-      return { type: 'constant', value: { type: 'value', value: '' } };
+      return { type: 'value', value: '' };
     }
     const funcArgs = func(create, context, info, args);
-    const current = context.current.value;
-    context.current = {
-      type: 'any',
-      static: context.current.static,
-      value: create(
-        streamMap((get) => ({
-          type: 'block',
-          value: get(current).value.setFunc(...funcArgs),
-        })),
-      ),
-    };
-    return { type: 'constant', value: { type: 'value', value: '' } };
+    const prevCurrent = context.current;
+    context.current = create(
+      streamMap((get) => ({
+        type: 'block',
+        value: get(prevCurrent).value.setFunc(...funcArgs),
+      })),
+    );
+    return { type: 'value', value: '' };
   }
 
-  return {
-    type: 'any',
-    value: operations(
-      type,
-      create,
-      args.map((a) => a.value),
-    ),
-  };
+  return operations(type, create, args);
 };
 
 export default build;

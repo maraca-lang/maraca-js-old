@@ -4,7 +4,6 @@ import { fromJs } from './data';
 import parse from './parse';
 import process from './streams';
 import { Data, Source, StreamData } from './typings';
-import { createStaticBlock } from './static';
 import { streamMap } from './util';
 
 export { default as Block } from './block';
@@ -20,6 +19,7 @@ const hasStream = (data) =>
     .toPairs()
     .some(
       (x) =>
+        x.value.type === 'map' ||
         x.value.type === 'stream' ||
         (x.value.type === 'block' && hasStream(x.value)),
     );
@@ -27,30 +27,31 @@ const wrapCreate = (create) => (run, ...args) =>
   ({
     type: 'stream',
     value: create((set, get, create) => {
-      const resolve = (data, snapshot) => {
+      const resolve = (data, get) => {
         const d = data || nilValue;
-        if (d.type === 'stream') {
-          return resolve(get(d.value, snapshot), snapshot);
-        }
+        if (d.type === 'map') return resolve(d.map(d.arg, get), get);
+        if (d.type === 'stream') return resolve(get(d.value), get);
         return d;
       };
-      const resolveDeep = (data, snapshot) =>
+      const resolveDeep = (data, get) =>
         get(
           create((set, get) => {
             const map = (d) => {
               const d2 = d || nilValue;
-              if (d2.type === 'stream') return map(get(d2.value, snapshot));
+              if (d2.type === 'map') return map(d2.map(d2.arg, get));
+              if (d2.type === 'stream') return map(get(d2.value));
               if (d2.type !== 'block' || !hasStream(d2)) return d2;
               return { ...d2, value: d2.value.map((v) => map(v)) };
             };
             return () => set(map(data));
           }),
-          snapshot,
         );
       return run(
         set,
         (data, deep, snapshot) =>
-          deep ? resolveDeep(data, snapshot) : resolve(data, snapshot),
+          deep
+            ? resolveDeep(data, (x) => get(x, snapshot))
+            : resolve(data, (x) => get(x, snapshot)),
         wrapCreate(create),
       );
     }, ...args),
@@ -69,13 +70,13 @@ const buildModuleLayer = (create, modules, getScope, path) =>
                 build(
                   create,
                   {
-                    scope: { type: 'any', value: getScope(path) },
-                    current: createStaticBlock(),
+                    scope: getScope(path),
+                    current: { type: 'block', value: new Block() },
                   },
                   typeof modules[k] === 'string'
                     ? parse(modules[k])
                     : modules[k],
-                ).value,
+                ),
               ),
             )
           : buildModuleLayer(create, modules[k], getScope, [...path, k]),

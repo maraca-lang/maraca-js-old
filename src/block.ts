@@ -37,6 +37,10 @@ export default class Block {
     return result;
   }
 
+  hasStreams() {
+    return true;
+  }
+
   toPairs() {
     if (Object.keys(this.values).length === this.indices.length) {
       return this.indices.map((i) => this.values[i]);
