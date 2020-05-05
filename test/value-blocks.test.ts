@@ -12,11 +12,11 @@ test('or', () => {
   expect(maraca('{10}')).toEqual({ type: 'value', value: '10' });
   expect(maraca('{1, 2, 3}')).toEqual({ type: 'value', value: '1' });
   expect(maraca("{'', a}")).toEqual({ type: 'value', value: 'a' });
-  expect(maraca('{x: 2, y: 3, x? * y?}')).toEqual({
+  expect(maraca('{x: 2, y: 3, @x * @y}')).toEqual({
     type: 'value',
     value: '6',
   });
-  expect(maraca('{x: 1, x?}')).toEqual({
+  expect(maraca('{x: 1, @x}')).toEqual({
     type: 'value',
     value: '1',
   });

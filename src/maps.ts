@@ -67,4 +67,10 @@ export default {
     },
     deepArgs: [true],
   },
+  '': ([a, b], space) => {
+    if (a.type === 'block' || b.type === 'block') return fromJs(null);
+    const hasSpace =
+      space && a.value && /\S$/.test(a.value) && b.value && /^\S/.test(b.value);
+    return fromJs(`${a.value}${hasSpace ? ' ' : ''}${b.value}`);
+  },
 };

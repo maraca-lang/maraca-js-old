@@ -1,34 +1,7 @@
-import maraca from '../src/index';
-import Block from '../src/block';
+import maraca from '../../src/index';
+import Block from '../../src/block';
 
-test('nil', () => {
-  expect(maraca('')).toEqual({ type: 'value', value: '' });
-  expect(maraca("''")).toEqual({ type: 'value', value: '' });
-});
-
-test('values', () => {
-  expect(maraca('1')).toEqual({ type: 'value', value: '1' });
-  expect(maraca('abc')).toEqual({ type: 'value', value: 'abc' });
-  expect(maraca('5.8')).toEqual({ type: 'value', value: '5.8' });
-});
-
-test('special chars', () => {
-  expect(maraca('\\@')).toEqual({ type: 'value', value: '@' });
-  expect(maraca('_')).toEqual({ type: 'value', value: ' ' });
-});
-
-test('quotes', () => {
-  expect(maraca("'Hello \\'world\\'!'")).toEqual({
-    type: 'value',
-    value: "Hello 'world'!",
-  });
-  expect(maraca("'A\nB\nC'")).toEqual({
-    type: 'value',
-    value: 'A\nB\nC',
-  });
-});
-
-test('blocks', () => {
+test('basic', () => {
   expect(maraca('[hello, world]')).toEqual({
     type: 'block',
     value: Block.fromPairs([
@@ -70,7 +43,7 @@ test('blocks', () => {
   });
 });
 
-test('block nils ignored', () => {
+test('nils ignored', () => {
   expect(maraca('[a, , b]')).toEqual({
     type: 'block',
     value: Block.fromPairs([
@@ -86,7 +59,7 @@ test('block nils ignored', () => {
   });
 });
 
-test('nest blocks', () => {
+test('nested', () => {
   expect(maraca('[y: [a, b]]')).toEqual({
     type: 'block',
     value: Block.fromPairs([
@@ -131,7 +104,7 @@ test('nest blocks', () => {
   });
 });
 
-test('block sort', () => {
+test('sort', () => {
   expect(
     (maraca('[: 1, 2, 3, w: 4, x: 5, [y]: 6, [z]: 7]').value as any)
       .toPairs()
@@ -145,7 +118,7 @@ test('block sort', () => {
   ).toEqual(['1', '2', '3', '4', '5']);
 });
 
-test('block assign shorthand', () => {
+test('assign shorthand', () => {
   expect(maraca('[item:=]')).toEqual({
     type: 'block',
     value: Block.fromPairs([

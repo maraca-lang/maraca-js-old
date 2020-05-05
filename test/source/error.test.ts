@@ -1,5 +1,5 @@
-import maraca from '../src/index';
-import Block from '../src/block';
+import maraca from '../../src/index';
+import Block from '../../src/block';
 
 test('basic', () => {
   expect(maraca('   10 +    ')).toEqual({ type: 'value', value: '' });

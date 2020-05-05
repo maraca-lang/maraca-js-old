@@ -26,8 +26,7 @@ const grammar = `Maraca {
     | Exp? "=>" Exp? -- func
 
   Set
-    = Exp ":=?" -- context
-    | Exp ":=" -- value
+    = Exp ":=" -- value
     | Exp? ":~" Exp? -- push
     | Exp? ":" Exp? -- set
 
@@ -63,30 +62,40 @@ const grammar = `Maraca {
     | Pow
 
   Pow
-    = Pow "^" Sep -- pow
-    | Sep
+    = Pow "^" Comb3 -- pow
+    | Comb3
   
-  Sep
-    = Sep "." Size -- sep
+  Comb3
+    = Comb3 "..." Comb2 -- comb
+    | Comb2
+
+  Comb2
+    = Comb2 ".." Comb1 -- comb
+    | Comb1
+  
+  Comb1
+    = Comb1 "." Size -- comb
     | Size
   
   Size
-    = "#" Comb -- size
-    | Comb
+    = "#" Get -- size
+    | Get
 
-  Comb
-    = Comb Atom -- comb
+  Get
+    = "@" Join -- get
+    | Join
+
+  Join
+    = Join Atom -- join
     | Atom
 
   Atom
     = value
     | "_" -- space
-    | "?" -- context
     | "￿" digit+ "￿X" -- placeholder
 
   value
     = "\\\\" any -- char
-    | digit+ "." digit+ -- number
     | alnum+ -- value
     | "'" (char | escape)* "'" -- string
 
@@ -136,6 +145,18 @@ export default () => {
     start: getIndex(arg1.source.startIdx),
     end: getIndex(arg2.source.endIdx),
   });
+  const combAst = (level, arg1, arg2) => ({
+    type: 'combine',
+    nodes: [
+      ...(arg1.ast.type === 'combine' && arg1.ast.info.level === level
+        ? arg1.ast.nodes
+        : [arg1.ast]),
+      arg2.ast,
+    ],
+    info: { level },
+    start: getIndex(arg1.source.startIdx),
+    end: getIndex(arg2.source.endIdx),
+  });
 
   s.addAttribute('ast', {
     Main: (a) => a.ast,
@@ -147,13 +168,6 @@ export default () => {
     Func_func: (a, _, b) =>
       funcAst(null, a.ast[0], null, b.ast[0], false, a, b),
 
-    Set_context: (a, _) =>
-      assignAst(
-        { type: 'combine', nodes: [a.ast, { type: 'context' }] },
-        a.ast,
-        a,
-        _,
-      ),
     Set_value: (a, _) => assignAst(a.ast, a.ast, a, _),
     Set_push: (a, _, b) => assignAst(b.ast[0], a.ast[0], a, b, true),
     Set_set: (a, _, b) => assignAst(b.ast[0], a.ast[0], a, b),
@@ -211,17 +225,12 @@ export default () => {
     Pow_pow: mapAst,
     Pow: (a) => a.ast,
 
-    Sep_sep: (a, _, b) => ({
-      type: 'combine',
-      nodes: [
-        ...(a.ast.type === 'combine' && a.ast.info.dot ? a.ast.nodes : [a.ast]),
-        b.ast,
-      ],
-      info: { dot: true },
-      start: getIndex(a.source.startIdx),
-      end: getIndex(b.source.endIdx),
-    }),
-    Sep: (a) => a.ast,
+    Comb3_comb: (a, _, b) => combAst(3, a, b),
+    Comb3: (a) => a.ast,
+    Comb2_comb: (a, _, b) => combAst(2, a, b),
+    Comb2: (a) => a.ast,
+    Comb1_comb: (a, _, b) => combAst(1, a, b),
+    Comb1: (a) => a.ast,
 
     Size_size: (a, b) => ({
       type: 'map',
@@ -232,11 +241,15 @@ export default () => {
     }),
     Size: (a) => a.ast,
 
-    Comb_comb: (a, b) => {
-      const nodes = [
-        ...(a.ast.type === 'combine' ? a.ast.nodes : [a.ast]),
-        b.ast,
-      ];
+    Get_get: (_, a) => ({
+      type: 'get',
+      nodes: [a.ast],
+      start: getIndex(_.source.startIdx),
+      end: getIndex(a.source.endIdx),
+    }),
+
+    Join_join: (a, b) => {
+      const nodes = [...(a.ast.type === 'join' ? a.ast.nodes : [a.ast]), b.ast];
       const [x, y] = nodes.slice(-2);
       const space =
         a.source.endIdx !== b.source.startIdx &&
@@ -247,25 +260,20 @@ export default () => {
           ? !b.ast.info.value || /^\S/.test(b.ast.info.value)
           : true);
       return {
-        type: 'combine',
+        type: 'join',
         nodes,
         info: {
-          space: [...(a.ast.type === 'combine' ? a.ast.info.space : []), space],
+          space: [...(a.ast.type === 'join' ? a.ast.info.space : []), space],
         },
         start: getIndex(a.source.startIdx),
         end: getIndex(b.source.endIdx),
       };
     },
-    Comb: (a) => a.ast,
+    Join: (a) => a.ast,
 
     Atom_space: (a) => ({
       type: 'value',
       info: { value: ' ' },
-      start: getIndex(a.source.startIdx),
-      end: getIndex(a.source.endIdx),
-    }),
-    Atom_context: (a) => ({
-      type: 'context',
       start: getIndex(a.source.startIdx),
       end: getIndex(a.source.endIdx),
     }),
@@ -277,12 +285,6 @@ export default () => {
       info: { value: /\s/.test(a.sourceString) ? '\n' : a.sourceString },
       start: getIndex(_.source.startIdx),
       end: getIndex(a.source.endIdx),
-    }),
-    value_number: (a, _, b) => ({
-      type: 'value',
-      info: { value: `${a.sourceString}.${b.sourceString}` },
-      start: getIndex(a.source.startIdx),
-      end: getIndex(b.source.endIdx),
     }),
     value_value: (a) => ({
       type: 'value',

@@ -1,17 +1,6 @@
 import assign from './assign';
 import Block from './block';
-import { fromJs } from './data';
 import { streamMap } from './util';
-
-const joinValues = (v1, v2, space) => {
-  const hasSpace =
-    space &&
-    v1.value &&
-    /\S$/.test(v1.value) &&
-    v2.value &&
-    /^\S/.test(v2.value);
-  return fromJs(`${v1.value || ''}${hasSpace ? ' ' : ''}${v2.value || ''}`);
-};
 
 const sortTypes = (v1, v2) => {
   if (v2.type === 'value') return [v1, v2];
@@ -21,12 +10,9 @@ const sortTypes = (v1, v2) => {
   return [null, null];
 };
 
-export const combineConfig = (dot, space) => ([s1, s2]: any[], get) => {
+export const combineConfig = ([s1, s2]: any[], get) => {
   const [v1, v2] = [get(s1), get(s2)];
-  if (v1.type === 'value' && v2.type === 'value') {
-    if (dot && (!v1.value || !v2.value)) return ['nil'];
-    return ['join', joinValues(v1, v2, space)];
-  }
+  if (v1.type === 'value' && v2.type === 'value') return ['nil'];
   const [big, small] = sortTypes(v1, v2);
   if (big === null && small === null) return ['nil'];
   const func = big.value.getFunc();

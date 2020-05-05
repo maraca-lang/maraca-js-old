@@ -1,7 +1,7 @@
-import maraca from '../src/index';
-import Block from '../src/block';
-import { fromJs } from '../src/data';
-import { streamMap } from '../src/util';
+import maraca from '../../src/index';
+import Block from '../../src/block';
+import { fromJs } from '../../src/data';
+import { streamMap } from '../../src/util';
 
 const library = {
   size: (set) =>
@@ -36,12 +36,12 @@ const testStream = (code, values, done) => {
 };
 
 test('lib', (done) => {
-  expect(maraca({ '': 'size?.[1, 2, 3]', ...library })).toEqual({
+  expect(maraca({ '': '@size.[1, 2, 3]', ...library })).toEqual({
     type: 'value',
     value: '3',
   });
   testStream(
-    'tick?',
+    '@tick',
     [
       { type: 'value', value: '1' },
       { type: 'value', value: '2' },
@@ -52,7 +52,7 @@ test('lib', (done) => {
 
 test('trigger', (done) => {
   testStream(
-    'tick? | 10',
+    '@tick | 10',
     [
       { type: 'value', value: '10' },
       { type: 'value', value: '10' },
@@ -63,7 +63,7 @@ test('trigger', (done) => {
 
 test('push', (done) => {
   testStream(
-    '[x:~ 10, tick? | x? + 10 -> x?].x',
+    '[x:~ 10, @tick | @x + 10 -> @x].x',
     [
       { type: 'value', value: '10', push: expect.any(Function) },
       { type: 'value', value: '20', push: expect.any(Function) },
@@ -74,7 +74,7 @@ test('push', (done) => {
 
 test('push block', (done) => {
   testStream(
-    '[x:~ [a], tick? | [: x?, a] -> x?].x',
+    '[x:~ [a], @tick | [: @x, a] -> @x].x',
     [
       {
         type: 'block',

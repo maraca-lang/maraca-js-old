@@ -39,20 +39,27 @@ const build = (
   if (type === 'block' && !['[', '<'].includes(info.bracket)) {
     return build(create, context, {
       type: 'combine',
-      info: { dot: true },
       nodes: [
         {
           type: 'value',
           info: {
             value: `${
               info.bracket === '('
-                ? nodes.filter((n) => n.type !== 'func').length
+                ? nodes.filter(
+                    (n) => !['func', 'assign', 'push', 'nil'].includes(n.type),
+                  ).length
                 : 1
             }`,
           },
         },
         { type: 'block', info: { bracket: '[' }, nodes },
       ],
+    });
+  }
+  if (type === 'get') {
+    return build(create, context, {
+      type: 'combine',
+      nodes: [{ type: 'context' }, nodes[0]],
     });
   }
 
@@ -82,6 +89,17 @@ const build = (
   }
 
   const args = nodes.map((n) => n && build(create, context, n));
+
+  if (type === 'join') {
+    return args.reduce((a1, a2, i) =>
+      mergeStatic(create, [a1, a2], (args, get) =>
+        maps[''](
+          args.map((a) => get(a)),
+          info.space[i - 1],
+        ),
+      ),
+    );
+  }
 
   if (
     type === 'combine' &&
@@ -114,14 +132,9 @@ const build = (
 
   if (type === 'combine') {
     return args.reduce(
-      (a1, a2, i) =>
+      (a1, a2) =>
         staticCombine(a1, a2) ||
-        mergeStatic(
-          create,
-          [a1, a2],
-          combineConfig(info.dot, info.space && info.space[i - 1]),
-          combineRun,
-        ),
+        mergeStatic(create, [a1, a2], combineConfig, combineRun),
     );
   }
 

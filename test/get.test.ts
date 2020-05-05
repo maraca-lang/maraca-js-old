@@ -2,7 +2,7 @@ import maraca from '../src/index';
 import Block from '../src/block';
 
 test('basic', () => {
-  expect(maraca('[x: a, y: x?]')).toEqual({
+  expect(maraca('[x: a, y: @x]')).toEqual({
     type: 'block',
     value: Block.fromPairs([
       {
@@ -18,7 +18,7 @@ test('basic', () => {
 });
 
 test('order', () => {
-  expect(maraca('[x: a, y: z?, z: b]')).toEqual({
+  expect(maraca('[x: a, y: @z, z: b]')).toEqual({
     type: 'block',
     value: Block.fromPairs([
       {
@@ -38,7 +38,7 @@ test('order', () => {
 });
 
 test('nested', () => {
-  expect(maraca('[x: a, y: [x?]]')).toEqual({
+  expect(maraca('[x: a, y: [@x]]')).toEqual({
     type: 'block',
     value: Block.fromPairs([
       {
@@ -59,7 +59,7 @@ test('nested', () => {
       },
     ] as any),
   });
-  expect(maraca('[a, [1?]]')).toEqual({
+  expect(maraca('[a, [@1]]')).toEqual({
     type: 'block',
     value: Block.fromPairs([
       {
@@ -72,7 +72,7 @@ test('nested', () => {
       },
     ] as any),
   });
-  expect(maraca('[[x: a], x?]')).toEqual({
+  expect(maraca('[[x: a], @x]')).toEqual({
     type: 'block',
     value: Block.fromPairs([
       {
@@ -83,30 +83,6 @@ test('nested', () => {
             {
               key: { type: 'value', value: 'x' },
               value: { type: 'value', value: 'a' },
-            },
-          ] as any),
-        },
-      },
-    ] as any),
-  });
-});
-
-test('shorthand', () => {
-  expect(maraca('[x: 1, y: [x:=?]]')).toEqual({
-    type: 'block',
-    value: Block.fromPairs([
-      {
-        key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: '1' },
-      },
-      {
-        key: { type: 'value', value: 'y' },
-        value: {
-          type: 'block',
-          value: Block.fromPairs([
-            {
-              key: { type: 'value', value: 'x' },
-              value: { type: 'value', value: '1' },
             },
           ] as any),
         },
