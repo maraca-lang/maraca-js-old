@@ -1,5 +1,5 @@
-import assign from './assign';
 import Block from './block';
+import set from './set';
 import { streamMap } from './util';
 
 const sortTypes = (v1, v2) => {
@@ -63,9 +63,7 @@ export const combineRun = ([type, ...config], get, create) => {
       const map = func(res, key);
       const [newValue, newKey] = map(create, value);
       return create(
-        streamMap((get) =>
-          assign(false, false, false)([res, newValue, newKey], get),
-        ),
+        streamMap((get) => set(false, false)([res, newValue, newKey], get)),
       );
     },
     { type: 'block', value: big.value.cloneValues() },

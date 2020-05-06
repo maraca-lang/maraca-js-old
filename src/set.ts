@@ -1,9 +1,4 @@
-const assign = (setNil, noDestructure, append) => ([l, v, k]: any[], get) => {
-  if (!k && append) {
-    const value = get(v);
-    if (!value.value) return l;
-    return { type: 'block', value: get(l).value.append(value) };
-  }
+const set = (setNil, noDestructure) => ([l, v, k]: any[], get) => {
   if (!setNil) {
     const value = get(v);
     if (!value.value) return l;
@@ -23,16 +18,14 @@ const assign = (setNil, noDestructure, append) => ([l, v, k]: any[], get) => {
         funcDefault,
       );
       const result = values.reduce(
-        (res, v, i) =>
-          assign(true, false, false)([res, v, keyPairs[i].value], get),
+        (res, v, i) => set(true, false)([res, v, keyPairs[i].value], get),
         l,
       );
       if (!funcDefault) return result;
-      return assign(
-        true,
-        true,
-        false,
-      )([result, { type: 'block', value: rest }, funcDefault], get);
+      return set(true, true)(
+        [result, { type: 'block', value: rest }, funcDefault],
+        get,
+      );
     }
   }
   return {
@@ -41,4 +34,4 @@ const assign = (setNil, noDestructure, append) => ([l, v, k]: any[], get) => {
   };
 };
 
-export default assign;
+export default set;

@@ -14,11 +14,6 @@ export const sortMultiple = <T = any>(
     0,
   ) as -1 | 0 | 1;
 
-export const pushable = (arg) => (set, get) => {
-  const push = (v) => set({ ...v, push });
-  return () => set({ push, ...get(arg) });
-};
-
 export const streamMap = (map) => (set, get, create) => {
   let result;
   return () => {

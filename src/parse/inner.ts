@@ -131,8 +131,8 @@ export default () => {
     start: getIndex(first.source.startIdx),
     end: getIndex(last.source.endIdx),
   });
-  const assignAst = (value, key, first, last, pushable = false) => ({
-    type: 'assign',
+  const setAst = (value, key, first, last, pushable = false) => ({
+    type: 'set',
     nodes: [value || { type: 'nil' }, key],
     info: { pushable },
     start: getIndex(first.source.startIdx),
@@ -168,9 +168,9 @@ export default () => {
     Func_func: (a, _, b) =>
       funcAst(null, a.ast[0], null, b.ast[0], false, a, b),
 
-    Set_value: (a, _) => assignAst(a.ast, a.ast, a, _),
-    Set_push: (a, _, b) => assignAst(b.ast[0], a.ast[0], a, b, true),
-    Set_set: (a, _, b) => assignAst(b.ast[0], a.ast[0], a, b),
+    Set_value: (a, _) => setAst(a.ast, a.ast, a, _),
+    Set_push: (a, _, b) => setAst(b.ast[0], a.ast[0], a, b, true),
+    Set_set: (a, _, b) => setAst(b.ast[0], a.ast[0], a, b),
 
     Push_push: (a, _, b) => ({
       type: 'push',

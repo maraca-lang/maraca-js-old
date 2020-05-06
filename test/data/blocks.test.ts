@@ -118,7 +118,7 @@ test('sort', () => {
   ).toEqual(['1', '2', '3', '4', '5']);
 });
 
-test('assign shorthand', () => {
+test('set shorthand', () => {
   expect(maraca('[item:=]')).toEqual({
     type: 'block',
     value: Block.fromPairs([

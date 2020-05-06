@@ -1,7 +1,7 @@
-import assign from './assign';
 import Block from './block';
 import build from './build';
 import { fromJs } from './data';
+import set from './set';
 import { streamMap } from './util';
 
 const getStatic = (keys, arg) =>
@@ -86,7 +86,7 @@ export default (create, context, info, args) => {
         const prevScope = ctx.scope;
         ctx.scope = create(
           streamMap((get) =>
-            assign(true, false, false)([prevScope, argValues[i], k], get),
+            set(true, false)([prevScope, argValues[i], k], get),
           ),
         );
       }
