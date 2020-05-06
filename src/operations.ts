@@ -51,9 +51,11 @@ export default (type, create, nodes) => {
     return create(
       streamMap((get, create) => {
         const code = get(nodes[0]);
+        const arg = get(nodes[1]);
         const subContext = {
           scope: { type: 'block', value: new Block() },
-          current: nodes[1] || { type: 'value', value: '' },
+          current:
+            arg.type === 'block' ? arg : { type: 'block', value: new Block() },
         };
         let parsed = { type: 'nil' };
         try {

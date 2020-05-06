@@ -53,20 +53,21 @@ const mergeStatic = (create, args, ...maps) => {
   });
 };
 
-const mergeScope = (create, { scope, current }, newLayer = true) =>
-  create(
-    streamMap((get) => {
-      const [s, c] = [get(scope), get(current)];
-      if (c.type === 'value') return newLayer ? s : c;
-      return {
-        type: 'block',
-        value: Block.fromPairs([
-          ...s.value.toPairs(),
-          ...(newLayer ? c.value.clearIndices() : c.value).toPairs(),
-        ]),
-      };
-    }),
+const mergeScopeBase = (scope, current, newLayer) => ({
+  type: 'block',
+  value: Block.fromPairs([
+    ...scope.value.toPairs(),
+    ...(newLayer ? current.value.clearIndices() : current.value).toPairs(),
+  ]),
+});
+const mergeScope = (create, { scope, current }, newLayer) => {
+  if (scope.type === 'block' && current.type === 'block') {
+    return mergeScopeBase(scope, current, newLayer);
+  }
+  return create(
+    streamMap((get) => mergeScopeBase(get(scope), get(current), newLayer)),
   );
+};
 
 const build = (
   create,
@@ -112,7 +113,7 @@ const build = (
 
   if (type === 'block') {
     const ctx = {
-      scope: mergeScope(create, context),
+      scope: mergeScope(create, context, true),
       current: { type: 'block', value: new Block() },
     };
     nodes.forEach((n) => {
@@ -151,7 +152,7 @@ const build = (
       (value.info.value === '1' || value.info.value === `${block.nodes.length}`)
     ) {
       const ctx = {
-        scope: mergeScope(create, context),
+        scope: mergeScope(create, context, true),
         current: { type: 'block', value: new Block() },
       };
       const compiled = block.nodes.map((n) => build(create, ctx, n));

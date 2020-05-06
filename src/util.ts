@@ -27,3 +27,26 @@ export const streamMap = (map) => (set, get, create) => {
     set(result);
   };
 };
+
+const hasStream = (data) =>
+  data.value
+    .toPairs()
+    .some(
+      (x) =>
+        x.value.type === 'map' ||
+        x.value.type === 'stream' ||
+        (x.value.type === 'block' && hasStream(x.value)),
+    );
+
+const nilValue = { type: 'value', value: '' };
+const resolveSingle = (data, get) => {
+  const d = data || nilValue;
+  if (d.type === 'map') return resolveSingle(d.map(d.arg, get), get);
+  if (d.type === 'stream') return resolveSingle(get(d.value), get);
+  return d;
+};
+export const resolve = (d, get, deep) => {
+  const v = resolveSingle(d, get);
+  if (!deep || v.type === 'value' || !hasStream(v)) return v;
+  return { ...v, value: v.value.map((x) => resolve(x, get, deep)) };
+};

@@ -111,4 +111,5 @@ test('maps', () => {
 test('eval', () => {
   expect(maraca(">>'1 + 1'")).toEqual({ type: 'value', value: '2' });
   expect(maraca("[x: 10]>>'@x + 1'")).toEqual({ type: 'value', value: '11' });
+  expect(maraca("1>>'@x + 1'")).toEqual({ type: 'value', value: '' });
 });
