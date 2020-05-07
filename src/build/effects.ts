@@ -1,9 +1,10 @@
-import Block from './block';
-import build from './build';
-import func from './func';
-import set from './set';
+import Block from '../block';
+import func from '../func';
+import set from '../set';
+import { streamMap } from '../util';
+
+import build from './index';
 import mergeStatic from './static';
-import { streamMap } from './util';
 
 const pushable = (arg) => (set, get) => {
   const push = (v) => set({ ...v, push });
