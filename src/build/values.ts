@@ -46,20 +46,20 @@ export default (create, type, info, args) => {
   if (type === 'eval') {
     return create(
       streamMap((get, create) => {
-        const code = get(args[0]);
-        const arg = get(args[1]);
-        const subContext = {
-          scope: { type: 'block', value: new Block() },
-          current:
-            arg.type === 'block' ? arg : { type: 'block', value: new Block() },
-        };
-        let parsed = { type: 'nil' };
         try {
-          parsed = parse(code.type === 'value' ? code.value : '');
+          const code = get(args[0]);
+          const arg = get(args[1]);
+          const newScope = { type: 'block', value: new Block() };
+          return build(
+            create,
+            () => newScope,
+            arg.type === 'block' ? arg : { type: 'block', value: new Block() },
+            parse(code.type === 'value' ? code.value : ''),
+          );
         } catch (e) {
           console.log(e.message);
+          return { type: 'value', value: '' };
         }
-        return build(create, subContext, parsed);
       }),
     );
   }

@@ -37,7 +37,7 @@ const runGet = (get, create, func, v, arg) => {
 const wrapStream = (create, x) =>
   x.type === 'stream' ? create(streamMap((get) => get(x))) : x;
 
-export const combineRun = ([type, ...config], get, create) => {
+export const combineRun = ([type, ...config]: any[], get, create) => {
   if (type === 'nil') return { type: 'value', value: '' };
   if (type === 'join') return config[0];
   if (type === 'get') {

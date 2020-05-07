@@ -16,7 +16,7 @@ const mergeScopeBase = (scope, current, clearIndices) => {
     value: clearIndices ? result.clearIndices() : result,
   };
 };
-const mergeScope = (create, { scope, current }, clearIndices) => {
+const mergeScope = (create, scope, current, clearIndices) => {
   if (scope.type === 'block' && current.type === 'block') {
     return mergeScopeBase(scope, current, clearIndices);
   }
@@ -27,11 +27,12 @@ const mergeScope = (create, { scope, current }, clearIndices) => {
 
 const build = (
   create,
-  context,
+  getScope,
+  current,
   { type, info = {} as any, nodes = [] as any[] },
 ) => {
   if (type === 'block' && !['[', '<'].includes(info.bracket)) {
-    return build(create, context, {
+    return build(create, getScope, current, {
       type: 'combine',
       nodes: [
         {
@@ -51,17 +52,15 @@ const build = (
     });
   }
   if (type === 'block') {
-    const ctx = {
-      scope: mergeScope(create, context, true),
-      current: { type: 'block', value: new Block() },
-    };
+    const newScope = mergeScope(create, getScope(), current, true);
+    let newBlock = { type: 'block', value: new Block() };
     nodes.forEach((n) => {
       if (['func', 'set', 'push'].includes(n.type)) {
-        ctx.current = buildEffect(create, ctx, n);
+        newBlock = buildEffect(create, () => newScope, newBlock, n);
       } else {
-        ctx.current = mergeStatic(
+        newBlock = mergeStatic(
           create,
-          [ctx.current, build(create, ctx, n)],
+          [newBlock, build(create, () => newScope, newBlock, n)],
           ([l, v], get) => {
             const value = get(v);
             if (!value.value) return l;
@@ -70,15 +69,24 @@ const build = (
         );
       }
     });
-    return ctx.current;
+    return newBlock;
   }
 
   if (type === 'get') {
-    return mergeStatic(
-      create,
-      [mergeScope(create, context, false), build(create, context, nodes[0])],
-      combineConfig,
-      combineRun,
+    return create(
+      streamMap((get, create) =>
+        combineRun(
+          combineConfig(
+            [
+              mergeScope(create, getScope(), current, false),
+              build(create, getScope, current, nodes[0]),
+            ],
+            get,
+          ),
+          get,
+          create,
+        ),
+      ),
     );
   }
 
@@ -86,7 +94,7 @@ const build = (
     create,
     type,
     info,
-    nodes.map((n) => n && build(create, context, n)),
+    nodes.map((n) => n && build(create, getScope, current, n)),
   );
 };
 

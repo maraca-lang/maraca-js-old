@@ -29,40 +29,39 @@ const snapshot = (create, { push, ...value }) => {
 
 export default (
   create,
-  context,
+  getScope,
+  newBlock,
   { type, info = {} as any, nodes = [] as any[] },
 ) => {
-  const args = nodes.map((n) => n && build(create, context, n));
+  const args = nodes.map((n) => n && build(create, getScope, newBlock, n));
 
   if (type === 'func') {
     if (args.every((a) => !a) && !info.map) {
-      const value = build(create, context, info.value);
-      return mergeStatic(create, [context.current, value], ([c, v], get) => ({
+      const value = build(create, getScope, newBlock, info.value);
+      return mergeStatic(create, [newBlock, value], ([c, v], get) => ({
         type: 'block',
         value: get(c).value.setFunc(get(v)),
       }));
     }
-    const funcArgs = func(create, context, info, args);
-    const prevCurrent = context.current;
+    const funcArgs = func(create, getScope, info, args);
     return create(
       streamMap((get) => ({
         type: 'block',
-        value: get(prevCurrent).value.setFunc(...funcArgs),
+        value: get(newBlock).value.setFunc(...funcArgs),
       })),
     );
   }
 
   if (type === 'set') {
-    const assignArgs = [context.current, ...[...args].filter((x) => x)];
+    const assignArgs = [newBlock, ...[...args].filter((x) => x)];
     if (info.pushable) assignArgs[1] = create(pushable(assignArgs[1]));
     return mergeStatic(create, assignArgs, set(true, false));
   }
 
   if (type === 'push') {
-    const prevCurrent = context.current;
     return create((set, get, create) => {
       let source;
-      set(prevCurrent);
+      set(newBlock);
       return () => {
         const dest = get(args[1]);
         const newSource = get(args[0], true);

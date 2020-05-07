@@ -20,7 +20,7 @@ const getCompiled = (create, keys, map, bodyKey, bodyValue) => {
       current: { type: 'block', value: new Block() },
     };
     const compileBody = (body) => {
-      const result = build(create, ctx, body);
+      const result = build(create, () => ctx.scope, ctx.current, body);
       if (
         result.type === 'value' ||
         (result.type === 'block' && !result.value.hasStreams())
@@ -45,7 +45,7 @@ const getCompiled = (create, keys, map, bodyKey, bodyValue) => {
   }
 };
 
-export default (create, context, info, args) => {
+export default (create, getScope, info, args) => {
   const compiled = getCompiled(create, args, info.map, info.key, info.value);
   if (compiled) {
     if (info.map) {
@@ -74,26 +74,26 @@ export default (create, context, info, args) => {
     }
   }
 
-  const scope = context.scope;
   const funcMap = (
     current = { type: 'block', value: new Block() },
     key = null,
   ) => (create, value) => {
     const argValues = [key, value];
-    const ctx = { scope, current };
-    args.forEach((k, i) => {
-      if (k) {
-        const prevScope = ctx.scope;
-        ctx.scope = create(
-          streamMap((get) =>
-            set(true, false)([prevScope, argValues[i], k], get),
-          ),
-        );
-      }
-    });
+    const newGetScope = () => {
+      let newScope = getScope();
+      args.forEach((k, i) => {
+        if (k) {
+          const args = [newScope, argValues[i], k];
+          newScope = create(streamMap((get) => set(true, false)(args, get)));
+        }
+      });
+      return newScope;
+    };
     return [
-      build(create, ctx, info.value),
-      info.key === true ? key : info.key && build(create, ctx, info.key),
+      build(create, newGetScope, current, info.value),
+      info.key === true
+        ? key
+        : info.key && build(create, newGetScope, current, info.key),
     ];
   };
   return [info.map ? funcMap : funcMap(), info.map];
