@@ -1,8 +1,9 @@
+import build from '../build';
+import { fromJs } from '../data';
+import { streamMap } from '../util';
+
 import Block from './block';
-import build from './build';
-import { fromJs } from './data';
 import set from './set';
-import { streamMap } from './util';
 
 const getStatic = (keys, arg) =>
   keys

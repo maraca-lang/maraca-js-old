@@ -1,30 +1,13 @@
-import Block from '../block';
-import func from '../func';
-import set from '../set';
+import build from '../build/index';
+import mergeStatic from '../build/static';
 import { streamMap } from '../util';
 
-import build from './index';
-import mergeStatic from './static';
+import func from './func';
+import set from './set';
 
 const pushable = (arg) => (set, get) => {
   const push = (v) => set({ ...v, push });
   return () => set({ push, ...get(arg) });
-};
-
-const snapshot = (create, { push, ...value }) => {
-  const result =
-    value.type !== 'block'
-      ? value
-      : {
-          type: 'block',
-          value: Block.fromPairs(
-            value.value.toPairs().map(({ key, value }) => ({
-              key,
-              value: snapshot(create, value),
-            })),
-          ),
-        };
-  return push ? create(pushable(result), true) : result;
 };
 
 export default (
@@ -54,20 +37,5 @@ export default (
     const assignArgs = [newBlock, ...[...args].filter((x) => x)];
     if (info.pushable) assignArgs[1] = create(pushable(assignArgs[1]));
     return mergeStatic(create, assignArgs, set(true, false));
-  }
-
-  if (type === 'push') {
-    return create((set, get, create) => {
-      let source;
-      set(newBlock);
-      return () => {
-        const dest = get(args[1]);
-        const newSource = get(args[0], true);
-        if (source && dest.push && source !== newSource) {
-          dest.push(snapshot(create, newSource));
-        }
-        source = newSource;
-      };
-    });
   }
 };

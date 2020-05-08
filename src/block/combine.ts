@@ -1,6 +1,7 @@
+import { streamMap } from '../util';
+
 import Block from './block';
 import set from './set';
-import { streamMap } from './util';
 
 const sortTypes = (v1, v2) => {
   if (v2.type === 'value') return [v1, v2];

@@ -1,4 +1,4 @@
-import Block from './block';
+import Block from './block/block';
 import { Stream } from './streams';
 
 export interface Obj<T = any> {

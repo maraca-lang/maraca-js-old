@@ -1,5 +1,4 @@
-import Block from './block';
-import { compare, fromJs, print, toIndex, toNumber } from './data';
+import { compare, fromJs, print, toNumber } from '../data';
 
 const dataMap = (map) => (args) => fromJs(map(args));
 
@@ -49,28 +48,4 @@ export default {
   '/': numericMap(([a, b]) => a / b),
   '%': numericMap(([a, b]) => ((((a - 1) % b) + b) % b) + 1),
   '^': numericMap(([a, b]) => a ** b),
-  '#': {
-    map: ([a]) => {
-      if (a.type === 'block') {
-        return fromJs(a.value.toPairs().filter((d) => d.value.value).length);
-      }
-      const value = toIndex(a.value);
-      if (value) {
-        return {
-          type: 'block',
-          value: Block.fromArray(
-            Array.from({ length: value }).map((_, i) => fromJs(i + 1)),
-          ),
-        };
-      }
-      return fromJs(null);
-    },
-    deepArgs: [true],
-  },
-  '': ([a, b], space) => {
-    if (a.type === 'block' || b.type === 'block') return fromJs(null);
-    const hasSpace =
-      space && a.value && /\S$/.test(a.value) && b.value && /^\S/.test(b.value);
-    return fromJs(`${a.value}${hasSpace ? ' ' : ''}${b.value}`);
-  },
 };

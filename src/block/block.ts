@@ -1,5 +1,5 @@
-import { compare, fromJs, print, toIndex } from './data';
-import { Data, Obj, StreamData } from './typings';
+import { compare, fromJs, print, toIndex } from '../data';
+import { Data, Obj, StreamData } from '../typings';
 
 export default class Block {
   private values: Obj<{ key: Data; value: StreamData }> = {};

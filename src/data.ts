@@ -1,4 +1,4 @@
-import Block from './block';
+import Block from './block/block';
 import { sortMultiple } from './util';
 
 export const toNumber = (v: string) => {

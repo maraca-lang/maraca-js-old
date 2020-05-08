@@ -1,4 +1,4 @@
-import Block from './block';
+import Block from './block/block';
 import build from './build';
 import { fromJs } from './data';
 import parse from './parse';
@@ -6,7 +6,7 @@ import process from './streams';
 import { Data, Source, StreamData } from './typings';
 import { resolve, streamMap } from './util';
 
-export { default as Block } from './block';
+export { default as Block } from './block/block';
 export { fromJs, print, toJs } from './data';
 export { default as parse } from './parse';
 export { default as process } from './streams';
