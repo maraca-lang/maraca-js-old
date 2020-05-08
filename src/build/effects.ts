@@ -31,13 +31,11 @@ export default (
   create,
   getScope,
   newBlock,
-  { type, info = {} as any, nodes = [] as any[] },
+  { type, info = {} as any, args = [] as any[] },
 ) => {
-  const args = nodes.map((n) => n && build(create, getScope, newBlock, n));
-
   if (type === 'func') {
     if (args.every((a) => !a) && !info.map) {
-      const value = build(create, getScope, newBlock, info.value);
+      const value = build(create, getScope, info.value);
       return mergeStatic(create, [newBlock, value], ([c, v], get) => ({
         type: 'block',
         value: get(c).value.setFunc(get(v)),

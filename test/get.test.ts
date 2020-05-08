@@ -27,7 +27,7 @@ test('order', () => {
       },
       {
         key: { type: 'value', value: 'y' },
-        value: { type: 'value', value: '' },
+        value: { type: 'value', value: 'b' },
       },
       {
         key: { type: 'value', value: 'z' },
@@ -86,6 +86,22 @@ test('nested', () => {
             },
           ] as any),
         },
+      },
+    ] as any),
+  });
+});
+
+test('destructure', () => {
+  expect(maraca('[[x]: [10], @x]')).toEqual({
+    type: 'block',
+    value: Block.fromPairs([
+      {
+        key: { type: 'value', value: '1' },
+        value: { type: 'value', value: '10' },
+      },
+      {
+        key: { type: 'value', value: 'x' },
+        value: { type: 'value', value: '10' },
       },
     ] as any),
   });

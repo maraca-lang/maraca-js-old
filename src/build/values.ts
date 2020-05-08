@@ -49,11 +49,12 @@ export default (create, type, info, args) => {
         try {
           const code = get(args[0]);
           const arg = get(args[1]);
-          const newScope = { type: 'block', value: new Block() };
           return build(
             create,
-            () => newScope,
-            arg.type === 'block' ? arg : { type: 'block', value: new Block() },
+            () =>
+              arg.type === 'block'
+                ? arg
+                : { type: 'block', value: new Block() },
             parse(code.type === 'value' ? code.value : ''),
           );
         } catch (e) {

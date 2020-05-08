@@ -50,7 +50,6 @@ const buildModuleLayer = (create, modules, getScope, path) =>
                 build(
                   create,
                   () => getScope(path),
-                  { type: 'block', value: new Block() },
                   typeof modules[k] === 'string'
                     ? parse(modules[k])
                     : modules[k],

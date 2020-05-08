@@ -15,12 +15,12 @@ const getStatic = (keys, arg) =>
 const getCompiled = (create, keys, map, bodyKey, bodyValue) => {
   const trace = {};
   if (keys.filter((a) => a).every((a) => a.type === 'value')) {
-    const ctx = {
-      scope: { type: 'block', value: Block.fromPairs(getStatic(keys, trace)) },
-      current: { type: 'block', value: new Block() },
+    const scope = {
+      type: 'block',
+      value: Block.fromPairs(getStatic(keys, trace)),
     };
     const compileBody = (body) => {
-      const result = build(create, () => ctx.scope, ctx.current, body);
+      const result = build(create, () => scope, body);
       if (
         result.type === 'value' ||
         (result.type === 'block' && !result.value.hasStreams())
@@ -74,10 +74,7 @@ export default (create, getScope, info, args) => {
     }
   }
 
-  const funcMap = (
-    current = { type: 'block', value: new Block() },
-    key = null,
-  ) => (create, value) => {
+  const funcMap = (key = null) => (create, value) => {
     const argValues = [key, value];
     const newGetScope = () => {
       let newScope = getScope();
@@ -90,10 +87,10 @@ export default (create, getScope, info, args) => {
       return newScope;
     };
     return [
-      build(create, newGetScope, current, info.value),
+      build(create, newGetScope, info.value),
       info.key === true
         ? key
-        : info.key && build(create, newGetScope, current, info.key),
+        : info.key && build(create, newGetScope, info.key),
     ];
   };
   return [info.map ? funcMap : funcMap(), info.map];
