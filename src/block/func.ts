@@ -2,7 +2,7 @@ import build from '../build';
 import { fromJs } from '../data';
 import { streamMap } from '../util';
 
-import { blockIsResolved, fromPairs } from './block';
+import { blockIsResolved, fromPairs } from './util';
 import set from './set';
 
 const getStatic = (keys, arg) =>

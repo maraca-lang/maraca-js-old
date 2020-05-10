@@ -1,5 +1,5 @@
 import maraca from '../../src/index';
-import { fromPairs, toPairs } from '../../src/block/block';
+import { fromPairs, toPairs } from '../../src/block/util';
 import { fromJs } from '../../src/data';
 import { streamMap } from '../../src/util';
 

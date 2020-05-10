@@ -1,4 +1,4 @@
-import { blockIsResolved } from '../block/block';
+import { blockIsResolved } from '../block/util';
 
 export default (create, args, ...maps) => {
   const map = maps.pop();

@@ -1,4 +1,4 @@
-import { blockMap, toPairs } from './block/block';
+import { fromPairs, toPairs } from './block/util';
 
 export const sortMultiple = <T = any>(
   items1: T[],
@@ -43,5 +43,12 @@ const resolveSingle = (data, get) => {
 export const resolve = (d, get, deep) => {
   const v = resolveSingle(d, get);
   if (!deep || v.type === 'value' || !hasStream(v)) return v;
-  return { ...v, value: blockMap(v.value, (x) => resolve(x, get, deep)) };
+  const result = fromPairs(
+    toPairs(v.value).map((x) => ({
+      key: x.key,
+      value: resolve(x.value, get, deep),
+    })),
+  );
+  result.func = v.value.func;
+  return { ...v, value: result };
 };

@@ -1,6 +1,6 @@
 import maraca from '../../src/index';
 import { fromJs } from '../../src/data';
-import { blockGet, fromPairs } from '../../src/block/block';
+import { fromPairs } from '../../src/block/util';
 
 const testStream = (code, actions, values, done) => {
   let c = 0;

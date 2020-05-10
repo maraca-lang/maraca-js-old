@@ -2,23 +2,17 @@ import build from '../build/index';
 import mergeStatic from '../build/static';
 import { streamMap } from '../util';
 
-import {
-  blockAppend,
-  clearIndices,
-  createBlock,
-  fromPairs,
-  setFunc,
-  toPairs,
-} from './block';
+import { cloneBlock, createBlock, fromPairs, toPairs } from './util';
 
 import func from './func';
 import set from './set';
 
 const mergeScope = (scope, newBlock) => ({
   type: 'block',
-  value: clearIndices(
-    fromPairs([...toPairs(scope.value), ...toPairs(newBlock.value)]),
-  ),
+  value: {
+    values: { ...scope.value.values, ...newBlock.value.values },
+    indices: [],
+  },
 });
 
 const pushable = (arg) => (set, get) => {
@@ -44,6 +38,13 @@ const snapshot = (create, { push, ...value }) => {
 const withStream = (value, stream) => (set, get) => {
   get(stream);
   set(value);
+};
+
+const setFunc = (block, func, isMap?, isPure?) => {
+  const result = cloneBlock(block);
+  result.func =
+    typeof func === 'function' ? Object.assign(func, { isMap, isPure }) : func;
+  return result;
 };
 
 export default (create, getScope, nodes) => {
@@ -118,7 +119,9 @@ export default (create, getScope, nodes) => {
           ([l, v], get) => {
             const value = get(v);
             if (!value.value) return l;
-            return { type: 'block', value: blockAppend(get(l).value, value) };
+            const result = cloneBlock(get(l).value);
+            result.indices.push(value);
+            return { type: 'block', value: result };
           },
         );
       }

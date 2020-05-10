@@ -1,5 +1,5 @@
 import maraca from '../../src/index';
-import { createBlock, fromPairs } from '../../src/block/block';
+import { createBlock, fromPairs } from '../../src/block/util';
 
 test('basic', () => {
   expect(maraca('z.[x: a, y: b, => c]')).toEqual({ type: 'value', value: 'c' });

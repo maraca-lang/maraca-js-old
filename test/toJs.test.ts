@@ -1,5 +1,5 @@
 import maraca from '../src/index';
-import { fromPairs } from '../src/block/block';
+import { fromPairs } from '../src/block/util';
 import { toJs } from '../src/data';
 
 test('values', () => {

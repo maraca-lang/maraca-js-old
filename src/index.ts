@@ -1,4 +1,4 @@
-import { fromPairs } from './block/block';
+import { fromPairs } from './block/util';
 import build from './build';
 import { fromJs } from './data';
 import parse from './parse';

@@ -1,5 +1,5 @@
 import maraca from '../../src/index';
-import { fromPairs, toPairs } from '../../src/block/block';
+import { fromPairs, toPairs } from '../../src/block/util';
 
 test('basic', () => {
   expect(maraca('[hello, world]')).toEqual({

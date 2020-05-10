@@ -1,7 +1,33 @@
+import { print, toIndex } from '../data';
 import { streamMap } from '../util';
 
-import { blockGet, cloneValues, fromPairs, toPairs } from './block';
+import { cloneBlock, fromPairs, toPairs } from './util';
 import set from './set';
+
+const getIndexValue = (index, values, get) => {
+  let countTrue = 0;
+  let countFalse = 0;
+  for (let i = 0; i < values.length; i++) {
+    const result = get(values[i]);
+    if (result.value) countTrue++;
+    else countFalse++;
+    if (countTrue === index) return result;
+    if (countFalse > values.length - i) return null;
+  }
+};
+const blockGet = (block, key, get) => {
+  if (key.type === 'block') return block.func || { type: 'value', value: '' };
+  const i = toIndex(key.value);
+  if (i) {
+    return (
+      getIndexValue(i, block.indices, get) ||
+      block.func || { type: 'value', value: '' }
+    );
+  }
+  const k = print(key);
+  const v = block.values[k] && block.values[k].value;
+  return v || block.func || { type: 'value', value: '' };
+};
 
 const sortTypes = (v1, v2) => {
   if (v2.type === 'value') return [v1, v2];
@@ -58,6 +84,8 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
   const pairs = toPairs(small.value)
     .map(({ key, value }) => ({ key, value: get(value) }))
     .filter((d) => d.value.value);
+  const base = cloneBlock(big.value);
+  delete base.func;
   return pairs.reduce(
     (res, { key, value }) => {
       const map = func(key);
@@ -69,6 +97,6 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
         }),
       );
     },
-    { type: 'block', value: cloneValues(big.value) },
+    { type: 'block', value: base },
   );
 };

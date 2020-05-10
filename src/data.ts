@@ -1,4 +1,4 @@
-import { fromFunc, fromPairs, toBoth, toPairs } from './block/block';
+import { createBlock, fromPairs, toBoth, toPairs } from './block/util';
 import { sortMultiple } from './util';
 
 export const toNumber = (v: string) => {
@@ -104,10 +104,9 @@ export const fromJs = (value, arrayPairs = false) => {
   if (typeof value === 'number') return { type: 'value', value: `${value}` };
   if (typeof value === 'string') return { type: 'value', value };
   if (typeof value === 'function') {
-    return {
-      type: 'block',
-      value: fromFunc((create, arg) => [create(value(arg))]),
-    };
+    const result = createBlock();
+    result.func = (create, arg) => [create(value(arg))];
+    return { type: 'block', value: result };
   }
   if (Object.prototype.toString.call(value) === '[object Date]') {
     return { type: 'value', value: value.toISOString() };
