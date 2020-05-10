@@ -1,4 +1,4 @@
-import Block from './block/block';
+import { fromFunc, fromPairs, toBoth, toPairs } from './block/block';
 import { sortMultiple } from './util';
 
 export const toNumber = (v: string) => {
@@ -85,8 +85,7 @@ export const print = ({ type, value }) => {
     }
     return `'${value.replace(/(['\\])/g, (_, m) => `\\${m}`)}'`;
   }
-  return `[${value
-    .toPairs()
+  return `[${toPairs(value)
     .filter((x) => x.value.value)
     .map(({ key, value }) => {
       if (toIndex(key.value)) return print(value);
@@ -107,7 +106,7 @@ export const fromJs = (value, arrayPairs = false) => {
   if (typeof value === 'function') {
     return {
       type: 'block',
-      value: Block.fromFunc((create, arg) => [create(value(arg))]),
+      value: fromFunc((create, arg) => [create(value(arg))]),
     };
   }
   if (Object.prototype.toString.call(value) === '[object Date]') {
@@ -116,7 +115,7 @@ export const fromJs = (value, arrayPairs = false) => {
   if (Object.prototype.toString.call(value) === '[object Object]') {
     return {
       type: 'block',
-      value: Block.fromPairs(
+      value: fromPairs(
         Object.keys(value)
           .map((k) => ({ key: fromJs(k), value: fromJs(value[k]) }))
           .filter((x) => x.value.value),
@@ -126,7 +125,7 @@ export const fromJs = (value, arrayPairs = false) => {
   if (Array.isArray(value)) {
     return {
       type: 'block',
-      value: Block.fromPairs(
+      value: fromPairs(
         value
           .map((x, i) => {
             if (!arrayPairs) return { key: fromJs(i + 1), value: fromJs(x) };
@@ -167,7 +166,7 @@ export const toJs = (data = { type: 'value', value: '' } as any, config) => {
     return undefined;
   }
   if (typeof config === 'object') {
-    const { indices, values } = data.value.toBoth();
+    const { indices, values } = toBoth(data.value);
     if (Array.isArray(config)) {
       return indices.map((d, i) => toJs(d, config[i % config.length]));
     }

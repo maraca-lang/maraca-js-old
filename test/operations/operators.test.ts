@@ -1,5 +1,5 @@
 import maraca from '../../src/index';
-import Block from '../../src/block/block';
+import { fromPairs } from '../../src/block/block';
 
 test('arithmetic', () => {
   expect(maraca('1 + 2')).toEqual({
@@ -109,7 +109,7 @@ test('size', () => {
   });
   expect(maraca('#3')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: '1' },

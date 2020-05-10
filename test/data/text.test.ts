@@ -1,10 +1,10 @@
 import maraca from '../../src/index';
-import Block from '../../src/block/block';
+import { fromPairs } from '../../src/block/block';
 
 test('basic', () => {
   expect(maraca('["     "]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: ' ' },
@@ -14,7 +14,7 @@ test('basic', () => {
 
   expect(maraca(`["hello    there"]`)).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: 'hello there' },
@@ -24,7 +24,7 @@ test('basic', () => {
 
   expect(maraca(`["    hello    there     "]`)).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: ' hello there ' },
@@ -39,7 +39,7 @@ test('lines', () => {
     there"]`),
   ).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: 'hello there' },
@@ -53,7 +53,7 @@ test('lines', () => {
     there"]`),
   ).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: 'hello\n\nthere' },
@@ -67,7 +67,7 @@ test('lines', () => {
       there    "]`),
   ).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: ' hello\n\nthere ' },
@@ -79,7 +79,7 @@ test('lines', () => {
 test('nest', () => {
   expect(maraca(`["hello <there/>"]`)).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: 'hello ' },
@@ -88,7 +88,7 @@ test('nest', () => {
         key: { type: 'value', value: '2' },
         value: {
           type: 'block',
-          value: Block.fromPairs([
+          value: fromPairs([
             {
               key: { type: 'value', value: '1' },
               value: { type: 'value', value: 'there' },
@@ -106,7 +106,7 @@ test('nest', () => {
   there   "]`),
   ).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: ' hello ' },
@@ -115,7 +115,7 @@ test('nest', () => {
         key: { type: 'value', value: '2' },
         value: {
           type: 'block',
-          value: Block.fromPairs([
+          value: fromPairs([
             {
               key: { type: 'value', value: '1' },
               value: { type: 'value', value: 'there' },

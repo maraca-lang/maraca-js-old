@@ -1,5 +1,5 @@
 import maraca from '../../src/index';
-import Block from '../../src/block/block';
+import { fromPairs, toPairs } from '../../src/block/block';
 import { fromJs } from '../../src/data';
 import { streamMap } from '../../src/util';
 
@@ -11,7 +11,7 @@ const library = {
           const v = get(arg, true);
           return fromJs(
             v.type === 'block' &&
-              v.value.toPairs().filter((x) => x.value.value).length,
+              toPairs(v.value).filter((x) => x.value.value).length,
           );
         }),
       ),
@@ -78,7 +78,7 @@ test('push block', (done) => {
     [
       {
         type: 'block',
-        value: Block.fromPairs([
+        value: fromPairs([
           {
             key: { type: 'value', value: '1' },
             value: { type: 'value', value: 'a' },
@@ -88,7 +88,7 @@ test('push block', (done) => {
       },
       {
         type: 'block',
-        value: Block.fromPairs([
+        value: fromPairs([
           {
             key: { type: 'value', value: '1' },
             value: { type: 'value', value: 'a' },

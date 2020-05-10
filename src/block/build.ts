@@ -2,17 +2,23 @@ import build from '../build/index';
 import mergeStatic from '../build/static';
 import { streamMap } from '../util';
 
-import Block from './block';
+import {
+  blockAppend,
+  clearIndices,
+  createBlock,
+  fromPairs,
+  setFunc,
+  toPairs,
+} from './block';
 
 import func from './func';
 import set from './set';
 
 const mergeScope = (scope, newBlock) => ({
   type: 'block',
-  value: Block.fromPairs([
-    ...scope.value.toPairs(),
-    ...newBlock.value.toPairs(),
-  ]).clearIndices(),
+  value: clearIndices(
+    fromPairs([...toPairs(scope.value), ...toPairs(newBlock.value)]),
+  ),
 });
 
 const pushable = (arg) => (set, get) => {
@@ -25,8 +31,8 @@ const snapshot = (create, { push, ...value }) => {
       ? value
       : {
           type: 'block',
-          value: Block.fromPairs(
-            value.value.toPairs().map(({ key, value }) => ({
+          value: fromPairs(
+            toPairs(value.value).map(({ key, value }) => ({
               key,
               value: snapshot(create, value),
             })),
@@ -41,7 +47,7 @@ const withStream = (value, stream) => (set, get) => {
 };
 
 export default (create, getScope, nodes) => {
-  let newBlock = { type: 'block', value: new Block() };
+  let newBlock = { type: 'block', value: createBlock() };
   const getNewScope = () => {
     const scope = getScope();
     if (scope.type === 'block' && newBlock.type === 'block') {
@@ -80,14 +86,14 @@ export default (create, getScope, nodes) => {
           const value = build(create, getNewScope, info.value);
           result = mergeStatic(create, [prev, value], ([c, v], get) => ({
             type: 'block',
-            value: get(c).value.setFunc(get(v)),
+            value: setFunc(get(c).value, get(v)),
           }));
         } else {
           const funcArgs = func(create, getNewScope, info, args);
           result = create(
             streamMap((get) => ({
               type: 'block',
-              value: get(prev).value.setFunc(...funcArgs),
+              value: (setFunc as any)(get(prev).value, ...funcArgs),
             })),
           );
         }
@@ -112,7 +118,7 @@ export default (create, getScope, nodes) => {
           ([l, v], get) => {
             const value = get(v);
             if (!value.value) return l;
-            return { type: 'block', value: get(l).value.append(value) };
+            return { type: 'block', value: blockAppend(get(l).value, value) };
           },
         );
       }

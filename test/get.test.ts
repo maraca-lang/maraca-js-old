@@ -1,10 +1,10 @@
 import maraca from '../src/index';
-import Block from '../src/block/block';
+import { createBlock, fromPairs } from '../src/block/block';
 
 test('basic', () => {
   expect(maraca('[x: a, y: @x]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: 'a' },
@@ -20,7 +20,7 @@ test('basic', () => {
 test('order', () => {
   expect(maraca('[x: a, y: @z, z: b]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: 'a' },
@@ -40,7 +40,7 @@ test('order', () => {
 test('nested', () => {
   expect(maraca('[x: a, y: [@x]]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: 'a' },
@@ -49,7 +49,7 @@ test('nested', () => {
         key: { type: 'value', value: 'y' },
         value: {
           type: 'block',
-          value: Block.fromPairs([
+          value: fromPairs([
             {
               key: { type: 'value', value: '1' },
               value: { type: 'value', value: 'a' },
@@ -61,25 +61,25 @@ test('nested', () => {
   });
   expect(maraca('[a, [@1]]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: 'a' },
       },
       {
         key: { type: 'value', value: '2' },
-        value: { type: 'block', value: new Block() },
+        value: { type: 'block', value: createBlock() },
       },
     ] as any),
   });
   expect(maraca('[[x: a], @x]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: {
           type: 'block',
-          value: Block.fromPairs([
+          value: fromPairs([
             {
               key: { type: 'value', value: 'x' },
               value: { type: 'value', value: 'a' },
@@ -94,7 +94,7 @@ test('nested', () => {
 test('destructure', () => {
   expect(maraca('[[x]: [10], @x]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: '10' },

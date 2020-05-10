@@ -1,4 +1,4 @@
-import Block from '../block/block';
+import { createBlock, fromArray, toPairs } from '../block/block';
 import { combineConfig, combineRun } from '../block/combine';
 import build from '../build';
 import { fromJs, toIndex } from '../data';
@@ -45,14 +45,14 @@ export default (create, type, info, args) => {
         const value = get(args[0], true);
         if (value.type === 'block') {
           return fromJs(
-            value.value.toPairs().filter((d) => d.value.value).length,
+            toPairs(value.value).filter((d) => d.value.value).length,
           );
         }
         const num = toIndex(value.value);
         if (num) {
           return {
             type: 'block',
-            value: Block.fromArray(
+            value: fromArray(
               Array.from({ length: num }).map((_, i) => fromJs(i + 1)),
             ),
           };
@@ -81,7 +81,7 @@ export default (create, type, info, args) => {
             () =>
               arg.type === 'block'
                 ? arg
-                : { type: 'block', value: new Block() },
+                : { type: 'block', value: createBlock() },
             parse(code.type === 'value' ? code.value : ''),
           );
         } catch (e) {

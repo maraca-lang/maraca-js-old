@@ -1,3 +1,5 @@
+import { blockIsResolved } from '../block/block';
+
 export default (create, args, ...maps) => {
   const map = maps.pop();
   const configMap = maps.pop();
@@ -5,7 +7,7 @@ export default (create, args, ...maps) => {
     args.every(
       (a) =>
         a.type === 'value' ||
-        (a.type === 'block' && !a.value.hasStreams()) ||
+        (a.type === 'block' && blockIsResolved(a.value)) ||
         a.type === 'map',
     )
   ) {

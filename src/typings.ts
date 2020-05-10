@@ -1,4 +1,3 @@
-import Block from './block/block';
 import { Stream } from './streams';
 
 export interface Obj<T = any> {
@@ -29,7 +28,7 @@ export interface ValueData {
 }
 export interface BlockData {
   type: 'block';
-  value: Block;
+  value: { values: Obj; indices: any[] };
   push?: any;
 }
 export interface StreamData {

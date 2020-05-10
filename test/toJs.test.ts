@@ -1,5 +1,5 @@
 import maraca from '../src/index';
-import Block from '../src/block/block';
+import { fromPairs } from '../src/block/block';
 import { toJs } from '../src/data';
 
 test('values', () => {
@@ -27,7 +27,7 @@ test('values', () => {
 test('blocks', () => {
   expect(toJs(maraca('[hello]'), true)).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: 'hello' },

@@ -1,6 +1,6 @@
 import maraca from '../../src/index';
 import { fromJs } from '../../src/data';
-import Block from '../../src/block/block';
+import { blockGet, fromPairs } from '../../src/block/block';
 
 const testStream = (code, actions, values, done) => {
   let c = 0;
@@ -17,11 +17,11 @@ const testStream = (code, actions, values, done) => {
 test('basic', (done) => {
   testStream(
     '[x:~ 1]',
-    [(data) => data.value.get(fromJs('x')).push(fromJs(2))],
+    [(data) => data.value.values.x.value.push(fromJs(2))],
     [
       {
         type: 'block',
-        value: Block.fromPairs([
+        value: fromPairs([
           {
             key: { type: 'value', value: 'x' },
             value: { type: 'value', value: '1', push: expect.any(Function) },
@@ -30,7 +30,7 @@ test('basic', (done) => {
       },
       {
         type: 'block',
-        value: Block.fromPairs([
+        value: fromPairs([
           {
             key: { type: 'value', value: 'x' },
             value: {

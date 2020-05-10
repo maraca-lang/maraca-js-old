@@ -1,13 +1,13 @@
 import { streamMap } from '../util';
 
-import Block from './block';
+import { blockGet, cloneValues, fromPairs, toPairs } from './block';
 import set from './set';
 
 const sortTypes = (v1, v2) => {
   if (v2.type === 'value') return [v1, v2];
   if (v1.type === 'value') return [v2, v1];
-  if (v1.value.getFunc()) return [v1, v2];
-  if (v2.value.getFunc()) return [v2, v1];
+  if (v1.value.func) return [v1, v2];
+  if (v2.value.func) return [v2, v1];
   return [null, null];
 };
 
@@ -16,16 +16,16 @@ export const combineConfig = ([s1, s2]: any[], get) => {
   if (v1.type === 'value' && v2.type === 'value') return ['nil'];
   const [big, small] = sortTypes(v1, v2);
   if (big === null && small === null) return ['nil'];
-  const func = big.value.getFunc();
+  const func = big.value.func;
   if (
-    (small.type === 'block' && small.value.getFunc()) ||
+    (small.type === 'block' && small.value.func) ||
     (!func && small.type === 'block') ||
     (func && func.isMap && small.type !== 'block')
   ) {
     return ['nil'];
   }
   if (func && func.isMap) return ['map', func, big, small, {}];
-  return ['get', func, big.value.get(small, get), small === v1 ? s1 : s2];
+  return ['get', func, blockGet(big.value, small, get), small === v1 ? s1 : s2];
 };
 
 const runGet = (get, create, func, v, arg) => {
@@ -49,14 +49,13 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
   if (func.isPure) {
     return {
       type: 'block',
-      value: Block.fromPairs([
-        ...big.value.toPairs(),
-        ...func(small.value.toPairs()).filter((d) => d.value.value),
+      value: fromPairs([
+        ...toPairs(big.value),
+        ...func(toPairs(small.value)).filter((d) => d.value.value),
       ]),
     };
   }
-  const pairs = small.value
-    .toPairs()
+  const pairs = toPairs(small.value)
     .map(({ key, value }) => ({ key, value: get(value) }))
     .filter((d) => d.value.value);
   return pairs.reduce(
@@ -70,6 +69,6 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
         }),
       );
     },
-    { type: 'block', value: big.value.cloneValues() },
+    { type: 'block', value: cloneValues(big.value) },
   );
 };

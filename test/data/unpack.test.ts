@@ -1,10 +1,10 @@
 import maraca from '../../src/index';
-import Block from '../../src/block/block';
+import { fromPairs } from '../../src/block/block';
 
 test('basic', () => {
   expect(maraca('[[a, b, x: c]: [1, 2, x: 3]]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: 'a' },
         value: { type: 'value', value: '1' },
@@ -21,7 +21,7 @@ test('basic', () => {
   });
   expect(maraca('[[_, _, a]: [1, 2, 3]]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: ' ' },
         value: { type: 'value', value: '2' },
@@ -37,7 +37,7 @@ test('basic', () => {
 test('partial', () => {
   expect(maraca('[[x, y]: [1, 2, 3]]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: '1' },
@@ -50,7 +50,7 @@ test('partial', () => {
   });
   expect(maraca('[[a, => b]: [1, 2, 3]]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: 'a' },
         value: { type: 'value', value: '1' },
@@ -59,7 +59,7 @@ test('partial', () => {
         key: { type: 'value', value: 'b' },
         value: {
           type: 'block',
-          value: Block.fromPairs([
+          value: fromPairs([
             {
               key: { type: 'value', value: '1' },
               value: { type: 'value', value: '2' },
@@ -75,7 +75,7 @@ test('partial', () => {
   });
   expect(maraca('[[a:=, b:=]: [a: 1, b: 2, c: 3, d: 4]]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: 'a' },
         value: { type: 'value', value: '1' },
@@ -91,7 +91,7 @@ test('partial', () => {
 test('unpack', () => {
   expect(maraca('[:[a], a]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: 'a' },
@@ -104,7 +104,7 @@ test('unpack', () => {
   });
   expect(maraca('[x: 1, : [y: 2, z: 3]]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: 'x' },
         value: { type: 'value', value: '1' },
@@ -121,7 +121,7 @@ test('unpack', () => {
   });
   expect(maraca('[1, 2, : [3, 4]]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: '1' },

@@ -1,5 +1,5 @@
 import maraca from '../../src/index';
-import Block from '../../src/block/block';
+import { createBlock, fromPairs } from '../../src/block/block';
 
 test('basic', () => {
   expect(maraca('z.[x: a, y: b, => c]')).toEqual({ type: 'value', value: 'c' });
@@ -17,16 +17,16 @@ test('basic', () => {
 test('maps', () => {
   expect(maraca('[a, b, c].[=>> ]')).toEqual({
     type: 'block',
-    value: new Block(),
+    value: createBlock(),
   });
   expect(maraca('[5, 10].[v=> k=> [@v, @k]]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: {
           type: 'block',
-          value: Block.fromPairs([
+          value: fromPairs([
             {
               key: { type: 'value', value: '1' },
               value: { type: 'value', value: '5' },
@@ -42,7 +42,7 @@ test('maps', () => {
         key: { type: 'value', value: '2' },
         value: {
           type: 'block',
-          value: Block.fromPairs([
+          value: fromPairs([
             {
               key: { type: 'value', value: '1' },
               value: { type: 'value', value: '10' },
@@ -58,7 +58,7 @@ test('maps', () => {
   });
   expect(maraca('[5, 10].[v=>> @v + 5]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: '10' },
@@ -71,7 +71,7 @@ test('maps', () => {
   });
   expect(maraca('[a, b].[v=>> Item (@v): @v]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: 'Item a' },
         value: { type: 'value', value: 'a' },
@@ -84,7 +84,7 @@ test('maps', () => {
   });
   // expect(maraca('[1, 2, 3].[sum: 0, v=>> sum: @sum + @v]')).toEqual({
   //   type: 'block',
-  //   value: Block.fromPairs([
+  //   value: fromPairs([
   //     {
   //       key: { type: 'value', value: 'sum' },
   //       value: { type: 'value', value: '6' },
@@ -95,7 +95,7 @@ test('maps', () => {
   expect(maraca('1.[v=>> @v + 1]')).toEqual({ type: 'value', value: '' });
   expect(maraca('[a: 1, b: 2, c: 3].[v=>> : [@v]]')).toEqual({
     type: 'block',
-    value: Block.fromPairs([
+    value: fromPairs([
       {
         key: { type: 'value', value: '1' },
         value: { type: 'value', value: '1' },

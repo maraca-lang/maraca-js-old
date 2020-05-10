@@ -2,7 +2,7 @@ import build from '../build';
 import { fromJs } from '../data';
 import { streamMap } from '../util';
 
-import Block from './block';
+import { blockIsResolved, fromPairs } from './block';
 import set from './set';
 
 const getStatic = (keys, arg) =>
@@ -18,13 +18,13 @@ const getCompiled = (create, keys, map, bodyKey, bodyValue) => {
   if (keys.filter((a) => a).every((a) => a.type === 'value')) {
     const scope = {
       type: 'block',
-      value: Block.fromPairs(getStatic(keys, trace)),
+      value: fromPairs(getStatic(keys, trace)),
     };
     const compileBody = (body) => {
       const result = build(create, () => scope, body);
       if (
         result.type === 'value' ||
-        (result.type === 'block' && !result.value.hasStreams())
+        (result.type === 'block' && blockIsResolved(result.value))
       ) {
         return () => result;
       }
