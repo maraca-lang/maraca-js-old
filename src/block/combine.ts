@@ -25,7 +25,7 @@ export const combineConfig = ([s1, s2]: any[], get) => {
     return ['nil'];
   }
   if (func && func.isMap) return ['map', func, big, small, {}];
-  return ['get', func, big.value.get(small), small === v1 ? s1 : s2];
+  return ['get', func, big.value.get(small, get), small === v1 ? s1 : s2];
 };
 
 const runGet = (get, create, func, v, arg) => {
@@ -64,7 +64,10 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
       const map = func(key);
       const [newValue, newKey] = map(create, value);
       return create(
-        streamMap((get) => set(false, false)([res, newValue, newKey], get)),
+        streamMap((get) => {
+          if (!get(newValue).value) return res;
+          return set(false)([res, newValue, newKey], get);
+        }),
       );
     },
     { type: 'block', value: big.value.cloneValues() },

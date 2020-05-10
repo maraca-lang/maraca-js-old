@@ -61,7 +61,7 @@ export default (create, getScope, nodes) => {
       );
       const assignArgs = [newBlock, value, key];
       if (info.pushable) assignArgs[1] = create(pushable(assignArgs[1]));
-      newBlock = mergeStatic(create, assignArgs, set(true, false));
+      newBlock = mergeStatic(create, assignArgs, set(false));
     });
 
   let result = newBlock;
@@ -72,7 +72,7 @@ export default (create, getScope, nodes) => {
         const value = build(create, getNewScope, nodes[0]);
         const assignArgs = [result, value];
         if (info.pushable) assignArgs[1] = create(pushable(assignArgs[1]));
-        result = mergeStatic(create, assignArgs, set(true, false));
+        result = mergeStatic(create, assignArgs, set(false));
       } else if (type === 'func') {
         const prev = result;
         const args = nodes.map((n) => n && build(create, getNewScope, n));

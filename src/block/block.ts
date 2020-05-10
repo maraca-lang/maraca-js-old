@@ -1,22 +1,36 @@
 import { compare, fromJs, print, toIndex } from '../data';
 import { Data, Obj, StreamData } from '../typings';
 
+const getIndex = (index, values, get) => {
+  let countTrue = 0;
+  let countFalse = 0;
+  for (let i = 0; i < values.length; i++) {
+    const result = get(values[i]);
+    if (result.value) countTrue++;
+    else countFalse++;
+    if (countTrue === index) return result;
+    if (countFalse > values.length - i) return null;
+  }
+};
+
 export default class Block {
   private values: Obj<{ key: Data; value: StreamData }> = {};
-  private indices: number[] = [];
+  private indices: StreamData[] = [];
   private func?: any;
 
   static fromPairs(pairs: { key: Data; value: StreamData }[]) {
     const result = new Block();
+    const indices = [] as any[];
     pairs.forEach((pair) => {
       const k = print(pair.key);
       const i = toIndex(k);
-      if (!i || pair.value) {
-        if (!result.values[k] || pair.value) result.values[k] = pair;
-        if (i) result.indices.push(i);
+      if (i) {
+        indices.push({ key: i, value: pair.value });
+      } else {
+        result.values[k] = pair;
       }
     });
-    result.indices.sort((a, b) => a - b);
+    result.indices = indices.sort((a, b) => a.key - b.key).map((x) => x.value);
     return result;
   }
   static fromFunc(func, isMap?) {
@@ -24,16 +38,10 @@ export default class Block {
     result.func = Object.assign(func, { isMap });
     return result;
   }
-  static fromArray(items: Data[]) {
+  static fromArray(items: StreamData[]) {
     const result = new Block();
-    result.values = items.reduce(
-      (res, v, i) => ({
-        ...res,
-        [i + 1]: { key: fromJs(i + 1), value: v },
-      }),
-      {},
-    );
-    result.indices = items.map((_, i) => i + 1);
+    result.values = {};
+    result.indices = items;
     return result;
   }
 
@@ -42,30 +50,26 @@ export default class Block {
   }
 
   toPairs() {
-    if (Object.keys(this.values).length === this.indices.length) {
-      return this.indices.map((i) => this.values[i]);
-    }
-    return Object.keys(this.values)
+    const values = Object.keys(this.values)
       .map((k) => this.values[k])
       .sort((a, b) => compare(a.key, b.key));
+    const indices = this.indices.map((value, i) => ({
+      key: fromJs(i + 1),
+      value,
+    }));
+    if (values[0] && !values[0].key.value) {
+      return [values[0], ...indices, ...values.slice(1)];
+    }
+    return [...indices, ...values];
   }
   toBoth() {
-    const values = { ...this.values };
-    const indices = [] as any[];
-    this.indices.forEach((i) => {
-      indices[i - 1] = values[i].value;
-      delete values[i];
-    });
-    for (let i = 0; i < indices.length; i++) {
-      indices[i] = indices[i] || undefined;
-    }
     return {
-      indices,
-      values: Object.keys(values).reduce((res, k) => {
+      indices: this.indices,
+      values: Object.keys(this.values).reduce((res, k) => {
         const key = k.startsWith("'")
           ? k.slice(1, -1).replace(/\\([\s\S])/g, (_, m) => m)
           : k;
-        return { ...res, [key]: values[k].value };
+        return { ...res, [key]: this.values[k].value };
       }, {}),
     };
   }
@@ -76,39 +80,39 @@ export default class Block {
     return result;
   }
 
-  has(key: Data) {
-    if (key.type === 'block') return false;
-    const k = print(key);
-    return !!(this.values[k] && this.values[k].value);
-  }
-  get(key: Data) {
+  get(key, get) {
     if (key.type === 'block') return this.func || { type: 'value', value: '' };
+    const i = toIndex(key.value);
+    if (i) {
+      return (
+        getIndex(i, this.indices, get) ||
+        this.func || { type: 'value', value: '' }
+      );
+    }
     const k = print(key);
     const v = this.values[k] && this.values[k].value;
     return v || this.func || { type: 'value', value: '' };
   }
-  extract(keys: Data[], doOffset: boolean) {
-    const rest = this.cloneValues();
+  extract(keys: Data[], get) {
+    const rest = new Block();
+    rest.values = { ...this.values };
+    rest.indices = this.indices.map((v) => get(v)).filter((x) => x.value);
+    let maxIndex = 0;
     const values = keys.map((key) => {
       const k = print(key);
       const i = toIndex(k);
+      if (i) {
+        maxIndex = i;
+        return rest.indices[i - 1] || { type: 'value', value: '' };
+      }
       const v = (rest.values[k] && rest.values[k].value) || {
         type: 'value',
         value: '',
       };
       delete rest.values[k];
-      if (i) rest.indices = rest.indices.filter((x) => x !== i);
       return v;
     });
-    const offset = rest.indices[0] - 1;
-    if (doOffset && offset !== 0) {
-      rest.indices.forEach((index, i) => {
-        rest.values[index - offset] = rest.values[index];
-        rest.values[index - offset].key = fromJs(index - offset);
-        delete rest.values[index];
-        rest.indices[i] = index - offset;
-      });
-    }
+    rest.indices = rest.indices.slice(maxIndex);
     return { values, rest };
   }
   getFunc() {
@@ -128,43 +132,31 @@ export default class Block {
 
   clearIndices() {
     const result = new Block();
-    result.values = { ...this.values };
-    this.indices.forEach((i) => {
-      delete result.values[i];
-    });
+    result.values = this.values;
+    this.indices = [];
     result.func = this.func;
     return result;
   }
-  append(value: Data) {
-    const i = (this.indices[this.indices.length - 1] || 0) + 1;
+  append(value: StreamData) {
     const result = new Block();
-    result.values = { ...this.values, [i]: { key: fromJs(i), value } };
-    result.indices = [...this.indices, i];
+    result.values = this.values;
+    result.indices = [...this.indices, value];
     result.func = this.func;
     return result;
   }
   set(key: Data, value: Data) {
     const k = print(key);
-    const i = toIndex(k);
     const result = new Block();
     result.values = { ...this.values, [k]: { key, value } } as any;
-    result.indices =
-      i && !this.indices.includes(i)
-        ? [...this.indices, i].sort((a, b) => a - b)
-        : this.indices;
+    result.indices = this.indices;
     result.func = this.func;
     return result;
   }
   unpack(value: Block) {
-    const offset = this.indices[this.indices.length - 1] || 0;
-    const result = Block.fromPairs([
-      ...this.toPairs(),
-      ...value.toPairs().map((v) => {
-        const i = toIndex(print(v.key));
-        return { key: i ? fromJs(i + offset) : v.key, value: v.value };
-      }),
-    ]);
-    result.func = this.func;
+    const result = new Block();
+    result.values = { ...this.values, ...value.values };
+    result.indices = [...this.indices, ...value.indices];
+    result.func = value.func || this.func;
     return result;
   }
   setFunc(func, isMap?, isPure?) {

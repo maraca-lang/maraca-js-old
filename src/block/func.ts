@@ -82,7 +82,7 @@ export default (create, getScope, info, args) => {
       args.forEach((k, i) => {
         if (k) {
           const args = [newScope, argValues[i], k];
-          newScope = create(streamMap((get) => set(true, false)(args, get)));
+          newScope = create(streamMap((get) => set(false)(args, get)));
         }
       });
       return newScope;
