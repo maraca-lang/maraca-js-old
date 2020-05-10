@@ -5,7 +5,7 @@ import { fromJs, toIndex } from '../data';
 import parse from '../parse';
 import { streamMap } from '../util';
 
-import maps from './maps';
+import operators from './operators';
 import mergeStatic from './static';
 
 export default (create, type, info, args) => {
@@ -62,9 +62,9 @@ export default (create, type, info, args) => {
     }
 
     const { map, deepArgs = [] } =
-      typeof maps[info.func] === 'function'
-        ? { map: maps[info.func] }
-        : maps[info.func];
+      typeof operators[info.func] === 'function'
+        ? { map: operators[info.func] }
+        : operators[info.func];
     return mergeStatic(create, args, (args, get) =>
       map(args.map((a, i) => get(a, deepArgs[i]))),
     );
