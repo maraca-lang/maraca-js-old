@@ -51,9 +51,10 @@ export default (create, type, info, args) => {
         const num = toIndex(value.value);
         if (num) {
           const result = createBlock();
-          result.indices = Array.from({ length: num }).map((_, i) =>
-            fromJs(i + 1),
-          );
+          result.indices = Array.from({ length: num }).map((_, i) => ({
+            type: 'single',
+            value: fromJs(i + 1),
+          }));
           return { type: 'block', value: result };
         }
         return fromJs(null);

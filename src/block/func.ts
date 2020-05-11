@@ -1,9 +1,8 @@
 import build from '../build';
 import { fromJs } from '../data';
-import { streamMap } from '../util';
 
-import { blockIsResolved, fromPairs } from './util';
-import set from './set';
+import { isResolved } from './resolve';
+import { blockSet, fromPairs } from './util';
 
 const getStatic = (keys, arg) =>
   keys
@@ -22,12 +21,7 @@ const getCompiled = (create, keys, map, bodyKey, bodyValue) => {
     };
     const compileBody = (body) => {
       const result = build(create, () => scope, body);
-      if (
-        result.type === 'value' ||
-        (result.type === 'block' && blockIsResolved(result.value))
-      ) {
-        return () => result;
-      }
+      if (isResolved(result)) return () => result;
       if (result.type === 'map' && result.arg === trace) return result.map;
     };
     if (
@@ -80,10 +74,7 @@ export default (create, getScope, info, args) => {
     const newGetScope = () => {
       let newScope = getScope();
       args.forEach((k, i) => {
-        if (k) {
-          const args = [newScope, argValues[i], k];
-          newScope = create(streamMap((get) => set(false)(args, get)));
-        }
+        if (k) newScope.value = blockSet(newScope.value, argValues[i], k);
       });
       return newScope;
     };

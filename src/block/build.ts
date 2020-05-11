@@ -1,19 +1,7 @@
 import build from '../build/index';
-import mergeStatic from '../build/static';
-import { streamMap } from '../util';
-
-import { cloneBlock, createBlock, fromPairs, toPairs } from './util';
 
 import func from './func';
-import set from './set';
-
-const mergeScope = (scope, newBlock) => ({
-  type: 'block',
-  value: {
-    values: { ...scope.value.values, ...newBlock.value.values },
-    indices: [],
-  },
-});
+import { blockSet, createBlock, fromPairs, toPairs } from './util';
 
 const pushable = (arg) => (set, get) => {
   const push = (v) => set({ ...v, push });
@@ -35,72 +23,36 @@ const snapshot = (create, { push, ...value }) => {
   return push ? create(pushable(result), true) : result;
 };
 
-const withStream = (value, stream) => (set, get) => {
-  get(stream);
-  set(value);
-};
-
-const setFunc = (block, func, isMap?, isPure?) => {
-  const result = cloneBlock(block);
-  result.func =
-    typeof func === 'function' ? Object.assign(func, { isMap, isPure }) : func;
-  return result;
-};
-
 export default (create, getScope, nodes) => {
-  let newBlock = { type: 'block', value: createBlock() };
+  let result = { type: 'block', value: createBlock() };
   const getNewScope = () => {
     const scope = getScope();
-    if (scope.type === 'block' && newBlock.type === 'block') {
-      return mergeScope(scope, newBlock);
-    }
-    return create(streamMap((get) => mergeScope(get(scope), get(newBlock))));
+    return {
+      type: 'block',
+      value: {
+        values: { ...scope.value.values, ...result.value.values },
+        streams: [...scope.value.streams, ...result.value.streams],
+        indices: [],
+      },
+    };
   };
 
-  nodes
-    .filter((n) => n.type === 'set' && n.nodes[1])
-    .forEach(({ info, nodes }) => {
-      const key = build(create, getNewScope, nodes[1]);
-      const value = build(
-        create,
-        key.type === 'value' ? getNewScope : getScope,
-        nodes[0],
-      );
-      const assignArgs = [newBlock, value, key];
-      if (info.pushable) assignArgs[1] = create(pushable(assignArgs[1]));
-      newBlock = mergeStatic(create, assignArgs, set(false));
-    });
-
-  let result = newBlock;
-  nodes
-    .filter((n) => !(n.type === 'set' && n.nodes[1]))
-    .forEach(({ type, info, nodes }) => {
-      if (type === 'set') {
-        const value = build(create, getNewScope, nodes[0]);
-        const assignArgs = [result, value];
-        if (info.pushable) assignArgs[1] = create(pushable(assignArgs[1]));
-        result = mergeStatic(create, assignArgs, set(false));
-      } else if (type === 'func') {
-        const prev = result;
-        const args = nodes.map((n) => n && build(create, getNewScope, n));
-        if (args.every((a) => !a) && !info.map) {
-          const value = build(create, getNewScope, info.value);
-          result = mergeStatic(create, [prev, value], ([c, v], get) => ({
-            type: 'block',
-            value: setFunc(get(c).value, get(v)),
-          }));
-        } else {
-          const funcArgs = func(create, getNewScope, info, args);
-          result = create(
-            streamMap((get) => ({
-              type: 'block',
-              value: (setFunc as any)(get(prev).value, ...funcArgs),
-            })),
-          );
-        }
-      } else if (type === 'push') {
-        const args = nodes.map((n) => n && build(create, getNewScope, n));
-        const stream = create((_, get, create) => {
+  nodes.forEach(({ type, info = {} as any, nodes = [] as any[] }) => {
+    const args = nodes.map((n) => n && build(create, getNewScope, n));
+    if (type === 'set') {
+      if (info.pushable) args[0] = create(pushable(args[0]));
+      result.value = (blockSet as any)(result.value, ...args);
+    } else if (type === 'func') {
+      if (args.every((a) => !a) && !info.map) {
+        result.value.func = build(create, getNewScope, info.value);
+      } else {
+        const [value, isMap, isPure] = func(create, getNewScope, info, args);
+        result.value.func = Object.assign(value, { isMap, isPure });
+      }
+    } else if (type === 'push') {
+      result.value.indices.push({
+        type: 'single',
+        value: create((_, get, create) => {
           let source;
           return () => {
             const dest = get(args[1]);
@@ -110,21 +62,15 @@ export default (create, getScope, nodes) => {
             }
             source = newSource;
           };
-        });
-        result = create(withStream(result, stream));
-      } else {
-        result = mergeStatic(
-          create,
-          [result, build(create, getNewScope, { type, info, nodes })],
-          ([l, v], get) => {
-            const value = get(v);
-            if (!value.value) return l;
-            const result = cloneBlock(get(l).value);
-            result.indices.push(value);
-            return { type: 'block', value: result };
-          },
-        );
-      }
-    });
+        }),
+      });
+    } else if (type !== 'nil') {
+      result.value.indices.push({
+        type: 'single',
+        value: build(create, getNewScope, { type, info, nodes }),
+      });
+    }
+  });
+
   return result;
 };

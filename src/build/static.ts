@@ -1,4 +1,4 @@
-import { blockIsResolved } from '../block/util';
+import { blockIsResolved } from '../block/resolve';
 
 export default (create, args, ...maps) => {
   const map = maps.pop();
@@ -13,7 +13,11 @@ export default (create, args, ...maps) => {
   ) {
     const mapArgs = args.filter((a) => a.type === 'map').map((a) => a.arg);
     if (mapArgs.length === 0) {
-      return map(configMap ? configMap(args, (x) => x) : args, (x) => x);
+      return map(
+        configMap ? configMap(args, (x) => x) : args,
+        (x) => x,
+        create,
+      );
     }
     if (mapArgs.every((a) => a === mapArgs[0])) {
       return {

@@ -63,10 +63,26 @@ test('trigger', (done) => {
 
 test('push', (done) => {
   testStream(
-    '[x:~ 10, @tick | @x + 10 -> @x].x',
+    '[x:~ 10, @tick | @x + 10 -> @x]',
     [
-      { type: 'value', value: '10', push: expect.any(Function) },
-      { type: 'value', value: '20', push: expect.any(Function) },
+      {
+        type: 'block',
+        value: fromPairs([
+          {
+            key: { type: 'value', value: 'x' },
+            value: { type: 'value', value: '10', push: expect.any(Function) },
+          },
+        ] as any),
+      },
+      {
+        type: 'block',
+        value: fromPairs([
+          {
+            key: { type: 'value', value: 'x' },
+            value: { type: 'value', value: '20', push: expect.any(Function) },
+          },
+        ] as any),
+      },
     ],
     done,
   );
@@ -74,31 +90,47 @@ test('push', (done) => {
 
 test('push block', (done) => {
   testStream(
-    '[x:~ [a], @tick | [: @x, a] -> @x].x',
+    '[x:~ [a], @tick | [: @x, a] -> @x]',
     [
       {
         type: 'block',
         value: fromPairs([
           {
-            key: { type: 'value', value: '1' },
-            value: { type: 'value', value: 'a' },
+            key: { type: 'value', value: 'x' },
+            value: {
+              type: 'block',
+              value: fromPairs([
+                {
+                  key: { type: 'value', value: '1' },
+                  value: { type: 'value', value: 'a' },
+                },
+              ] as any),
+              push: expect.any(Function),
+            },
           },
         ] as any),
-        push: expect.any(Function),
       },
       {
         type: 'block',
         value: fromPairs([
           {
-            key: { type: 'value', value: '1' },
-            value: { type: 'value', value: 'a' },
-          },
-          {
-            key: { type: 'value', value: '2' },
-            value: { type: 'value', value: 'a' },
+            key: { type: 'value', value: 'x' },
+            value: {
+              type: 'block',
+              value: fromPairs([
+                {
+                  key: { type: 'value', value: '1' },
+                  value: { type: 'value', value: 'a' },
+                },
+                {
+                  key: { type: 'value', value: '2' },
+                  value: { type: 'value', value: 'a' },
+                },
+              ] as any),
+              push: expect.any(Function),
+            },
           },
         ] as any),
-        push: expect.any(Function),
       },
     ],
     done,

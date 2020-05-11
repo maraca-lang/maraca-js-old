@@ -1,18 +1,22 @@
 import { print, toIndex } from '../data';
 import { streamMap } from '../util';
 
-import { cloneBlock, fromPairs, toPairs } from './util';
-import set from './set';
+import { fromPairs, toPairs } from './util';
 
-const getIndexValue = (index, values, get) => {
+const getIndexValue = (index, indices, get) => {
+  const allIndices = indices.reduce((res, x) => {
+    if (x.type === 'single') return [...res, x.value];
+    const value = get(x.value);
+    return [...res, ...(value.type === 'block' ? value.value.indices : [])];
+  }, []);
   let countTrue = 0;
   let countFalse = 0;
-  for (let i = 0; i < values.length; i++) {
-    const result = get(values[i]);
+  for (let i = 0; i < allIndices.length; i++) {
+    const result = get(allIndices[i]);
     if (result.value) countTrue++;
     else countFalse++;
     if (countTrue === index) return result;
-    if (countFalse > values.length - i) return null;
+    if (countFalse > allIndices.length - i) return null;
   }
 };
 const blockGet = (block, key, get) => {
@@ -72,31 +76,47 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
     return wrapStream(create, runGet(get, create, func, v, arg));
   }
   const [func, big, small] = config;
+  const pairs = toPairs(small.value)
+    .map(({ key, value }) => ({ key, value: get(value) }))
+    .filter((d) => d.value.value);
   if (func.isPure) {
     return {
       type: 'block',
       value: fromPairs([
         ...toPairs(big.value),
-        ...func(toPairs(small.value)).filter((d) => d.value.value),
+        ...func(pairs).filter((d) => d.value.value),
       ]),
     };
   }
-  const pairs = toPairs(small.value)
-    .map(({ key, value }) => ({ key, value: get(value) }))
-    .filter((d) => d.value.value);
-  const base = cloneBlock(big.value);
-  delete base.func;
-  return pairs.reduce(
-    (res, { key, value }) => {
-      const map = func(key);
-      const [newValue, newKey] = map(create, value);
-      return create(
-        streamMap((get) => {
-          if (!get(newValue).value) return res;
-          return set(false)([res, newValue, newKey], get);
-        }),
-      );
-    },
-    { type: 'block', value: base },
-  );
+  return {
+    type: 'block',
+    value: fromPairs([
+      ...toPairs(big.value),
+      ...pairs
+        .map(({ key, value }) => {
+          const [newValue, newKey] = func(key)(create, value);
+          return { key: get(newKey, true), value: get(newValue, true) };
+        })
+        .filter((d) => d.value.value),
+    ]),
+  };
+
+  // const base = cloneBlock(big.value);
+  // delete base.func;
+  // return pairs.reduce(
+  //   (res, { key, value }) => {
+  //     const map = func(key);
+  //     const [newValue, newKey] = map(create, value);
+  //     return create(
+  //       streamMap((get) => {
+  //         if (!get(newValue).value) return res;
+  //         return {
+  //           type: 'block',
+  //           value: blockSet(get(res).value, newValue, newKey),
+  //         };
+  //       }),
+  //     );
+  //   },
+  //   { type: 'block', value: base },
+  // );
 };

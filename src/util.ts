@@ -1,5 +1,3 @@
-import { fromPairs, toPairs } from './block/util';
-
 export const sortMultiple = <T = any>(
   items1: T[],
   items2: T[],
@@ -23,32 +21,4 @@ export const streamMap = (map) => (set, get, create) => {
     result = map(get, create);
     set(result);
   };
-};
-
-const hasStream = (data) =>
-  toPairs(data.value).some(
-    (x) =>
-      x.value.type === 'map' ||
-      x.value.type === 'stream' ||
-      (x.value.type === 'block' && hasStream(x.value)),
-  );
-
-const nilValue = { type: 'value', value: '' };
-const resolveSingle = (data, get) => {
-  const d = data || nilValue;
-  if (d.type === 'map') return resolveSingle(d.map(d.arg, get), get);
-  if (d.type === 'stream') return resolveSingle(get(d.value), get);
-  return d;
-};
-export const resolve = (d, get, deep) => {
-  const v = resolveSingle(d, get);
-  if (!deep || v.type === 'value' || !hasStream(v)) return v;
-  const result = fromPairs(
-    toPairs(v.value).map((x) => ({
-      key: x.key,
-      value: resolve(x.value, get, deep),
-    })),
-  );
-  result.func = v.value.func;
-  return { ...v, value: result };
 };
