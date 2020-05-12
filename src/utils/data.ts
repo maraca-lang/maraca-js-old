@@ -1,4 +1,4 @@
-import { createBlock, fromPairs, toBoth, toPairs } from './block';
+import { createBlock, fromPairs, toPairs } from './block';
 import { sortMultiple } from './misc';
 
 export const toNumber = (v: string) => {
@@ -167,7 +167,13 @@ export const toJs = (data = { type: 'value', value: '' } as any, config) => {
     return undefined;
   }
   if (typeof config === 'object') {
-    const { indices, values } = toBoth(data.value);
+    const indices = data.value.indices;
+    const values = Object.keys(data.value.values).reduce((res, k) => {
+      const key = k.startsWith("'")
+        ? k.slice(1, -1).replace(/\\([\s\S])/g, (_, m) => m)
+        : k;
+      return { ...res, [key]: data.value.values[k].value };
+    }, {});
     if (Array.isArray(config)) {
       return indices.map((d, i) => toJs(d, config[i % config.length]));
     }

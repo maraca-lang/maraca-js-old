@@ -1,5 +1,5 @@
 import func from '../func';
-import resolve from '../resolve';
+import resolve, { isResolved } from '../resolve';
 import { blockSet } from '../utils/block';
 import { pushable, snapshot } from '../utils/misc';
 
@@ -30,7 +30,7 @@ export default (
   }
 
   if (type === 'push') {
-    const stream = {
+    const value = {
       type: 'stream',
       value: create((_, get, create) => {
         let source;
@@ -44,13 +44,14 @@ export default (
         };
       }),
     };
-    return { ...block, indices: [...block.indices, stream] };
+    return { ...block, indices: [...block.indices, value], unresolved: true };
   }
 
-  if (type !== 'nil') {
-    const stream = build(create, getScope, { type, info, nodes });
-    return { ...block, indices: [...block.indices, stream] };
-  }
-
-  return block;
+  const value = build(create, getScope, { type, info, nodes });
+  if (!value.value) return block;
+  return {
+    ...block,
+    indices: [...block.indices, value],
+    ...(block.unresolved || !isResolved(value) ? { unresolved: true } : {}),
+  };
 };

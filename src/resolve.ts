@@ -2,17 +2,10 @@ import { cloneBlock, createBlock, toPairs } from './utils/block';
 import { print, toIndex } from './utils/data';
 
 export const isResolved = (data) => {
-  if (data.type === 'value') return true;
   if (data.type === 'map' || data.type === 'stream') return false;
-  return blockIsResolved(data.value);
+  if (data.type === 'value') return true;
+  return !data.value.unresolved;
 };
-
-export const blockIsResolved = (block) =>
-  Object.keys(block.values).every(
-    (k) => isResolved(block.values[k].key) && isResolved(block.values[k].value),
-  ) &&
-  block.streams.length === 0 &&
-  block.indices.every((x) => x.type !== 'unpack' && isResolved(x));
 
 const blockExtract = (block, keys, get) => {
   const rest = createBlock();
@@ -86,8 +79,7 @@ const resolveSet = (block, v, k, get) => {
   return result;
 };
 
-const nilValue = { type: 'value', value: '' };
-const resolveStreams = (block, get) => {
+export const resolveStreams = (block, get) => {
   let result = createBlock();
   result.values = block.values;
   block.streams.forEach(({ key, value }) => {
@@ -104,16 +96,17 @@ const resolveStreams = (block, get) => {
   return result;
 };
 
-const resolveSingle = (data, get) => {
+const nilValue = { type: 'value', value: '' };
+const resolveType = (data, get) => {
   const d = data || nilValue;
-  if (d.type === 'map') return resolveSingle(d.map(d.arg, get), get);
-  if (d.type === 'stream') return resolveSingle(get(d.value), get);
-  if (d.type === 'block') return { ...d, value: resolveStreams(d.value, get) };
+  if (d.type === 'map') return resolveType(d.map(d.arg, get), get);
+  if (d.type === 'stream') return resolveType(get(d.value), get);
   return d;
 };
 
-const resolveBlock = (block, get, deep) => {
+const resolveBlock = (b, get, deep) => {
   let result = createBlock();
+  const block = resolveStreams(b, get);
   result.values = Object.keys(block.values).reduce(
     (res, k) => ({
       ...res,
@@ -132,7 +125,7 @@ const resolveBlock = (block, get, deep) => {
 };
 
 const resolve = (d, get, deep) => {
-  const v = resolveSingle(d, get);
+  const v = resolveType(d, get);
   if (!deep || isResolved(v)) return v;
   return { ...v, value: resolveBlock(v.value, get, deep) };
 };

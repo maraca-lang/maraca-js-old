@@ -10,7 +10,7 @@ import operators from './operators';
 import mergeStatic from './static';
 
 export default (create, type, info, args) => {
-  if (type === 'nil' || (type === 'value' && !info.value) || type === 'error') {
+  if (type === 'nil' || type === 'error') {
     return { type: 'value', value: '' };
   }
 

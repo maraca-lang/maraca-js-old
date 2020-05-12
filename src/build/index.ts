@@ -14,8 +14,9 @@ const build = (
     const index =
       info.bracket === '{'
         ? 1
-        : nodes.filter((n) => !['func', 'set', 'push', 'nil'].includes(n.type))
-            .length;
+        : nodes.filter(
+            (n) => !['func', 'set', 'push', 'nil', 'error'].includes(n.type),
+          ).length;
     return build(create, getScope, {
       type: 'combine',
       nodes: [
@@ -36,6 +37,9 @@ const build = (
             values: { ...scope.value.values, ...result.values },
             streams: [...scope.value.streams, ...result.streams],
             indices: [],
+            ...(scope.value.unresolved || result.unresolved
+              ? { unresolved: true }
+              : {}),
           },
         };
       }
@@ -52,13 +56,13 @@ const build = (
     return {
       type: 'stream',
       value: create(
-        streamMap((get, create) =>
-          combineRun(
+        streamMap((get, create) => {
+          return combineRun(
             combineConfig([getScope(), build(create, getScope, nodes[0])], get),
             get,
             create,
-          ),
-        ),
+          );
+        }),
       ),
     };
   }

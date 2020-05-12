@@ -44,7 +44,7 @@ test('basic', () => {
 });
 
 test('nils ignored', () => {
-  expect(maraca('[a, , b]')).toEqual({
+  expect(maraca("[a, , '', b]")).toEqual({
     type: 'block',
     value: fromPairs([
       {

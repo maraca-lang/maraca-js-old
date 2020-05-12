@@ -57,12 +57,14 @@ function maraca(...args) {
     const modulesToBlock = ({ __MODULES, ...moduleLayer }) => ({
       type: 'block',
       value: fromPairs(
-        Object.keys(moduleLayer).map((k) => ({
-          key: fromJs(k),
-          value: moduleLayer[k].__MODULES
-            ? moduleLayer[k][''] || modulesToBlock(moduleLayer[k])
-            : moduleLayer[k],
-        })),
+        Object.keys(moduleLayer)
+          .filter((x) => x !== '')
+          .map((k) => ({
+            key: fromJs(k),
+            value: moduleLayer[k].__MODULES
+              ? moduleLayer[k][''] || modulesToBlock(moduleLayer[k])
+              : moduleLayer[k],
+          })),
       ),
     });
     return create(

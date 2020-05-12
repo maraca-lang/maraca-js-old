@@ -1,5 +1,3 @@
-import { blockIsResolved } from '../resolve';
-
 export default (create, args, ...maps) => {
   const map = maps.pop();
   const configMap = maps.pop();
@@ -7,7 +5,7 @@ export default (create, args, ...maps) => {
     args.every(
       (a) =>
         a.type === 'value' ||
-        (a.type === 'block' && blockIsResolved(a.value)) ||
+        (a.type === 'block' && !a.value.unresolved) ||
         a.type === 'map',
     )
   ) {

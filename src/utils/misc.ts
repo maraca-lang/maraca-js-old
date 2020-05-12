@@ -45,7 +45,6 @@ export const snapshot = (create, { push, ...value }) => {
             })),
           ),
         };
-  return push
-    ? { type: 'stream', value: create(pushable(result), true) }
-    : result;
+  if (!push) return result;
+  return { type: 'stream', value: create(pushable(result), true) };
 };
