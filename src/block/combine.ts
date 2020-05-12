@@ -5,7 +5,7 @@ import { fromPairs, toPairs } from './util';
 
 const getIndexValue = (index, indices, get) => {
   const allIndices = indices.reduce((res, x) => {
-    if (x.type === 'single') return [...res, x.value];
+    if (x.type !== 'unpack') return [...res, x];
     const value = get(x.value);
     return [...res, ...(value.type === 'block' ? value.value.indices : [])];
   }, []);

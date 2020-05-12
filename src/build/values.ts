@@ -33,6 +33,24 @@ export default (create, type, info, args) => {
     );
   }
 
+  if (type === 'size') {
+    return mergeStatic(create, args, (args, get) => {
+      const value = get(args[0], true);
+      if (value.type === 'block') {
+        return fromJs(toPairs(value.value).filter((d) => d.value.value).length);
+      }
+      const num = toIndex(value.value);
+      if (num) {
+        const result = createBlock();
+        result.indices = Array.from({ length: num }).map((_, i) =>
+          fromJs(i + 1),
+        );
+        return { type: 'block', value: result };
+      }
+      return fromJs(null);
+    });
+  }
+
   if (type === 'combine') {
     return args.reduce((a1, a2) =>
       mergeStatic(create, [a1, a2], combineConfig, combineRun),
@@ -40,33 +58,8 @@ export default (create, type, info, args) => {
   }
 
   if (type === 'map') {
-    if (info.func === '#') {
-      return mergeStatic(create, args, (args, get) => {
-        const value = get(args[0], true);
-        if (value.type === 'block') {
-          return fromJs(
-            toPairs(value.value).filter((d) => d.value.value).length,
-          );
-        }
-        const num = toIndex(value.value);
-        if (num) {
-          const result = createBlock();
-          result.indices = Array.from({ length: num }).map((_, i) => ({
-            type: 'single',
-            value: fromJs(i + 1),
-          }));
-          return { type: 'block', value: result };
-        }
-        return fromJs(null);
-      });
-    }
-
-    const { map, deepArgs = [] } =
-      typeof operators[info.func] === 'function'
-        ? { map: operators[info.func] }
-        : operators[info.func];
     return mergeStatic(create, args, (args, get) =>
-      map(args.map((a, i) => get(a, deepArgs[i]))),
+      operators[info.func](args, get),
     );
   }
 

@@ -13,21 +13,21 @@ export const blockIsResolved = (block) =>
     (k) => isResolved(block.values[k].key) && isResolved(block.values[k].value),
   ) &&
   block.streams.length === 0 &&
-  block.indices.every((x) => isResolved(x.value));
+  block.indices.every((x) => x.type !== 'unpack' && isResolved(x));
 
 const blockExtract = (block, keys, get) => {
   const rest = createBlock();
   rest.values = { ...block.values };
   rest.indices = block.indices
-    .map((x) => ({ type: 'single', value: resolve(x.value, get, false) }))
-    .filter((x) => x.value.value);
+    .map((x) => resolve(x, get, false))
+    .filter((x) => x.value);
   let maxIndex = 0;
   const values = keys.map((key) => {
     const k = print(key);
     const i = toIndex(k);
     if (i) {
       maxIndex = i;
-      return rest.indices[i - 1].value || { type: 'value', value: '' };
+      return rest.indices[i - 1] || { type: 'value', value: '' };
     }
     const v = (rest.values[k] && rest.values[k].value) || {
       type: 'value',
@@ -96,11 +96,11 @@ const resolveStreams = (block, get) => {
   });
   result.indices = block.indices
     .reduce((res, x) => {
-      if (x.type === 'single') return [...res, x];
+      if (x.type !== 'unpack') return [...res, x];
       const value = resolve(x.value, get, false);
       return value.type === 'block' ? [...res, ...value.value.indices] : res;
     }, [])
-    .filter((x) => x.value.value);
+    .filter((x) => x.value);
   result.func = block.func;
   return result;
 };
@@ -126,8 +126,8 @@ const resolveBlock = (block, get, deep) => {
     {},
   );
   result.indices = block.indices
-    .map((x) => ({ type: 'single', value: resolve(x.value, get, deep) }))
-    .filter((x) => x.value.value);
+    .map((x) => resolve(x, get, deep))
+    .filter((x) => x.value);
   result.func = block.func;
   return result;
 };

@@ -14,7 +14,7 @@ test('basic', () => {
   });
 });
 
-test('maps', () => {
+test.skip('maps', () => {
   expect(maraca('[a, b, c].[=>> ]')).toEqual({
     type: 'block',
     value: createBlock(),
@@ -82,15 +82,15 @@ test('maps', () => {
       },
     ] as any),
   });
-  // expect(maraca('[1, 2, 3].[sum: 0, v=>> sum: @sum + @v]')).toEqual({
-  //   type: 'block',
-  //   value: fromPairs([
-  //     {
-  //       key: { type: 'value', value: 'sum' },
-  //       value: { type: 'value', value: '6' },
-  //     },
-  //   ] as any),
-  // });
+  expect(maraca('[1, 2, 3].[sum: 0, v=>> sum: @sum + @v]')).toEqual({
+    type: 'block',
+    value: fromPairs([
+      {
+        key: { type: 'value', value: 'sum' },
+        value: { type: 'value', value: '6' },
+      },
+    ] as any),
+  });
   expect(maraca('1.[=>> ]')).toEqual({ type: 'value', value: '' });
   expect(maraca('1.[v=>> @v + 1]')).toEqual({ type: 'value', value: '' });
   expect(maraca('[a: 1, b: 2, c: 3].[v=>> : [@v]]')).toEqual({

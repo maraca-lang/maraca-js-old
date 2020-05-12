@@ -50,9 +50,8 @@ export default (create, getScope, nodes) => {
         result.value.func = Object.assign(value, { isMap, isPure });
       }
     } else if (type === 'push') {
-      result.value.indices.push({
-        type: 'single',
-        value: create((_, get, create) => {
+      result.value.indices.push(
+        create((_, get, create) => {
           let source;
           return () => {
             const dest = get(args[1]);
@@ -63,12 +62,11 @@ export default (create, getScope, nodes) => {
             source = newSource;
           };
         }),
-      });
+      );
     } else if (type !== 'nil') {
-      result.value.indices.push({
-        type: 'single',
-        value: build(create, getNewScope, { type, info, nodes }),
-      });
+      result.value.indices.push(
+        build(create, getNewScope, { type, info, nodes }),
+      );
     }
   });
 

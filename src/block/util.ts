@@ -18,7 +18,7 @@ export const toPairs = (block) => {
     .sort((a, b) => compare(a.key, b.key));
   const indices = block.indices.map((value, i) => ({
     key: fromJs(i + 1),
-    value: value.value,
+    value: value,
   }));
   if (values[0] && !values[0].key.value) {
     return [values[0], ...indices, ...values.slice(1)];
@@ -37,15 +37,13 @@ export const fromPairs = (pairs: { key: Data; value: StreamData }[]) => {
       result.values[k] = pair;
     }
   });
-  result.indices = indices
-    .sort((a, b) => a.key - b.key)
-    .map((x) => ({ type: 'single', value: x.value }));
+  result.indices = indices.sort((a, b) => a.key - b.key).map((x) => x.value);
   return result;
 };
 
 export const toBoth = (block) => {
   return {
-    indices: block.indices.map((x) => x.value),
+    indices: block.indices,
     values: Object.keys(block.values).reduce((res, k) => {
       const key = k.startsWith("'")
         ? k.slice(1, -1).replace(/\\([\s\S])/g, (_, m) => m)

@@ -88,7 +88,7 @@ test('push', (done) => {
   );
 });
 
-test('push block', (done) => {
+test.skip('push block', (done) => {
   testStream(
     '[x:~ [a], @tick | [: @x, a] -> @x]',
     [

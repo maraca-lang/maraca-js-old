@@ -1,6 +1,7 @@
 import { compare, fromJs, print, toNumber } from '../data';
 
-const dataMap = (map) => (args) => fromJs(map(args));
+const dataMap = (map, deep?) => (args, get) =>
+  fromJs(map(args.map((a, i) => get(a, deep && deep[i]))));
 
 const numericMap = (map) =>
   dataMap((args) => {
@@ -10,34 +11,22 @@ const numericMap = (map) =>
   });
 
 export default {
-  '=': {
-    map: dataMap(([a, b]) => {
+  '=': dataMap(
+    ([a, b]) => {
       if (a.type !== b.type) return false;
       if (a.type == 'value') return a.value === b.value;
       return print(a) === print(b);
-    }),
-    deepArgs: [true, true],
-  },
+    },
+    [true, true],
+  ),
   '!': dataMap(([a, b]) => {
     if (!b) return !a.value;
     return a.type !== b.type || a.value !== b.value;
   }),
-  '<': {
-    map: dataMap(([a, b]) => compare(a, b) === -1),
-    deepArgs: [true, true],
-  },
-  '>': {
-    map: dataMap(([a, b]) => compare(a, b) === 1),
-    deepArgs: [true, true],
-  },
-  '<=': {
-    map: dataMap(([a, b]) => compare(a, b) !== 1),
-    deepArgs: [true, true],
-  },
-  '>=': {
-    map: dataMap(([a, b]) => compare(a, b) !== -1),
-    deepArgs: [true, true],
-  },
+  '<': dataMap(([a, b]) => compare(a, b) === -1, [true, true]),
+  '>': dataMap(([a, b]) => compare(a, b) === 1, [true, true]),
+  '<=': dataMap(([a, b]) => compare(a, b) !== 1, [true, true]),
+  '>=': dataMap(([a, b]) => compare(a, b) !== -1, [true, true]),
   '+': numericMap(([a, b]) => a + b),
   '-': dataMap(([a, b]) => {
     if (!b) return a.type === 'value' ? `-${a.value}` : null;

@@ -233,9 +233,8 @@ export default () => {
     Comb1: (a) => a.ast,
 
     Size_size: (a, b) => ({
-      type: 'map',
+      type: 'size',
       nodes: [b.ast],
-      info: { func: a.sourceString },
       start: getIndex(a.source.startIdx),
       end: getIndex(b.source.endIdx),
     }),
