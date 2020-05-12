@@ -1,7 +1,6 @@
-import build from '../build/index';
-
+import build from './build';
 import func from './func';
-import { blockSet, createBlock, fromPairs, toPairs } from './util';
+import { blockSet, createBlock, fromPairs, toPairs } from './utils/block';
 
 const pushable = (arg) => (set, get) => {
   const push = (v) => set({ ...v, push });

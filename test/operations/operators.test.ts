@@ -1,5 +1,5 @@
 import maraca from '../../src/index';
-import { fromPairs } from '../../src/block/util';
+import { fromPairs } from '../../src/utils/block';
 
 test('arithmetic', () => {
   expect(maraca('1 + 2')).toEqual({

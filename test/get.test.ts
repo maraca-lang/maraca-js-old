@@ -1,5 +1,5 @@
 import maraca from '../src/index';
-import { createBlock, fromPairs } from '../src/block/util';
+import { createBlock, fromPairs } from '../src/utils/block';
 
 test('basic', () => {
   expect(maraca('[x: a, y: @x]')).toEqual({

@@ -1,5 +1,5 @@
-import { compare, fromJs, print, toIndex } from '../data';
-import { Data, StreamData } from '../typings';
+import { compare, fromJs, print, toIndex } from './data';
+import { Data, StreamData } from './typings';
 
 export const createBlock = () => {
   return { values: {}, streams: [], indices: [] } as any;

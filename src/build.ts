@@ -1,7 +1,6 @@
-import buildBlock from '../block/build';
-import { combineConfig, combineRun } from '../block/combine';
-import { streamMap } from '../util';
-
+import buildBlock from './block';
+import { combineConfig, combineRun } from './combine';
+import { streamMap } from './utils/misc';
 import buildValue from './values';
 
 const build = (

@@ -1,17 +1,17 @@
-import resolve from './block/resolve';
-import { fromPairs } from './block/util';
 import build from './build';
-import { fromJs } from './data';
 import parse from './parse';
-import process from './streams';
-import { Data, Source, StreamData } from './typings';
-import { streamMap } from './util';
+import resolve from './resolve';
+import { fromPairs } from './utils/block';
+import { fromJs } from './utils/data';
+import { streamMap } from './utils/misc';
+import process from './utils/streams';
+import { Data, Source, StreamData } from './utils/typings';
 
-export { fromJs, print, toJs } from './data';
 export { default as parse } from './parse';
-export { default as process } from './streams';
-export { Data, Source } from './typings';
-export { streamMap } from './util';
+export { fromJs, print, toJs } from './utils/data';
+export { streamMap } from './utils/misc';
+export { default as process } from './utils/streams';
+export { Data, Source } from './utils/typings';
 
 const wrapCreate = (create) => (run, ...args) =>
   ({

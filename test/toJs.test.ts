@@ -1,6 +1,6 @@
 import maraca from '../src/index';
-import { fromPairs } from '../src/block/util';
-import { toJs } from '../src/data';
+import { fromPairs } from '../src/utils/block';
+import { toJs } from '../src/utils/data';
 
 test('values', () => {
   expect(toJs(maraca('test'), true)).toEqual({ type: 'value', value: 'test' });

@@ -1,7 +1,6 @@
-import { print, toIndex } from '../data';
-import { streamMap } from '../util';
-
-import { fromPairs, toPairs } from './util';
+import { fromPairs, toPairs } from './utils/block';
+import { print, toIndex } from './utils/data';
+import { streamMap } from './utils/misc';
 
 const getIndexValue = (index, indices, get) => {
   const allIndices = indices.reduce((res, x) => {

@@ -1,4 +1,4 @@
-import { sortMultiple } from './util';
+import { sortMultiple } from './misc';
 
 const obj = {};
 

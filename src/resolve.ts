@@ -1,6 +1,5 @@
-import { print, toIndex } from '../data';
-
-import { cloneBlock, createBlock, toPairs } from './util';
+import { cloneBlock, createBlock, toPairs } from './utils/block';
+import { print, toIndex } from './utils/data';
 
 export const isResolved = (data) => {
   if (data.type === 'value') return true;

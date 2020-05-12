@@ -1,5 +1,5 @@
-import { createBlock, fromPairs, toBoth, toPairs } from './block/util';
-import { sortMultiple } from './util';
+import { createBlock, fromPairs, toBoth, toPairs } from './block';
+import { sortMultiple } from './misc';
 
 export const toNumber = (v: string) => {
   const n = parseFloat(v);
