@@ -1,3 +1,5 @@
+import { fromPairs, toPairs } from './block';
+
 export const sortMultiple = <T = any>(
   items1: T[],
   items2: T[],
@@ -21,4 +23,25 @@ export const streamMap = (map) => (set, get, create) => {
     result = map(get, create);
     set(result);
   };
+};
+
+export const pushable = (arg) => (set, get) => {
+  const push = (v) => set({ ...v, push });
+  return () => set({ push, ...get(arg) });
+};
+
+export const snapshot = (create, { push, ...value }) => {
+  const result =
+    value.type !== 'block'
+      ? value
+      : {
+          type: 'block',
+          value: fromPairs(
+            toPairs(value.value).map(({ key, value }) => ({
+              key,
+              value: snapshot(create, value),
+            })),
+          ),
+        };
+  return push ? create(pushable(result), true) : result;
 };
