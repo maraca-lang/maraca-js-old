@@ -1,3 +1,4 @@
+import resolve from './resolve';
 import { fromPairs, toPairs } from './utils/block';
 import { print, toIndex } from './utils/data';
 import { streamMap } from './utils/misc';
@@ -5,13 +6,13 @@ import { streamMap } from './utils/misc';
 const getIndexValue = (index, indices, get) => {
   const allIndices = indices.reduce((res, x) => {
     if (x.type !== 'unpack') return [...res, x];
-    const value = get(x.value);
+    const value = resolve(x.value, get, false);
     return [...res, ...(value.type === 'block' ? value.value.indices : [])];
   }, []);
   let countTrue = 0;
   let countFalse = 0;
   for (let i = 0; i < allIndices.length; i++) {
-    const result = get(allIndices[i]);
+    const result = resolve(allIndices[i], get, false);
     if (result.value) countTrue++;
     else countFalse++;
     if (countTrue === index) return result;
@@ -41,7 +42,7 @@ const sortTypes = (v1, v2) => {
 };
 
 export const combineConfig = ([s1, s2]: any[], get) => {
-  const [v1, v2] = [get(s1), get(s2)];
+  const [v1, v2] = [resolve(s1, get, false), resolve(s2, get, false)];
   if (v1.type === 'value' && v2.type === 'value') return ['nil'];
   const [big, small] = sortTypes(v1, v2);
   if (big === null && small === null) return ['nil'];
@@ -58,14 +59,19 @@ export const combineConfig = ([s1, s2]: any[], get) => {
 };
 
 const runGet = (get, create, func, v, arg) => {
-  if (func && (v === func || !get(v).value)) {
+  if (func && (v === func || !resolve(v, get, false).value)) {
     return typeof func === 'function' ? func(create, arg)[0] : func;
   }
   return v;
 };
 
 const wrapStream = (create, x) =>
-  x.type === 'stream' ? create(streamMap((get) => get(x))) : x;
+  x.type === 'stream'
+    ? {
+        type: 'stream',
+        value: create(streamMap((get) => resolve(x, get, false))),
+      }
+    : x;
 
 export const combineRun = ([type, ...config]: any[], get, create) => {
   if (type === 'nil') return { type: 'value', value: '' };
@@ -76,7 +82,7 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
   }
   const [func, big, small] = config;
   const pairs = toPairs(small.value)
-    .map(({ key, value }) => ({ key, value: get(value) }))
+    .map(({ key, value }) => ({ key, value: resolve(value, get, false) }))
     .filter((d) => d.value.value);
   if (func.isPure) {
     return {
@@ -94,7 +100,10 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
       ...pairs
         .map(({ key, value }) => {
           const [newValue, newKey] = func(key)(create, value);
-          return { key: get(newKey, true), value: get(newValue, true) };
+          return {
+            key: resolve(newKey, get, true),
+            value: resolve(newValue, get, true),
+          };
         })
         .filter((d) => d.value.value),
     ]),

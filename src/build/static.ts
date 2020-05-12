@@ -32,21 +32,24 @@ export default (create, args, ...maps) => {
       };
     }
   }
-  return create((set, get, create) => {
-    let result;
-    let prev = [];
-    return () => {
-      const next = configMap ? configMap(args, get) : args;
-      if (
-        !configMap ||
-        prev.length !== next.length ||
-        prev.some((x, i) => x !== next[i])
-      ) {
-        if (result && result.type === 'stream') result.value.cancel();
-        result = map(next, get, create);
-        set(result);
-        prev = next;
-      }
-    };
-  });
+  return {
+    type: 'stream',
+    value: create((set, get, create) => {
+      let result;
+      let prev = [];
+      return () => {
+        const next = configMap ? configMap(args, get) : args;
+        if (
+          !configMap ||
+          prev.length !== next.length ||
+          prev.some((x, i) => x !== next[i])
+        ) {
+          if (result && result.type === 'stream') result.value.cancel();
+          result = map(next, get, create);
+          set(result);
+          prev = next;
+        }
+      };
+    }),
+  };
 };

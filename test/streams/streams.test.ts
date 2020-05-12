@@ -1,5 +1,6 @@
 import maraca from '../../src/index';
 import { fromPairs, toPairs } from '../../src/utils/block';
+import resolve from '../../src/resolve';
 import { fromJs } from '../../src/utils/data';
 import { streamMap } from '../../src/utils/misc';
 
@@ -8,7 +9,7 @@ const library = {
     set(
       fromJs((arg) =>
         streamMap((get) => {
-          const v = get(arg, true);
+          const v = resolve(arg, get, true);
           return fromJs(
             v.type === 'block' &&
               toPairs(v.value).filter((x) => x.value.value).length,

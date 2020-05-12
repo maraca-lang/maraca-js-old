@@ -1,5 +1,6 @@
 import { combineConfig, combineRun } from '../combine';
 import parse from '../parse';
+import resolve from '../resolve';
 import { createBlock, toPairs } from '../utils/block';
 import { fromJs, toIndex } from '../utils/data';
 import { streamMap } from '../utils/misc';
@@ -20,7 +21,7 @@ export default (create, type, info, args) => {
   if (type === 'join') {
     return args.reduce((a1, a2, i) =>
       mergeStatic(create, [a1, a2], (args, get) => {
-        const [v1, v2] = args.map((a) => get(a));
+        const [v1, v2] = args.map((a) => resolve(a, get, false));
         if (v1.type === 'block' || v2.type === 'block') return fromJs(null);
         const hasSpace =
           info.space[i - 1] &&
@@ -35,7 +36,7 @@ export default (create, type, info, args) => {
 
   if (type === 'size') {
     return mergeStatic(create, args, (args, get) => {
-      const value = get(args[0], true);
+      const value = resolve(args[0], get, true);
       if (value.type === 'block') {
         return fromJs(toPairs(value.value).filter((d) => d.value.value).length);
       }
@@ -64,37 +65,43 @@ export default (create, type, info, args) => {
   }
 
   if (type === 'eval') {
-    return create(
-      streamMap((get, create) => {
-        try {
-          const code = get(args[0]);
-          const arg = get(args[1]);
-          return build(
-            create,
-            () =>
-              arg.type === 'block'
-                ? arg
-                : { type: 'block', value: createBlock() },
-            parse(code.type === 'value' ? code.value : ''),
-          );
-        } catch (e) {
-          console.log(e.message);
-          return { type: 'value', value: '' };
-        }
-      }),
-    );
+    return {
+      type: 'stream',
+      value: create(
+        streamMap((get, create) => {
+          try {
+            const code = resolve(args[0], get, false);
+            const arg = resolve(args[1], get, false);
+            return build(
+              create,
+              () =>
+                arg.type === 'block'
+                  ? arg
+                  : { type: 'block', value: createBlock() },
+              parse(code.type === 'value' ? code.value : ''),
+            );
+          } catch (e) {
+            console.log(e.message);
+            return { type: 'value', value: '' };
+          }
+        }),
+      ),
+    };
   }
 
   if (type === 'trigger') {
-    return create((set, get) => {
-      let trigger;
-      return () => {
-        const newTrigger = get(args[0], true);
-        if (trigger !== newTrigger && newTrigger.value) {
-          set({ ...get(args[1], true, true) });
-        }
-        trigger = newTrigger;
-      };
-    });
+    return {
+      type: 'stream',
+      value: create((set, get) => {
+        let trigger;
+        return () => {
+          const newTrigger = resolve(args[0], get, true);
+          if (trigger !== newTrigger && newTrigger.value) {
+            set({ ...resolve(args[1], (x) => get(x, true), true) });
+          }
+          trigger = newTrigger;
+        };
+      }),
+    };
   }
 };

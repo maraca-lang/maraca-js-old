@@ -105,7 +105,9 @@ export const fromJs = (value, arrayPairs = false) => {
   if (typeof value === 'string') return { type: 'value', value };
   if (typeof value === 'function') {
     const result = createBlock();
-    result.func = (create, arg) => [create(value(arg))];
+    result.func = (create, arg) => [
+      { type: 'stream', value: create(value(arg)) },
+    ];
     return { type: 'block', value: result };
   }
   if (Object.prototype.toString.call(value) === '[object Date]') {

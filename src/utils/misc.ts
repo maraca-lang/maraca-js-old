@@ -1,3 +1,5 @@
+import resolve from '../resolve';
+
 import { fromPairs, toPairs } from './block';
 
 export const sortMultiple = <T = any>(
@@ -27,7 +29,7 @@ export const streamMap = (map) => (set, get, create) => {
 
 export const pushable = (arg) => (set, get) => {
   const push = (v) => set({ ...v, push });
-  return () => set({ push, ...get(arg) });
+  return () => set({ push, ...resolve(arg, get, false) });
 };
 
 export const snapshot = (create, { push, ...value }) => {
@@ -43,5 +45,7 @@ export const snapshot = (create, { push, ...value }) => {
             })),
           ),
         };
-  return push ? create(pushable(result), true) : result;
+  return push
+    ? { type: 'stream', value: create(pushable(result), true) }
+    : result;
 };

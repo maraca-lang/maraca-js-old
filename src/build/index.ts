@@ -49,15 +49,18 @@ const build = (
   }
 
   if (type === 'get') {
-    return create(
-      streamMap((get, create) =>
-        combineRun(
-          combineConfig([getScope(), build(create, getScope, nodes[0])], get),
-          get,
-          create,
+    return {
+      type: 'stream',
+      value: create(
+        streamMap((get, create) =>
+          combineRun(
+            combineConfig([getScope(), build(create, getScope, nodes[0])], get),
+            get,
+            create,
+          ),
         ),
       ),
-    );
+    };
   }
 
   const args = nodes.map((n) => n && build(create, getScope, n));
