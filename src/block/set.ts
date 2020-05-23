@@ -5,6 +5,7 @@ import {
   createBlock,
   fromJs,
   isResolved,
+  keysToObject,
   printValue,
   resolveType,
   toIndex,
@@ -131,30 +132,22 @@ export const resolveIndices = (indices, get) =>
       : res;
   }, []);
 
-export const resolveBlock = (block, get) => {
-  let result = createBlock();
-  result.values = { ...block.values, ...resolveSets(block.streams, get) };
-  result.indices = resolveIndices(block.indices, get);
-  result.func = block.func;
-  return result;
-};
-
-export const resolveDeep = (block, get) => {
+export const mapBlock = (block, map, get) => {
   let result = createBlock();
   const values = { ...block.values, ...resolveSets(block.streams, get) };
-  result.values = Object.keys(values).reduce(
-    (res, k) => ({
-      ...res,
-      [k]: { key: values[k].key, value: resolve(values[k].value, get) },
-    }),
-    {},
-  );
+  result.values = keysToObject(Object.keys(values), (k) => ({
+    key: values[k].key,
+    value: map(values[k].value),
+  }));
   result.indices = resolveIndices(block.indices, get)
-    .map((x) => resolve(x, get))
+    .map((x) => map(x))
     .filter((x) => x.value);
   result.func = block.func;
   return result;
 };
+
+export const resolveDeep = (block, get) =>
+  mapBlock(block, (x) => resolve(x, get), get);
 
 export const toPairs = (block, get) => {
   const values = { ...block.values, ...resolveSets(block.streams, get) };

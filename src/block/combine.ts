@@ -47,57 +47,16 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
   if (type === 'value') return config[0];
   if (type === 'func') {
     const [func, arg] = config;
-    return func(create, arg)[0];
+    return func(create, arg);
   }
   const [big, small] = config;
   const func = big.value.func;
-  const pairs = toPairs(small.value, get)
-    .map(({ key, value }) => ({ key, value: resolveType(value, get) }))
-    .filter((d) => d.value.value);
-  if (func.isPure) {
-    return {
-      type: 'block',
-      value: fromPairs(
-        [
-          ...toPairs(big.value, get),
-          ...func(pairs).filter((d) => d.value.value),
-        ],
-        get,
-      ),
-    };
-  }
+  const pairs = toPairs(small.value, get);
+  const mapped = func.isPure
+    ? func(pairs)
+    : pairs.map(({ key, value }) => func(key)(create, value));
   return {
     type: 'block',
-    value: fromPairs(
-      [
-        ...toPairs(big.value, get),
-        ...pairs
-          .map(({ key, value }) => {
-            const [newValue, newKey] = func(key)(create, value);
-            return { key: newKey, value: newValue };
-          })
-          .filter((d) => d.value.value),
-      ],
-      get,
-    ),
+    value: fromPairs([...toPairs(big.value, get), ...mapped], get),
   };
-
-  // const base = cloneBlock(big.value);
-  // delete base.func;
-  // return pairs.reduce(
-  //   (res, { key, value }) => {
-  //     const map = func(key);
-  //     const [newValue, newKey] = map(create, value);
-  //     return create(
-  //       streamMap((get) => {
-  //         if (!get(newValue).value) return res;
-  //         return {
-  //           type: 'block',
-  //           value: blockSet(get(res).value, newValue, newKey),
-  //         };
-  //       }),
-  //     );
-  //   },
-  //   { type: 'block', value: base },
-  // );
 };

@@ -1,11 +1,10 @@
 import combine from '../block/combine2';
-import { toPairs } from '../block/set';
+import { mapBlock, toPairs } from '../block/set';
 import { resolve } from '../index';
 import parse from '../parse';
 import {
   createBlock,
   fromJs,
-  fromPairs,
   pushable,
   streamMap,
   resolveType,
@@ -52,11 +51,9 @@ const snapshot = (create, { push, ...value }) => {
       ? value
       : {
           type: 'block',
-          value: fromPairs(
-            toPairs(value.value, (x) => x).map(({ key, value }) => ({
-              key,
-              value: snapshot(create, value),
-            })),
+          value: mapBlock(
+            value.value,
+            (x) => snapshot(create, x),
             (x) => x,
           ),
         };

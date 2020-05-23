@@ -1,7 +1,3 @@
-import { toPairs } from '../block/set';
-
-import { fromPairs } from './block';
-
 export const isResolved = (data) => {
   if (data.type === 'map' || data.type === 'stream') return false;
   if (data.type === 'value') return true;

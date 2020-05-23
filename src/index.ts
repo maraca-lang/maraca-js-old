@@ -5,6 +5,7 @@ import { Data, Source } from './typings';
 import {
   fromObj,
   isResolved,
+  keysToObject,
   printValue,
   process,
   resolveType,
@@ -27,29 +28,28 @@ export const print = ({ type, value }, get) => {
 };
 
 const buildModuleLayer = (create, modules, getScope, path) =>
-  Object.keys(modules).reduce(
-    (res, k) => ({
-      ...res,
-      [k]:
-        typeof modules[k] === 'function'
-          ? { type: 'stream', value: create(modules[k]) }
-          : typeof modules[k] === 'string' || modules[k].__AST
-          ? {
-              type: 'stream',
-              value: create((set, _, create) =>
-                set(
-                  build(
-                    create,
-                    () => getScope(path),
-                    typeof modules[k] === 'string'
-                      ? parse(modules[k])
-                      : modules[k],
-                  ),
+  keysToObject(
+    Object.keys(modules),
+    (k) =>
+      typeof modules[k] === 'function'
+        ? { type: 'stream', value: create(modules[k]) }
+        : typeof modules[k] === 'string' || modules[k].__AST
+        ? {
+            type: 'stream',
+            value: create((set, _, create) =>
+              set(
+                build(
+                  create,
+                  () => getScope(path),
+                  typeof modules[k] === 'string'
+                    ? parse(modules[k])
+                    : modules[k],
                 ),
               ),
-            }
-          : buildModuleLayer(create, modules[k], getScope, [...path, k]),
-    }),
+            ),
+          }
+        : buildModuleLayer(create, modules[k], getScope, [...path, k]),
+    (k) => k,
     { __MODULES: true },
   );
 
@@ -70,17 +70,13 @@ function maraca(...args) {
     const modulesToBlock = ({ __MODULES, ...moduleLayer }) => ({
       type: 'block',
       value: fromObj(
-        Object.keys(moduleLayer)
-          .filter((x) => x !== '')
-          .reduce(
-            (res, k) => ({
-              ...res,
-              [k]: moduleLayer[k].__MODULES
-                ? moduleLayer[k][''] || modulesToBlock(moduleLayer[k])
-                : moduleLayer[k],
-            }),
-            {},
-          ),
+        keysToObject(
+          Object.keys(moduleLayer).filter((x) => x !== ''),
+          (k) =>
+            moduleLayer[k].__MODULES
+              ? moduleLayer[k][''] || modulesToBlock(moduleLayer[k])
+              : moduleLayer[k],
+        ),
       ),
     });
     return create(

@@ -21,7 +21,6 @@ export default (block, key, get) => {
     const values = { ...block.values, ...resolveSets(block.streams, get) };
     const v = values[k] && values[k].value;
     if (v) return v;
-
     const i = toIndex(key.value);
     if (i) {
       const v = getIndexValue(i, block.indices, get);

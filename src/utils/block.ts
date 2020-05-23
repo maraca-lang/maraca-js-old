@@ -29,7 +29,10 @@ export const fromPairs = (pairs: { key; value }[], get) => {
     }
     if (!isResolved(pair.value)) result.unresolved = true;
   });
-  result.indices = indices.sort((a, b) => a.key - b.key).map((x) => x.value);
+  result.indices = indices
+    .sort((a, b) => a.key - b.key)
+    .map((x) => x.value)
+    .filter((x) => x.value);
   return result;
 };
 

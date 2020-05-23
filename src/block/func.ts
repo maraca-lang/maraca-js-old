@@ -1,5 +1,5 @@
 import build from '../build';
-import { fromJs, fromObj, isResolved } from '../utils';
+import { fromJs, fromObj, isResolved, keysToObject } from '../utils';
 
 import { staticSet } from './set';
 
@@ -9,13 +9,12 @@ const getCompiled = (create, keys, map, bodyKey, bodyValue) => {
     const scope = {
       type: 'block',
       value: fromObj(
-        keys.reduce((res, key, i) => {
-          if (!key || key.type !== 'value') return res;
-          return {
-            ...res,
-            [key.value]: { type: 'map', arg: trace, map: (x) => x[i] },
-          };
-        }, {}),
+        keysToObject(
+          keys,
+          (k, i) =>
+            k ? { type: 'map', arg: trace, map: (x) => x[i] } : undefined,
+          (k) => k.value,
+        ),
       ),
     };
     const compileBody = (body) => {
@@ -39,12 +38,16 @@ const getCompiled = (create, keys, map, bodyKey, bodyValue) => {
   }
 };
 
-const createFunc = (create, getScope, info, args) => {
+export default (create, getScope, info, args) => {
+  if (!info.map && args.every((a) => !a)) {
+    return build(create, getScope, info.value);
+  }
+
   const compiled = getCompiled(create, args, info.map, info.key, info.value);
   if (compiled) {
     if (info.map) {
       if (compiled.key && compiled.value) {
-        return [
+        return Object.assign(
           (pairs) =>
             pairs.map(({ key, value }, i) => ({
               key:
@@ -53,45 +56,39 @@ const createFunc = (create, getScope, info, args) => {
                   : compiled.key([key, value], (x) => x),
               value: compiled.value([key, value], (x) => x),
             })),
-          true,
-          true,
-        ];
+          { isMap: true, isPure: true },
+        );
       }
     } else {
       if (compiled.value) {
-        return [
-          (_, value) => [compiled.value([null, value], (x) => x)],
-          false,
-          true,
-        ];
+        return Object.assign(
+          (_, value) => compiled.value([null, value], (x) => x),
+          { isMap: false, isPure: true },
+        );
       }
     }
   }
 
   const funcMap = (key = null) => (create, value) => {
     const argValues = [key, value];
-    const newGetScope = () => {
-      let newScope = getScope();
-      args.forEach((k, i) => {
-        if (k) newScope.value = staticSet(newScope.value, argValues[i], k);
-      });
+    let newScope;
+    const getNewScope = () => {
+      if (!newScope) {
+        newScope = getScope();
+        args.forEach((k, i) => {
+          if (k) newScope.value = staticSet(newScope.value, argValues[i], k);
+        });
+      }
       return newScope;
     };
-    return [
-      build(create, newGetScope, info.value),
-      info.key === true
-        ? key
-        : info.key && build(create, newGetScope, info.key),
-    ];
+    if (!info.map) return build(create, getNewScope, info.value);
+    return {
+      key:
+        info.key === true
+          ? key
+          : info.key && build(create, getNewScope, info.key),
+      value: build(create, getNewScope, info.value),
+    };
   };
-  return [info.map ? funcMap : funcMap(), info.map];
-};
-
-export default (create, getScope, info, args) => {
-  if (args.every((a) => !a) && !info.map) {
-    return build(create, getScope, info.value);
-  } else {
-    const [value, isMap, isPure] = createFunc(create, getScope, info, args);
-    return Object.assign(value, { isMap, isPure });
-  }
+  return Object.assign(info.map ? funcMap : funcMap(), { isMap: info.map });
 };

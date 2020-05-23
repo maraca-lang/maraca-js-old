@@ -1,9 +1,6 @@
-import maraca from '../../src/index';
+import maraca, { resolve } from '../../src/index';
 import { toPairs } from '../../src/block/set';
-import { fromObj } from '../../src/utils/block';
-import { resolve } from '../../src/index';
-import { fromJs } from '../../src/utils/data';
-import { streamMap } from '../../src/utils/misc';
+import { fromJs, fromObj, streamMap } from '../../src/utils';
 
 const library = {
   size: (set) =>

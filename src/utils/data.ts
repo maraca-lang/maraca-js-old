@@ -1,5 +1,17 @@
-import { createBlock, fromObj, fromPairs } from './block';
+import { createBlock, fromObj } from './block';
 import { sortMultiple } from './misc';
+
+export const keysToObject = (
+  keys,
+  valueMap,
+  keyMap = (k, _) => k,
+  initial = {},
+) =>
+  keys.reduce((res, k, i) => {
+    const value = valueMap(k, i);
+    if (value === undefined) return res;
+    return { ...res, [keyMap(k, i)]: value };
+  }, initial);
 
 export const toNumber = (v: string) => {
   const n = parseFloat(v);
@@ -93,9 +105,10 @@ export const fromJs = (value, arrayPairs = false) => {
   if (typeof value === 'string') return { type: 'value', value };
   if (typeof value === 'function') {
     const result = createBlock();
-    result.func = (create, arg) => [
-      { type: 'stream', value: create(value(arg)) },
-    ];
+    result.func = (create, arg) => ({
+      type: 'stream',
+      value: create(value(arg)),
+    });
     return { type: 'block', value: result };
   }
   if (Object.prototype.toString.call(value) === '[object Date]') {
@@ -104,22 +117,18 @@ export const fromJs = (value, arrayPairs = false) => {
   if (Object.prototype.toString.call(value) === '[object Object]') {
     return {
       type: 'block',
-      value: fromObj(
-        Object.keys(value).reduce(
-          (res, k) => ({ ...res, [k]: fromJs(value[k]) }),
-          {},
-        ),
-      ),
+      value: fromObj(keysToObject(Object.keys(value), (k) => fromJs(value[k]))),
     };
   }
   if (Array.isArray(value)) {
     return {
       type: 'block',
       value: fromObj(
-        value.reduce((res, x, i) => {
-          if (!arrayPairs) return { ...res, [i + 1]: fromJs(x) };
-          return { ...res, [x.key]: fromJs(x.value) };
-        }, {}),
+        keysToObject(
+          value,
+          (x) => fromJs(arrayPairs ? x.value : x),
+          (x, i) => (arrayPairs ? x.key : i + 1),
+        ),
       ),
     };
   }
@@ -155,17 +164,21 @@ export const toJs = (data = { type: 'value', value: '' } as any, config) => {
   }
   if (typeof config === 'object') {
     const indices = data.value.indices;
-    const values = Object.keys(data.value.values).reduce((res, k) => {
-      const key = k.startsWith("'")
-        ? k.slice(1, -1).replace(/\\([\s\S])/g, (_, m) => m)
-        : k;
-      return { ...res, [key]: data.value.values[k].value };
-    }, {});
+    const values = keysToObject(
+      Object.keys(data.value.values),
+      (k) => data.value.values[k].value,
+      (k) =>
+        k.startsWith("'")
+          ? k.slice(1, -1).replace(/\\([\s\S])/g, (_, m) => m)
+          : k,
+    );
     if (Array.isArray(config)) {
       return indices.map((d, i) => toJs(d, config[i % config.length]));
     }
-    const allValues = indices.reduce(
-      (res, d, i) => ({ ...res, [i + 1]: d }),
+    const allValues = keysToObject(
+      indices,
+      (d) => d,
+      (_, i) => i + 1,
       values,
     );
     const keys =
@@ -177,11 +190,10 @@ export const toJs = (data = { type: 'value', value: '' } as any, config) => {
             ]),
           )
         : Object.keys(config);
-    return keys.reduce((res, k) => {
-      if (k === '*' || k === '**') return res;
-      const v = toJs(allValues[k], config[k] || config['*'] || config['**']);
-      return v ? { ...res, [k]: v } : res;
-    }, {});
+    return keysToObject(
+      keys.filter((k) => !(k === '*' || k === '**')),
+      (k) => toJs(allValues[k], config[k] || config['*'] || config['**']),
+    );
   }
   return undefined;
 };
