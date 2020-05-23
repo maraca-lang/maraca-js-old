@@ -12,7 +12,6 @@ const getType = (s, get) => {
   const v = resolve(s, get, false);
   return { type: getValueType(v), value: v, stream: s };
 };
-
 const sortTypes = (s1, s2, get) => {
   const [t1, t2] = [getType(s1, get), getType(s2, get)];
   for (const t of ['map', 'func', 'block']) {

@@ -1,4 +1,4 @@
-import { resolveBlock } from './block/set';
+import { resolveDeep } from './block/set';
 import build from './build';
 import parse from './parse';
 import { Data, Source } from './typings';
@@ -18,7 +18,7 @@ export { fromJs, print, process, streamMap, toJs } from './utils';
 export const resolve = (data, get, deep) => {
   const v = resolveType(data, get);
   if (!deep || isResolved(v)) return v;
-  return { ...v, value: resolveBlock(v.value, get) };
+  return { ...v, value: resolveDeep(v.value, get) };
 };
 
 const buildModuleLayer = (create, modules, getScope, path) =>

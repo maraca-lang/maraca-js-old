@@ -17,16 +17,17 @@ const getIndexValue = (index, indices, get) => {
 };
 
 export default (block, key, get) => {
-  if (key.type === 'block') return block.func || { type: 'value', value: '' };
-  const i = toIndex(key.value);
-  if (i) {
-    return (
-      getIndexValue(i, block.indices, get) ||
-      block.func || { type: 'value', value: '' }
-    );
+  if (key.type === 'value') {
+    const k = print(key);
+    const values = { ...block.values, ...resolveSets(block.streams, get) };
+    const v = values[k] && values[k].value;
+    if (v) return v;
+
+    const i = toIndex(key.value);
+    if (i) {
+      const v = getIndexValue(i, block.indices, get);
+      if (v) return v;
+    }
   }
-  const k = print(key);
-  const values = { ...block.values, ...resolveSets(block.streams, get) };
-  const v = values[k] && values[k].value;
-  return v || block.func || { type: 'value', value: '' };
+  return block.func || { type: 'value', value: '' };
 };

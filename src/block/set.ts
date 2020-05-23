@@ -128,6 +128,14 @@ export const resolveIndices = (indices, get) =>
 
 export const resolveBlock = (block, get) => {
   let result = createBlock();
+  result.values = { ...block.values, ...resolveSets(block.streams, get) };
+  result.indices = resolveIndices(block.indices, get);
+  result.func = block.func;
+  return result;
+};
+
+export const resolveDeep = (block, get) => {
+  let result = createBlock();
   const values = { ...block.values, ...resolveSets(block.streams, get) };
   result.values = Object.keys(values).reduce(
     (res, k) => ({
