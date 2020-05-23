@@ -1,5 +1,5 @@
 export { cloneBlock, createBlock, fromPairs } from './block';
-export { compare, fromJs, print, toIndex, toJs, toNumber } from './data';
+export { compare, fromJs, printValue, toIndex, toJs, toNumber } from './data';
 export {
   isResolved,
   pushable,

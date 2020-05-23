@@ -1,4 +1,6 @@
-import { compare, fromJs, print, toIndex } from './data';
+import { print } from '../index';
+
+import { toIndex } from './data';
 import { isResolved } from './misc';
 
 export const createBlock = () => {
@@ -17,7 +19,7 @@ export const fromPairs = (pairs: { key; value }[]) => {
   const result = createBlock();
   const indices = [] as any[];
   pairs.forEach((pair) => {
-    const k = print(pair.key);
+    const k = print(pair.key, (x) => x);
     const i = toIndex(k);
     if (i) {
       indices.push({ key: i, value: pair.value });

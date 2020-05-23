@@ -75,28 +75,16 @@ export const compare = (v1, v2): -1 | 0 | 1 => {
   );
 };
 
-export const print = ({ type, value }) => {
-  if (type === 'value') {
-    if (!value) return '';
-    if (
-      /^[a-zA-Z0-9\. ]+$/.test(value) &&
-      !/^\s/.test(value) &&
-      !/\s$/.test(value)
-    ) {
-      return value;
-    }
-    return `'${value.replace(/(['\\])/g, (_, m) => `\\${m}`)}'`;
+export const printValue = (value) => {
+  if (!value) return '';
+  if (
+    /^[a-zA-Z0-9\. ]+$/.test(value) &&
+    !/^\s/.test(value) &&
+    !/\s$/.test(value)
+  ) {
+    return value;
   }
-  return `[${toPairs(value, (x) => x)
-    .filter((x) => x.value.value)
-    .map(({ key, value }) => {
-      if (toIndex(key.value)) return print(value);
-      const [k, v] = [print(key), print(value)];
-      if (!k && value.type === 'block') return `'': ${v}`;
-      if (key.type === 'value' || value.type === 'value') return `${k}: ${v}`;
-      return `[=> ${k}]: ${v}`;
-    })
-    .join(', ')}]`;
+  return `'${value.replace(/(['\\])/g, (_, m) => `\\${m}`)}'`;
 };
 
 export const fromJs = (value, arrayPairs = false) => {

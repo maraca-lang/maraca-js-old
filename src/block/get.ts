@@ -1,5 +1,5 @@
 import { resolve } from '../index';
-import { print, toIndex } from '../utils';
+import { printValue, toIndex } from '../utils';
 
 import { resolveIndices, resolveSets } from './set';
 
@@ -18,7 +18,7 @@ const getIndexValue = (index, indices, get) => {
 
 export default (block, key, get) => {
   if (key.type === 'value') {
-    const k = print(key);
+    const k = printValue(key.value);
     const values = { ...block.values, ...resolveSets(block.streams, get) };
     const v = values[k] && values[k].value;
     if (v) return v;

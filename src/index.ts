@@ -1,4 +1,4 @@
-import { resolveDeep } from './block/set';
+import { printBlock, resolveDeep } from './block/set';
 import build from './build';
 import parse from './parse';
 import { Data, Source } from './typings';
@@ -6,6 +6,7 @@ import {
   fromJs,
   fromPairs,
   isResolved,
+  printValue,
   process,
   resolveType,
   streamMap,
@@ -13,12 +14,17 @@ import {
 
 export { default as parse } from './parse';
 export { Data, Source } from './typings';
-export { fromJs, print, process, streamMap, toJs } from './utils';
+export { fromJs, process, streamMap, toJs } from './utils';
 
 export const resolve = (data, get, deep) => {
   const v = resolveType(data, get);
   if (!deep || isResolved(v)) return v;
   return { ...v, value: resolveDeep(v.value, get) };
+};
+
+export const print = ({ type, value }, get) => {
+  if (type === 'value') return printValue(value);
+  return printBlock(value, get);
 };
 
 const buildModuleLayer = (create, modules, getScope, path) =>

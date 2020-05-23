@@ -1,5 +1,5 @@
-import { resolve } from '../index';
-import { compare, fromJs, print, toNumber } from '../utils';
+import { print, resolve } from '../index';
+import { compare, fromJs, toNumber } from '../utils';
 
 const dataMap = (map, deep?) => (args, get) =>
   fromJs(map(args.map((a, i) => resolve(a, get, deep && deep[i]))));
@@ -16,7 +16,7 @@ export default {
     ([a, b]) => {
       if (a.type !== b.type) return false;
       if (a.type == 'value') return a.value === b.value;
-      return print(a) === print(b);
+      return print(a, (x) => x) === print(b, (x) => x);
     },
     [true, true],
   ),

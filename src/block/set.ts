@@ -1,11 +1,11 @@
-import { resolve } from '../index';
+import { print, resolve } from '../index';
 import {
   cloneBlock,
   compare,
   createBlock,
   fromJs,
   isResolved,
-  print,
+  printValue,
   toIndex,
 } from '../utils';
 
@@ -39,7 +39,10 @@ export const staticSet = (block, value, key) => {
     return result;
   }
   if (key.type === 'value') {
-    result.values = { ...block.values, [print(key)]: { key, value } };
+    result.values = {
+      ...block.values,
+      [printValue(key.value)]: { key, value },
+    };
     if (!isResolved(value)) result.unresolved = true;
     return result;
   }
@@ -56,7 +59,7 @@ const extract = (block, keys, get) => {
     .filter((x) => x.value);
   let maxIndex = 0;
   const values = keys.map((key) => {
-    const k = print(key);
+    const k = print(key, get);
     const i = toIndex(k);
     if (i) {
       maxIndex = i;
@@ -108,14 +111,14 @@ export const resolveSets = (pairs, get) =>
         if (!funcDefault) return result;
         return {
           ...result,
-          [print(funcDefault)]: {
+          [print(funcDefault, get)]: {
             key: funcDefault,
             value: { type: 'block', value: rest },
           },
         };
       }
     }
-    return { ...res, [print(key)]: { key, value: v } };
+    return { ...res, [print(key, get)]: { key, value: v } };
   }, {});
 
 export const resolveIndices = (indices, get) =>
@@ -166,4 +169,17 @@ export const toPairs = (block, get) => {
     return [valuesPairs[0], ...indicesPairs, ...valuesPairs.slice(1)];
   }
   return [...indicesPairs, ...valuesPairs];
+};
+
+export const printBlock = (block, get) => {
+  return `[${toPairs(block, get)
+    .filter((x) => x.value.value)
+    .map(({ key, value }) => {
+      if (toIndex(key.value)) return print(value, get);
+      const [k, v] = [print(key, get), print(value, get)];
+      if (!k && value.type === 'block') return `'': ${v}`;
+      if (key.type === 'value' || value.type === 'value') return `${k}: ${v}`;
+      return `[=> ${k}]: ${v}`;
+    })
+    .join(', ')}]`;
 };
