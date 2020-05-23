@@ -1,5 +1,5 @@
 import build from '../build';
-import { fromJs, fromObj, isResolved, keysToObject } from '../utils';
+import { fromObj, isResolved, keysToObject } from '../utils';
 
 import { staticSet } from './set';
 
@@ -47,15 +47,17 @@ export default (create, getScope, info, args) => {
   if (compiled) {
     if (info.map) {
       if (compiled.key && compiled.value) {
+        if (compiled.key === true) {
+          return Object.assign(
+            (key) => (_, value) => compiled.value([key, value], (x) => x),
+            { isMap: true, isIndex: true, isPure: true },
+          );
+        }
         return Object.assign(
-          (pairs) =>
-            pairs.map(({ key, value }, i) => ({
-              key:
-                compiled.key === true
-                  ? fromJs(i + 1)
-                  : compiled.key([key, value], (x) => x),
-              value: compiled.value([key, value], (x) => x),
-            })),
+          (key) => (_, value) => ({
+            key: compiled.key([key, value], (x) => x),
+            value: compiled.value([key, value], (x) => x),
+          }),
           { isMap: true, isPure: true },
         );
       }
@@ -71,24 +73,22 @@ export default (create, getScope, info, args) => {
 
   const funcMap = (key = null) => (create, value) => {
     const argValues = [key, value];
-    let newScope;
-    const getNewScope = () => {
-      if (!newScope) {
-        newScope = getScope();
-        args.forEach((k, i) => {
-          if (k) newScope.value = staticSet(newScope.value, argValues[i], k);
-        });
-      }
-      return newScope;
-    };
-    if (!info.map) return build(create, getNewScope, info.value);
+    const getNewScope = () => ({
+      type: 'block',
+      value: args.reduce(
+        (res, k, i) => (k ? staticSet(res, argValues[i], k) : res),
+        getScope().value,
+      ),
+    });
+    const valueResult = build(create, getNewScope, info.value);
+    if (!info.map || !info.key) return valueResult;
     return {
-      key:
-        info.key === true
-          ? key
-          : info.key && build(create, getNewScope, info.key),
-      value: build(create, getNewScope, info.value),
+      key: info.key === true ? key : build(create, getNewScope, info.key),
+      value: valueResult,
     };
   };
-  return Object.assign(info.map ? funcMap : funcMap(), { isMap: info.map });
+  return Object.assign(info.map ? funcMap : funcMap(), {
+    isMap: info.map,
+    isIndex: !info.key,
+  });
 };

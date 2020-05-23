@@ -55,7 +55,11 @@ const build = (
           return (staticSet as any)(block, ...args);
         }
         if (type === 'func') {
-          return { ...block, func: buildFunc(create, getNewScope, info, args) };
+          return {
+            ...block,
+            func: buildFunc(create, getNewScope, info, args),
+            unresolved: true,
+          };
         }
         return staticAppend(
           block,

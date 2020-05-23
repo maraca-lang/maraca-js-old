@@ -1,7 +1,7 @@
-import { fromPairs, resolveType } from '../utils';
+import { cloneBlock, fromPairs, resolveType } from '../utils';
 
 import blockGet from './get';
-import { toPairs } from './set';
+import { staticSet, toPairs } from './set';
 
 const getValueType = (v) => {
   if (v.type === 'value') return 'value';
@@ -26,7 +26,7 @@ export const combineConfig = ([s1, s2]: any[], get) => {
   if (big.type === 'value') return ['nil'];
   if (big.type === 'map') {
     if (small.type !== 'block') return ['nil'];
-    return ['map', big.value, small.value, {}];
+    return ['map', big.value, small.value];
   }
   if (big.type === 'func') {
     if (['func', 'map'].includes(small.type)) return ['nil'];
@@ -51,12 +51,27 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
   }
   const [big, small] = config;
   const func = big.value.func;
-  const pairs = toPairs(small.value, get);
-  const mapped = func.isPure
-    ? func(pairs)
-    : pairs.map(({ key, value }) => func(key)(create, value));
+  if (func.isIndex) {
+    const result = cloneBlock(big.value);
+    delete result.func;
+    return {
+      type: 'block',
+      value: toPairs(small.value, get)
+        .map(({ key, value }) => func(key)(create, value))
+        .filter((d) => d.value)
+        .reduce((res, v) => staticSet(res, v, null), result),
+    };
+  }
   return {
     type: 'block',
-    value: fromPairs([...toPairs(big.value, get), ...mapped], get),
+    value: fromPairs(
+      [
+        ...toPairs(big.value, get),
+        ...toPairs(small.value, get).map(({ key, value }) =>
+          func(key)(create, value),
+        ),
+      ],
+      get,
+    ),
   };
 };
