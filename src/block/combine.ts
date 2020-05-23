@@ -1,7 +1,8 @@
 import { resolve } from '../index';
-import { fromPairs, toPairs } from '../utils';
+import { fromPairs } from '../utils';
 
 import blockGet from './get';
+import { toPairs } from './set';
 
 const getValueType = (v) => {
   if (v.type === 'value') return 'value';
@@ -51,14 +52,14 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
   }
   const [big, small] = config;
   const func = big.value.func;
-  const pairs = toPairs(small.value)
+  const pairs = toPairs(small.value, get)
     .map(({ key, value }) => ({ key, value: resolve(value, get, false) }))
     .filter((d) => d.value.value);
   if (func.isPure) {
     return {
       type: 'block',
       value: fromPairs([
-        ...toPairs(big.value),
+        ...toPairs(big.value, get),
         ...func(pairs).filter((d) => d.value.value),
       ]),
     };
@@ -66,7 +67,7 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
   return {
     type: 'block',
     value: fromPairs([
-      ...toPairs(big.value),
+      ...toPairs(big.value, get),
       ...pairs
         .map(({ key, value }) => {
           const [newValue, newKey] = func(key)(create, value);

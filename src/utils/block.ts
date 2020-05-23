@@ -13,20 +13,6 @@ export const cloneBlock = (block) => ({
   ...(block.unresolved ? { unresolved: true } : {}),
 });
 
-export const toPairs = (block) => {
-  const values = Object.keys(block.values)
-    .map((k) => block.values[k])
-    .sort((a, b) => compare(a.key, b.key));
-  const indices = block.indices.map((value, i) => ({
-    key: fromJs(i + 1),
-    value: value,
-  }));
-  if (values[0] && !values[0].key.value) {
-    return [values[0], ...indices, ...values.slice(1)];
-  }
-  return [...indices, ...values];
-};
-
 export const fromPairs = (pairs: { key; value }[]) => {
   const result = createBlock();
   const indices = [] as any[];

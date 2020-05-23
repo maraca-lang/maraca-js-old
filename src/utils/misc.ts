@@ -1,4 +1,6 @@
-import { fromPairs, toPairs } from './block';
+import { toPairs } from '../block/set';
+
+import { fromPairs } from './block';
 
 export const isResolved = (data) => {
   if (data.type === 'map' || data.type === 'stream') return false;
@@ -45,21 +47,4 @@ export const streamMap = (map) => (set, get, create) => {
 export const pushable = (arg) => (set, get) => {
   const push = (v) => set({ ...v, push });
   return () => set({ push, ...resolveType(arg, get) });
-};
-
-export const snapshot = (create, { push, ...value }) => {
-  const result =
-    value.type !== 'block'
-      ? value
-      : {
-          type: 'block',
-          value: fromPairs(
-            toPairs(value.value).map(({ key, value }) => ({
-              key,
-              value: snapshot(create, value),
-            })),
-          ),
-        };
-  if (!push) return result;
-  return { type: 'stream', value: create(pushable(result), true) };
 };

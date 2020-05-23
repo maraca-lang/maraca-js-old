@@ -1,11 +1,12 @@
 import { resolve } from '../index';
 import {
   cloneBlock,
+  compare,
   createBlock,
+  fromJs,
   isResolved,
   print,
   toIndex,
-  toPairs,
 } from '../utils';
 
 export const staticAppend = (block, value) => {
@@ -89,7 +90,7 @@ export const resolveSets = (pairs, get) =>
     if (key.type === 'block') {
       const value = resolve(v, get, false);
       if (value.type === 'block') {
-        const keyPairs = toPairs(key.value);
+        const keyPairs = toPairs(key.value, get);
         const func = key.value.func;
         const funcDefault = typeof func === 'object' && func;
         const { values, rest } = extract(
@@ -149,4 +150,20 @@ export const resolveDeep = (block, get) => {
     .filter((x) => x.value);
   result.func = block.func;
   return result;
+};
+
+export const toPairs = (block, get) => {
+  const values = { ...block.values, ...resolveSets(block.streams, get) };
+  const valuesPairs = Object.keys(values)
+    .map((k) => values[k])
+    .sort((a, b) => compare(a.key, b.key));
+  const indices = resolveIndices(block.indices, get);
+  const indicesPairs = indices.map((value, i) => ({
+    key: fromJs(i + 1),
+    value: value,
+  }));
+  if (valuesPairs[0] && !valuesPairs[0].key.value) {
+    return [valuesPairs[0], ...indicesPairs, ...valuesPairs.slice(1)];
+  }
+  return [...indicesPairs, ...valuesPairs];
 };

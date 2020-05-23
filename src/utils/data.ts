@@ -1,4 +1,6 @@
-import { createBlock, fromPairs, toPairs } from './block';
+import { toPairs } from '../block/set';
+
+import { createBlock, fromPairs } from './block';
 import { sortMultiple } from './misc';
 
 export const toNumber = (v: string) => {
@@ -85,7 +87,7 @@ export const print = ({ type, value }) => {
     }
     return `'${value.replace(/(['\\])/g, (_, m) => `\\${m}`)}'`;
   }
-  return `[${toPairs(value)
+  return `[${toPairs(value, (x) => x)
     .filter((x) => x.value.value)
     .map(({ key, value }) => {
       if (toIndex(key.value)) return print(value);

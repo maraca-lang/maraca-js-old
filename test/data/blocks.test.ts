@@ -1,5 +1,6 @@
 import maraca from '../../src/index';
-import { fromPairs, toPairs } from '../../src/utils/block';
+import { toPairs } from '../../src/block/set';
+import { fromPairs } from '../../src/utils/block';
 
 test('basic', () => {
   expect(maraca('[hello, world]')).toEqual({
@@ -106,14 +107,16 @@ test('nested', () => {
 
 test('sort', () => {
   expect(
-    toPairs(maraca('[: 1, 2, 3, w: 4, x: 5, [y]: 6, [z]: 7]').value as any).map(
-      (x) => x.value.value,
-    ),
+    toPairs(
+      maraca('[: 1, 2, 3, w: 4, x: 5, [y]: 6, [z]: 7]').value as any,
+      (x) => x,
+    ).map((x) => x.value.value),
   ).toEqual(['1', '2', '3', '4', '5', '6', '7']);
 
   expect(
     toPairs(
       maraca('[[A]: 1, [A, B]: 2, [A, C]: 3, [B]: 4, [B, A]: 5]').value as any,
+      (x) => x,
     ).map((x) => x.value.value),
   ).toEqual(['1', '2', '3', '4', '5']);
 });

@@ -1,13 +1,14 @@
 import combine from '../block/combine2';
+import { toPairs } from '../block/set';
 import { resolve } from '../index';
 import parse from '../parse';
 import {
   createBlock,
   fromJs,
-  snapshot,
+  fromPairs,
+  pushable,
   streamMap,
   toIndex,
-  toPairs,
 } from '../utils';
 
 import build from './index';
@@ -44,6 +45,23 @@ const mergeMap = (create, args, map) => {
   };
 };
 
+const snapshot = (create, { push, ...value }) => {
+  const result =
+    value.type !== 'block'
+      ? value
+      : {
+          type: 'block',
+          value: fromPairs(
+            toPairs(value.value, (x) => x).map(({ key, value }) => ({
+              key,
+              value: snapshot(create, value),
+            })),
+          ),
+        };
+  if (!push) return result;
+  return { type: 'stream', value: create(pushable(result), true) };
+};
+
 export default (create, type, info, args) => {
   if (type === 'nil' || type === 'error') {
     return { type: 'value', value: '' };
@@ -73,7 +91,9 @@ export default (create, type, info, args) => {
     return mergeMap(create, args, (args, get) => {
       const value = resolve(args[0], get, true);
       if (value.type === 'block') {
-        return fromJs(toPairs(value.value).filter((d) => d.value.value).length);
+        return fromJs(
+          toPairs(value.value, get).filter((d) => d.value.value).length,
+        );
       }
       const num = toIndex(value.value);
       if (num) {
