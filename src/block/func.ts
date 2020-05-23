@@ -1,7 +1,7 @@
 import build from '../build';
 import { fromJs, fromPairs, isResolved } from '../utils';
 
-import { blockSet } from './resolve';
+import { staticSet } from './set';
 
 const getStatic = (keys, arg) =>
   keys
@@ -73,7 +73,7 @@ const createFunc = (create, getScope, info, args) => {
     const newGetScope = () => {
       let newScope = getScope();
       args.forEach((k, i) => {
-        if (k) newScope.value = blockSet(newScope.value, argValues[i], k);
+        if (k) newScope.value = staticSet(newScope.value, argValues[i], k);
       });
       return newScope;
     };

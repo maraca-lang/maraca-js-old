@@ -1,6 +1,6 @@
 import { combineConfig, combineRun } from '../block/combine';
 import buildFunc from '../block/func';
-import { blockAppend, blockSet } from '../block/resolve';
+import { staticAppend, staticSet } from '../block/set';
 import { createBlock, pushable, streamMap } from '../utils';
 
 import buildValue from './values';
@@ -52,12 +52,12 @@ const build = (
           if (info.pushable) {
             args[0] = { type: 'stream', value: create(pushable(args[0])) };
           }
-          return (blockSet as any)(block, ...args);
+          return (staticSet as any)(block, ...args);
         }
         if (type === 'func') {
           return { ...block, func: buildFunc(create, getNewScope, info, args) };
         }
-        return blockAppend(
+        return staticAppend(
           block,
           build(create, getNewScope, { type, info, nodes }),
         );

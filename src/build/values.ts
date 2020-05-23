@@ -1,10 +1,9 @@
 import combine from '../block/combine2';
-import resolve from '../block/resolve';
+import { resolve } from '../index';
 import parse from '../parse';
 import {
   createBlock,
   fromJs,
-  mergeStatic,
   snapshot,
   streamMap,
   toIndex,
@@ -13,6 +12,37 @@ import {
 
 import build from './index';
 import operators from './operators';
+
+const mergeMap = (create, args, map) => {
+  if (
+    args.every(
+      (a) =>
+        a.type === 'value' ||
+        (a.type === 'block' && !a.value.unresolved) ||
+        a.type === 'map',
+    )
+  ) {
+    const mapArgs = args.filter((a) => a.type === 'map').map((a) => a.arg);
+    if (mapArgs.length === 0) {
+      return map(args, (x) => x, create);
+    }
+    if (mapArgs.every((a) => a === mapArgs[0])) {
+      return {
+        type: 'map',
+        arg: mapArgs[0],
+        map: (x, get) =>
+          map(
+            args.map((a) => (a.type === 'map' ? a.map(x, get) : a)),
+            get,
+          ),
+      };
+    }
+  }
+  return {
+    type: 'stream',
+    value: create(streamMap((get, create) => map(args, get, create))),
+  };
+};
 
 export default (create, type, info, args) => {
   if (type === 'nil' || type === 'error') {
@@ -25,7 +55,7 @@ export default (create, type, info, args) => {
 
   if (type === 'join') {
     return args.reduce((a1, a2, i) =>
-      mergeStatic(create, [a1, a2], (args, get) => {
+      mergeMap(create, [a1, a2], (args, get) => {
         const [v1, v2] = args.map((a) => resolve(a, get, false));
         if (v1.type === 'block' || v2.type === 'block') return fromJs(null);
         const hasSpace =
@@ -40,7 +70,7 @@ export default (create, type, info, args) => {
   }
 
   if (type === 'size') {
-    return mergeStatic(create, args, (args, get) => {
+    return mergeMap(create, args, (args, get) => {
       const value = resolve(args[0], get, true);
       if (value.type === 'block') {
         return fromJs(toPairs(value.value).filter((d) => d.value.value).length);
@@ -62,7 +92,7 @@ export default (create, type, info, args) => {
   }
 
   if (type === 'map') {
-    return mergeStatic(create, args, (args, get) =>
+    return mergeMap(create, args, (args, get) =>
       operators[info.func](args, get),
     );
   }

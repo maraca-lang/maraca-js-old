@@ -1,4 +1,4 @@
-import resolve from '../block/resolve';
+import { resolve } from '../index';
 import { compare, fromJs, print, toNumber } from '../utils';
 
 const dataMap = (map, deep?) => (args, get) =>

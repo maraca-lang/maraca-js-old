@@ -2,7 +2,6 @@ export { cloneBlock, createBlock, fromPairs, toPairs } from './block';
 export { compare, fromJs, print, toIndex, toJs, toNumber } from './data';
 export {
   isResolved,
-  mergeStatic,
   pushable,
   resolveType,
   streamMap,

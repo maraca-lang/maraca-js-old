@@ -1,14 +1,14 @@
+import { resolve } from '../index';
 import {
   cloneBlock,
   createBlock,
   isResolved,
   print,
-  resolveType,
   toIndex,
   toPairs,
 } from '../utils';
 
-export const blockAppend = (block, value) => {
+export const staticAppend = (block, value) => {
   if (!value.value) return block;
   return {
     ...block,
@@ -17,7 +17,7 @@ export const blockAppend = (block, value) => {
   };
 };
 
-export const blockSet = (block, value, key) => {
+export const staticSet = (block, value, key) => {
   const result = cloneBlock(block);
   if (!key) {
     if (isResolved(value)) {
@@ -47,11 +47,11 @@ export const blockSet = (block, value, key) => {
   return result;
 };
 
-const blockExtract = (block, keys, get) => {
+const extract = (block, keys, get) => {
   const rest = createBlock();
   rest.values = { ...block.values };
   rest.indices = block.indices
-    .map((x) => resolveType(x, get))
+    .map((x) => resolve(x, get, false))
     .filter((x) => x.value);
   let maxIndex = 0;
   const values = keys.map((key) => {
@@ -72,34 +72,34 @@ const blockExtract = (block, keys, get) => {
   return { values, rest };
 };
 
-export const resolvePairs = (pairs, get) =>
+export const resolveSets = (pairs, get) =>
   pairs.reduce((res, { key: k, value: v }) => {
     if (!k) {
-      const value = resolveType(v, get);
+      const value = resolve(v, get, false);
       if (value.type === 'value') {
         return { ...res, ['']: { key: { type: 'value', value: '' }, value } };
       }
       return {
         ...res,
         ...value.value.values,
-        ...resolvePairs(value.value.streams, get),
+        ...resolveSets(value.value.streams, get),
       };
     }
-    const key = resolveDeep(k, get);
+    const key = resolve(k, get, true);
     if (key.type === 'block') {
-      const value = resolveType(v, get);
+      const value = resolve(v, get, false);
       if (value.type === 'block') {
         const keyPairs = toPairs(key.value);
         const func = key.value.func;
         const funcDefault = typeof func === 'object' && func;
-        const { values, rest } = blockExtract(
+        const { values, rest } = extract(
           value.value,
           keyPairs.map((d) => d.key),
           get,
         );
         const result = {
           ...res,
-          ...resolvePairs(
+          ...resolveSets(
             values.map((v, i) => ({ key: keyPairs[i].value, value: v })),
             get,
           ),
@@ -117,34 +117,28 @@ export const resolvePairs = (pairs, get) =>
     return { ...res, [print(key)]: { key, value: v } };
   }, {});
 
-const resolveIndices = (indices, get) =>
+export const resolveIndices = (indices, get) =>
   indices.reduce((res, x) => {
     if (x.type !== 'unpack') return [...res, x];
-    const value = resolveType(x.value, get);
+    const value = resolve(x.value, get, false);
     return value.type === 'block'
       ? [...res, ...resolveIndices(value.value.indices, get)]
       : res;
   }, []);
 
-const resolveDeep = (data, get) => {
-  const v = resolveType(data, get);
-  if (isResolved(v)) return v;
-
+export const resolveBlock = (block, get) => {
   let result = createBlock();
-  const values = { ...v.value.values, ...resolvePairs(v.value.streams, get) };
+  const values = { ...block.values, ...resolveSets(block.streams, get) };
   result.values = Object.keys(values).reduce(
     (res, k) => ({
       ...res,
-      [k]: { key: values[k].key, value: resolveDeep(values[k].value, get) },
+      [k]: { key: values[k].key, value: resolve(values[k].value, get, true) },
     }),
     {},
   );
-  result.indices = resolveIndices(v.value.indices, get)
-    .map((x) => resolveDeep(x, get))
+  result.indices = resolveIndices(block.indices, get)
+    .map((x) => resolve(x, get, true))
     .filter((x) => x.value);
-  result.func = v.value.func;
-  return { ...v, value: result };
+  result.func = block.func;
+  return result;
 };
-
-export default (data, get, deep) =>
-  deep ? resolveDeep(data, get) : resolveType(data, get);
