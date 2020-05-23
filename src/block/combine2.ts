@@ -1,3 +1,5 @@
+import { wrapStream } from '../utils';
+
 import { combineConfig, combineRun } from './combine';
 
 const mergeStatic = (create, args, ...maps) => {
@@ -45,7 +47,7 @@ const mergeStatic = (create, args, ...maps) => {
           prev.some((x, i) => x !== next[i])
         ) {
           if (result && result.type === 'stream') result.value.cancel();
-          result = map(next, get, create);
+          result = wrapStream(create, map(next, get, create));
           set(result);
           prev = next;
         }

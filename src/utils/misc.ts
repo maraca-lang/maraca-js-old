@@ -30,11 +30,14 @@ export const sortMultiple = <T = any>(
     0,
   ) as -1 | 0 | 1;
 
+export const wrapStream = (create, x) =>
+  x.type === 'stream' ? { type: 'stream', value: create((set) => set(x)) } : x;
+
 export const streamMap = (map) => (set, get, create) => {
   let result;
   return () => {
     if (result && result.type === 'stream') result.value.cancel();
-    result = map(get, create);
+    result = wrapStream(create, map(get, create));
     set(result);
   };
 };

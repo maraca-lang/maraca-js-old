@@ -1,56 +1,57 @@
 import { resolve } from '../index';
-import { fromPairs, streamMap, toPairs } from '../utils';
+import { fromPairs, toPairs } from '../utils';
 
 import blockGet from './get';
 
-const sortTypes = (v1, v2) => {
-  if (v2.type === 'value') return [v1, v2];
-  if (v1.type === 'value') return [v2, v1];
-  if (v1.value.func) return [v1, v2];
-  if (v2.value.func) return [v2, v1];
-  return [null, null];
+const getValueType = (v) => {
+  if (v.type === 'value') return 'value';
+  if (!v.value.func) return 'block';
+  return v.value.func.isMap ? 'map' : 'func';
+};
+const getType = (s, get) => {
+  const v = resolve(s, get, false);
+  return { type: getValueType(v), value: v, stream: s };
+};
+
+const sortTypes = (s1, s2, get) => {
+  const [t1, t2] = [getType(s1, get), getType(s2, get)];
+  for (const t of ['map', 'func', 'block']) {
+    if (t1.type === t) return [t1, t2];
+    if (t2.type === t) return [t2, t1];
+  }
+  return [t1, t2];
 };
 
 export const combineConfig = ([s1, s2]: any[], get) => {
-  const [v1, v2] = [resolve(s1, get, false), resolve(s2, get, false)];
-  if (v1.type === 'value' && v2.type === 'value') return ['nil'];
-  const [big, small] = sortTypes(v1, v2);
-  if (big === null && small === null) return ['nil'];
-  const func = big.value.func;
-  if (
-    (small.type === 'block' && small.value.func) ||
-    (!func && small.type === 'block') ||
-    (func && func.isMap && small.type !== 'block')
-  ) {
-    return ['nil'];
+  const [big, small] = sortTypes(s1, s2, get);
+  if (big.type === 'value') return ['nil'];
+  if (big.type === 'map') {
+    if (small.type !== 'block') return ['nil'];
+    return ['map', big.value, small.value, {}];
   }
-  if (func && func.isMap) return ['map', func, big, small, {}];
-  return ['get', func, blockGet(big.value, small, get), small === v1 ? s1 : s2];
-};
-
-const runGet = (get, create, func, v, arg) => {
-  if (func && (v === func || !resolve(v, get, false).value)) {
-    return typeof func === 'function' ? func(create, arg)[0] : func;
+  if (big.type === 'func') {
+    if (['func', 'map'].includes(small.type)) return ['nil'];
+    const func = big.value.value.func;
+    const res = blockGet(big.value.value, small.value, get);
+    if (res === func && typeof func !== 'function') return ['value', func];
+    if (res === func || !resolve(res, get, false).value) {
+      return ['func', func, small.stream];
+    }
+    return ['value', res];
   }
-  return v;
+  if (small.type !== 'value') return ['nil'];
+  return ['value', blockGet(big.value.value, small.value, get)];
 };
-
-const wrapStream = (create, x) =>
-  x.type === 'stream'
-    ? {
-        type: 'stream',
-        value: create(streamMap((get) => resolve(x, get, false))),
-      }
-    : x;
 
 export const combineRun = ([type, ...config]: any[], get, create) => {
   if (type === 'nil') return { type: 'value', value: '' };
-  if (type === 'join') return config[0];
-  if (type === 'get') {
-    const [func, v, arg] = config;
-    return wrapStream(create, runGet(get, create, func, v, arg));
+  if (type === 'value') return config[0];
+  if (type === 'func') {
+    const [func, arg] = config;
+    return func(create, arg)[0];
   }
-  const [func, big, small] = config;
+  const [big, small] = config;
+  const func = big.value.func;
   const pairs = toPairs(small.value)
     .map(({ key, value }) => ({ key, value: resolve(value, get, false) }))
     .filter((d) => d.value.value);

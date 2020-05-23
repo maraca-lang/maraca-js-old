@@ -7,5 +7,6 @@ export {
   streamMap,
   snapshot,
   sortMultiple,
+  wrapStream,
 } from './misc';
 export { default as process, Stream } from './streams';
