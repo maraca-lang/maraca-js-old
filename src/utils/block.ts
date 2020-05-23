@@ -1,4 +1,4 @@
-import { print } from '../index';
+import { print, resolve } from '../index';
 
 import { fromJs, toIndex } from './data';
 import { isResolved } from './misc';
@@ -19,12 +19,13 @@ export const fromPairs = (pairs: { key; value }[], get) => {
   const result = createBlock();
   const indices = [] as any[];
   pairs.forEach((pair) => {
-    const k = print(pair.key, get);
+    const key = resolve(pair.key, get);
+    const k = print(key, get);
     const i = toIndex(k);
     if (i) {
       indices.push({ key: i, value: pair.value });
     } else {
-      result.values[k] = pair;
+      result.values[k] = { key, value: pair.value };
     }
     if (!isResolved(pair.value)) result.unresolved = true;
   });

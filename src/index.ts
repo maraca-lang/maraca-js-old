@@ -15,9 +15,9 @@ export { default as parse } from './parse';
 export { Data, Source } from './typings';
 export { fromJs, process, streamMap, toJs } from './utils';
 
-export const resolve = (data, get, deep) => {
+export const resolve = (data, get) => {
   const v = resolveType(data, get);
-  if (!deep || isResolved(v)) return v;
+  if (isResolved(v)) return v;
   return { ...v, value: resolveDeep(v.value, get) };
 };
 
@@ -84,9 +84,7 @@ function maraca(...args) {
       ),
     });
     return create(
-      streamMap((get) =>
-        resolve(modules[''] || modulesToBlock(modules), get, true),
-      ),
+      streamMap((get) => resolve(modules[''] || modulesToBlock(modules), get)),
     );
   }, onData);
 }

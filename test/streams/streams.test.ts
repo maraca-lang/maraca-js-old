@@ -10,7 +10,7 @@ const library = {
     set(
       fromJs((arg) =>
         streamMap((get) => {
-          const v = resolve(arg, get, true);
+          const v = resolve(arg, get);
           return fromJs(
             v.type === 'block' &&
               toPairs(v.value, (x) => x).filter((x) => x.value.value).length,

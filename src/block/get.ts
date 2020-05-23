@@ -1,5 +1,4 @@
-import { resolve } from '../index';
-import { printValue, toIndex } from '../utils';
+import { printValue, resolveType, toIndex } from '../utils';
 
 import { resolveIndices, resolveSets } from './set';
 
@@ -8,7 +7,7 @@ const getIndexValue = (index, indices, get) => {
   let countTrue = 0;
   let countFalse = 0;
   for (let i = 0; i < allIndices.length; i++) {
-    const result = resolve(allIndices[i], get, false);
+    const result = resolveType(allIndices[i], get);
     if (result.value) countTrue++;
     else countFalse++;
     if (countTrue === index) return result;

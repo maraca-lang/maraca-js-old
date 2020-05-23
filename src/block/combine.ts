@@ -1,5 +1,4 @@
-import { resolve } from '../index';
-import { fromPairs } from '../utils';
+import { fromPairs, resolveType } from '../utils';
 
 import blockGet from './get';
 import { toPairs } from './set';
@@ -10,7 +9,7 @@ const getValueType = (v) => {
   return v.value.func.isMap ? 'map' : 'func';
 };
 const getType = (s, get) => {
-  const v = resolve(s, get, false);
+  const v = resolveType(s, get);
   return { type: getValueType(v), value: v, stream: s };
 };
 const sortTypes = (s1, s2, get) => {
@@ -34,7 +33,7 @@ export const combineConfig = ([s1, s2]: any[], get) => {
     const func = big.value.value.func;
     const res = blockGet(big.value.value, small.value, get);
     if (res === func && typeof func !== 'function') return ['value', func];
-    if (res === func || !resolve(res, get, false).value) {
+    if (res === func || !resolveType(res, get).value) {
       return ['func', func, small.stream];
     }
     return ['value', res];
@@ -53,7 +52,7 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
   const [big, small] = config;
   const func = big.value.func;
   const pairs = toPairs(small.value, get)
-    .map(({ key, value }) => ({ key, value: resolve(value, get, false) }))
+    .map(({ key, value }) => ({ key, value: resolveType(value, get) }))
     .filter((d) => d.value.value);
   if (func.isPure) {
     return {
@@ -75,10 +74,7 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
         ...pairs
           .map(({ key, value }) => {
             const [newValue, newKey] = func(key)(create, value);
-            return {
-              key: resolve(newKey, get, true),
-              value: resolve(newValue, get, true),
-            };
+            return { key: newKey, value: newValue };
           })
           .filter((d) => d.value.value),
       ],

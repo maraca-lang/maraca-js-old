@@ -6,6 +6,7 @@ import {
   fromJs,
   isResolved,
   printValue,
+  resolveType,
   toIndex,
 } from '../utils';
 
@@ -55,7 +56,7 @@ const extract = (block, keys, get) => {
   const rest = createBlock();
   rest.values = { ...block.values };
   rest.indices = block.indices
-    .map((x) => resolve(x, get, false))
+    .map((x) => resolveType(x, get))
     .filter((x) => x.value);
   let maxIndex = 0;
   const values = keys.map((key) => {
@@ -79,7 +80,7 @@ const extract = (block, keys, get) => {
 export const resolveSets = (pairs, get) =>
   pairs.reduce((res, { key: k, value: v }) => {
     if (!k) {
-      const value = resolve(v, get, false);
+      const value = resolveType(v, get);
       if (value.type === 'value') {
         return { ...res, ['']: { key: { type: 'value', value: '' }, value } };
       }
@@ -89,9 +90,9 @@ export const resolveSets = (pairs, get) =>
         ...resolveSets(value.value.streams, get),
       };
     }
-    const key = resolve(k, get, true);
+    const key = resolve(k, get);
     if (key.type === 'block') {
-      const value = resolve(v, get, false);
+      const value = resolveType(v, get);
       if (value.type === 'block') {
         const keyPairs = toPairs(key.value, get);
         const func = key.value.func;
@@ -124,7 +125,7 @@ export const resolveSets = (pairs, get) =>
 export const resolveIndices = (indices, get) =>
   indices.reduce((res, x) => {
     if (x.type !== 'unpack') return [...res, x];
-    const value = resolve(x.value, get, false);
+    const value = resolveType(x.value, get);
     return value.type === 'block'
       ? [...res, ...resolveIndices(value.value.indices, get)]
       : res;
@@ -144,12 +145,12 @@ export const resolveDeep = (block, get) => {
   result.values = Object.keys(values).reduce(
     (res, k) => ({
       ...res,
-      [k]: { key: values[k].key, value: resolve(values[k].value, get, true) },
+      [k]: { key: values[k].key, value: resolve(values[k].value, get) },
     }),
     {},
   );
   result.indices = resolveIndices(block.indices, get)
-    .map((x) => resolve(x, get, true))
+    .map((x) => resolve(x, get))
     .filter((x) => x.value);
   result.func = block.func;
   return result;

@@ -1,8 +1,14 @@
 import { print, resolve } from '../index';
-import { compare, fromJs, toNumber } from '../utils';
+import { compare, fromJs, resolveType, toNumber } from '../utils';
 
 const dataMap = (map, deep?) => (args, get) =>
-  fromJs(map(args.map((a, i) => resolve(a, get, deep && deep[i]))));
+  fromJs(
+    map(
+      args.map((a, i) =>
+        deep && deep[i] ? resolve(a, get) : resolveType(a, get),
+      ),
+    ),
+  );
 
 const numericMap = (map) =>
   dataMap((args) => {
@@ -13,7 +19,7 @@ const numericMap = (map) =>
 
 export default {
   '=': ([s1, s2], get) => {
-    const [t1, t2] = [resolve(s1, get, false), resolve(s2, get, false)];
+    const [t1, t2] = [resolveType(s1, get), resolveType(s2, get)];
     if (t1.type !== t2.type) return fromJs(false);
     if (t1.type === 'value') return fromJs(t1.value === t2.value);
     return fromJs(print(t1, get) === print(t2, get));

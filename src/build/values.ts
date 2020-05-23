@@ -8,6 +8,7 @@ import {
   fromPairs,
   pushable,
   streamMap,
+  resolveType,
   toIndex,
 } from '../utils';
 
@@ -75,7 +76,7 @@ export default (create, type, info, args) => {
   if (type === 'join') {
     return args.reduce((a1, a2, i) =>
       mergeMap(create, [a1, a2], (args, get) => {
-        const [v1, v2] = args.map((a) => resolve(a, get, false));
+        const [v1, v2] = args.map((a) => resolveType(a, get));
         if (v1.type === 'block' || v2.type === 'block') return fromJs(null);
         const hasSpace =
           info.space[i - 1] &&
@@ -90,7 +91,7 @@ export default (create, type, info, args) => {
 
   if (type === 'size') {
     return mergeMap(create, args, (args, get) => {
-      const value = resolve(args[0], get, true);
+      const value = resolve(args[0], get);
       if (value.type === 'block') {
         return fromJs(
           toPairs(value.value, get).filter((d) => d.value.value).length,
@@ -124,8 +125,8 @@ export default (create, type, info, args) => {
       value: create(
         streamMap((get, create) => {
           try {
-            const code = resolve(args[0], get, false);
-            const arg = resolve(args[1], get, false);
+            const code = resolveType(args[0], get);
+            const arg = resolveType(args[1], get);
             return build(
               create,
               () =>
@@ -149,9 +150,9 @@ export default (create, type, info, args) => {
       value: create((set, get) => {
         let trigger;
         return () => {
-          const newTrigger = resolve(args[0], get, true);
+          const newTrigger = resolve(args[0], get);
           if (trigger !== newTrigger && newTrigger.value) {
-            set({ ...resolve(args[1], (x) => get(x, true), true) });
+            set({ ...resolve(args[1], (x) => get(x, true)) });
           }
           trigger = newTrigger;
         };
@@ -165,8 +166,8 @@ export default (create, type, info, args) => {
       value: create((_, get, create) => {
         let source;
         return () => {
-          const dest = resolve(args[1], get, false);
-          const newSource = resolve(args[0], get, true);
+          const dest = resolveType(args[1], get);
+          const newSource = resolve(args[0], get);
           if (source && dest.push && source !== newSource) {
             dest.push(snapshot(create, newSource));
           }
