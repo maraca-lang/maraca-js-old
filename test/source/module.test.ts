@@ -1,5 +1,5 @@
 import maraca from '../../src/index';
-import { fromPairs } from '../../src/utils/block';
+import { fromObj } from '../../src/utils/block';
 
 test('basic', () => {
   expect(maraca({ '': '@module + 1', module: '2' })).toEqual({
@@ -14,16 +14,10 @@ test('basic', () => {
 
   expect(maraca({ a: '1', b: '2' })).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: 'a' },
-        value: { type: 'value', value: '1' },
-      },
-      {
-        key: { type: 'value', value: 'b' },
-        value: { type: 'value', value: '2' },
-      },
-    ] as any),
+    value: fromObj({
+      a: { type: 'value', value: '1' },
+      b: { type: 'value', value: '2' },
+    }),
   });
 });
 

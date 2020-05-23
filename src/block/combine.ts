@@ -58,26 +58,32 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
   if (func.isPure) {
     return {
       type: 'block',
-      value: fromPairs([
-        ...toPairs(big.value, get),
-        ...func(pairs).filter((d) => d.value.value),
-      ]),
+      value: fromPairs(
+        [
+          ...toPairs(big.value, get),
+          ...func(pairs).filter((d) => d.value.value),
+        ],
+        get,
+      ),
     };
   }
   return {
     type: 'block',
-    value: fromPairs([
-      ...toPairs(big.value, get),
-      ...pairs
-        .map(({ key, value }) => {
-          const [newValue, newKey] = func(key)(create, value);
-          return {
-            key: resolve(newKey, get, true),
-            value: resolve(newValue, get, true),
-          };
-        })
-        .filter((d) => d.value.value),
-    ]),
+    value: fromPairs(
+      [
+        ...toPairs(big.value, get),
+        ...pairs
+          .map(({ key, value }) => {
+            const [newValue, newKey] = func(key)(create, value);
+            return {
+              key: resolve(newKey, get, true),
+              value: resolve(newValue, get, true),
+            };
+          })
+          .filter((d) => d.value.value),
+      ],
+      get,
+    ),
   };
 
   // const base = cloneBlock(big.value);

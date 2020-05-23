@@ -1,107 +1,71 @@
 import maraca from '../../src/index';
 import { toPairs } from '../../src/block/set';
-import { fromPairs } from '../../src/utils/block';
+import { fromObj, fromPairs } from '../../src/utils/block';
 
 test('basic', () => {
   expect(maraca('[hello, world]')).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: '1' },
-        value: { type: 'value', value: 'hello' },
-      },
-      {
-        key: { type: 'value', value: '2' },
-        value: { type: 'value', value: 'world' },
-      },
-    ] as any),
+    value: fromObj({
+      1: { type: 'value', value: 'hello' },
+      2: { type: 'value', value: 'world' },
+    }),
   });
   expect(maraca('[x: a, y: b]')).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: 'a' },
-      },
-      {
-        key: { type: 'value', value: 'y' },
-        value: { type: 'value', value: 'b' },
-      },
-    ] as any),
+    value: fromObj({
+      x: { type: 'value', value: 'a' },
+      y: { type: 'value', value: 'b' },
+    }),
   });
   expect(maraca('[10, key: value]')).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: '1' },
-        value: { type: 'value', value: '10' },
-      },
-      {
-        key: { type: 'value', value: 'key' },
-        value: { type: 'value', value: 'value' },
-      },
-    ] as any),
+    value: fromObj({
+      1: { type: 'value', value: '10' },
+      key: { type: 'value', value: 'value' },
+    }),
   });
 });
 
 test('nils ignored', () => {
   expect(maraca("[a, , '', b]")).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: '1' },
-        value: { type: 'value', value: 'a' },
-      },
-      {
-        key: { type: 'value', value: '2' },
-        value: { type: 'value', value: 'b' },
-      },
-    ] as any),
+    value: fromObj({
+      1: { type: 'value', value: 'a' },
+      2: { type: 'value', value: 'b' },
+    }),
   });
 });
 
 test('nested', () => {
   expect(maraca('[y: [a, b]]')).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: 'y' },
-        value: {
-          type: 'block',
-          value: fromPairs([
-            {
-              key: { type: 'value', value: '1' },
-              value: { type: 'value', value: 'a' },
-            },
-            {
-              key: { type: 'value', value: '2' },
-              value: { type: 'value', value: 'b' },
-            },
-          ] as any),
-        },
+    value: fromObj({
+      y: {
+        type: 'block',
+        value: fromObj({
+          1: { type: 'value', value: 'a' },
+          2: { type: 'value', value: 'b' },
+        }),
       },
-    ] as any),
+    }),
   });
   expect(maraca('[[a, b]: 100]')).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: {
-          type: 'block',
-          value: fromPairs([
-            {
-              key: { type: 'value', value: '1' },
-              value: { type: 'value', value: 'a' },
-            },
-            {
-              key: { type: 'value', value: '2' },
-              value: { type: 'value', value: 'b' },
-            },
-          ] as any),
+    value: fromPairs(
+      [
+        {
+          key: {
+            type: 'block',
+            value: fromObj({
+              1: { type: 'value', value: 'a' },
+              2: { type: 'value', value: 'b' },
+            }),
+          },
+          value: { type: 'value', value: '100' },
         },
-        value: { type: 'value', value: '100' },
-      },
-    ] as any),
+      ],
+      (x) => x,
+    ),
   });
 });
 
@@ -124,11 +88,8 @@ test('sort', () => {
 test('set shorthand', () => {
   expect(maraca('[item:=]')).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: 'item' },
-        value: { type: 'value', value: 'item' },
-      },
-    ] as any),
+    value: fromObj({
+      item: { type: 'value', value: 'item' },
+    }),
   });
 });

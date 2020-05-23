@@ -1,22 +1,22 @@
 import build from '../build';
-import { fromJs, fromPairs, isResolved } from '../utils';
+import { fromJs, fromObj, isResolved } from '../utils';
 
 import { staticSet } from './set';
-
-const getStatic = (keys, arg) =>
-  keys
-    .map((key, i) => {
-      if (!key || key.type !== 'value') return null;
-      return { key, value: { type: 'map', arg, map: (x) => x[i] } };
-    })
-    .filter((x) => x);
 
 const getCompiled = (create, keys, map, bodyKey, bodyValue) => {
   const trace = {};
   if (keys.filter((a) => a).every((a) => a.type === 'value')) {
     const scope = {
       type: 'block',
-      value: fromPairs(getStatic(keys, trace)),
+      value: fromObj(
+        keys.reduce((res, key, i) => {
+          if (!key || key.type !== 'value') return res;
+          return {
+            ...res,
+            [key.value]: { type: 'map', arg: trace, map: (x) => x[i] },
+          };
+        }, {}),
+      ),
     };
     const compileBody = (body) => {
       const result = build(create, () => scope, body);

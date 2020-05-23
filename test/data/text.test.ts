@@ -1,35 +1,26 @@
 import maraca from '../../src/index';
-import { fromPairs } from '../../src/utils/block';
+import { fromObj } from '../../src/utils/block';
 
 test('basic', () => {
   expect(maraca('["     "]')).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: '1' },
-        value: { type: 'value', value: ' ' },
-      },
-    ] as any),
+    value: fromObj({
+      1: { type: 'value', value: ' ' },
+    }),
   });
 
   expect(maraca(`["hello    there"]`)).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: '1' },
-        value: { type: 'value', value: 'hello there' },
-      },
-    ] as any),
+    value: fromObj({
+      1: { type: 'value', value: 'hello there' },
+    }),
   });
 
   expect(maraca(`["    hello    there     "]`)).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: '1' },
-        value: { type: 'value', value: ' hello there ' },
-      },
-    ] as any),
+    value: fromObj({
+      1: { type: 'value', value: ' hello there ' },
+    }),
   });
 });
 
@@ -39,12 +30,9 @@ test('lines', () => {
     there"]`),
   ).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: '1' },
-        value: { type: 'value', value: 'hello there' },
-      },
-    ] as any),
+    value: fromObj({
+      1: { type: 'value', value: 'hello there' },
+    }),
   });
 
   expect(
@@ -53,12 +41,9 @@ test('lines', () => {
     there"]`),
   ).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: '1' },
-        value: { type: 'value', value: 'hello\n\nthere' },
-      },
-    ] as any),
+    value: fromObj({
+      1: { type: 'value', value: 'hello\n\nthere' },
+    }),
   });
 
   expect(
@@ -67,36 +52,24 @@ test('lines', () => {
       there    "]`),
   ).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: '1' },
-        value: { type: 'value', value: ' hello\n\nthere ' },
-      },
-    ] as any),
+    value: fromObj({
+      1: { type: 'value', value: ' hello\n\nthere ' },
+    }),
   });
 });
 
 test('nest', () => {
   expect(maraca(`["hello <there/>"]`)).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: '1' },
-        value: { type: 'value', value: 'hello ' },
+    value: fromObj({
+      1: { type: 'value', value: 'hello ' },
+      2: {
+        type: 'block',
+        value: fromObj({
+          1: { type: 'value', value: 'there' },
+        }),
       },
-      {
-        key: { type: 'value', value: '2' },
-        value: {
-          type: 'block',
-          value: fromPairs([
-            {
-              key: { type: 'value', value: '1' },
-              value: { type: 'value', value: 'there' },
-            },
-          ] as any),
-        },
-      },
-    ] as any),
+    }),
   });
 
   expect(
@@ -106,27 +79,15 @@ test('nest', () => {
   there   "]`),
   ).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: '1' },
-        value: { type: 'value', value: ' hello ' },
+    value: fromObj({
+      1: { type: 'value', value: ' hello ' },
+      2: {
+        type: 'block',
+        value: fromObj({
+          1: { type: 'value', value: 'there' },
+        }),
       },
-      {
-        key: { type: 'value', value: '2' },
-        value: {
-          type: 'block',
-          value: fromPairs([
-            {
-              key: { type: 'value', value: '1' },
-              value: { type: 'value', value: 'there' },
-            },
-          ] as any),
-        },
-      },
-      {
-        key: { type: 'value', value: '3' },
-        value: { type: 'value', value: '\n\nthere ' },
-      },
-    ] as any),
+      3: { type: 'value', value: '\n\nthere ' },
+    }),
   });
 });

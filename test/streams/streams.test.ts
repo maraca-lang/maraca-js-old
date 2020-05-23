@@ -1,6 +1,6 @@
 import maraca from '../../src/index';
 import { toPairs } from '../../src/block/set';
-import { fromPairs } from '../../src/utils/block';
+import { fromObj } from '../../src/utils/block';
 import { resolve } from '../../src/index';
 import { fromJs } from '../../src/utils/data';
 import { streamMap } from '../../src/utils/misc';
@@ -69,21 +69,15 @@ test('push', (done) => {
     [
       {
         type: 'block',
-        value: fromPairs([
-          {
-            key: { type: 'value', value: 'x' },
-            value: { type: 'value', value: '10', push: expect.any(Function) },
-          },
-        ] as any),
+        value: fromObj({
+          x: { type: 'value', value: '10', push: expect.any(Function) },
+        }),
       },
       {
         type: 'block',
-        value: fromPairs([
-          {
-            key: { type: 'value', value: 'x' },
-            value: { type: 'value', value: '20', push: expect.any(Function) },
-          },
-        ] as any),
+        value: fromObj({
+          x: { type: 'value', value: '20', push: expect.any(Function) },
+        }),
       },
     ],
     done,
@@ -96,43 +90,28 @@ test.skip('push block', (done) => {
     [
       {
         type: 'block',
-        value: fromPairs([
-          {
-            key: { type: 'value', value: 'x' },
-            value: {
-              type: 'block',
-              value: fromPairs([
-                {
-                  key: { type: 'value', value: '1' },
-                  value: { type: 'value', value: 'a' },
-                },
-              ] as any),
-              push: expect.any(Function),
-            },
+        value: fromObj({
+          x: {
+            type: 'block',
+            value: fromObj({
+              1: { type: 'value', value: 'a' },
+            }),
+            push: expect.any(Function),
           },
-        ] as any),
+        }),
       },
       {
         type: 'block',
-        value: fromPairs([
-          {
-            key: { type: 'value', value: 'x' },
-            value: {
-              type: 'block',
-              value: fromPairs([
-                {
-                  key: { type: 'value', value: '1' },
-                  value: { type: 'value', value: 'a' },
-                },
-                {
-                  key: { type: 'value', value: '2' },
-                  value: { type: 'value', value: 'a' },
-                },
-              ] as any),
-              push: expect.any(Function),
-            },
+        value: fromObj({
+          x: {
+            type: 'block',
+            value: fromObj({
+              1: { type: 'value', value: 'a' },
+              2: { type: 'value', value: 'a' },
+            }),
+            push: expect.any(Function),
           },
-        ] as any),
+        }),
       },
     ],
     done,

@@ -56,6 +56,7 @@ const snapshot = (create, { push, ...value }) => {
               key,
               value: snapshot(create, value),
             })),
+            (x) => x,
           ),
         };
   if (!push) return result;

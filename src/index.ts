@@ -3,8 +3,7 @@ import build from './build';
 import parse from './parse';
 import { Data, Source } from './typings';
 import {
-  fromJs,
-  fromPairs,
+  fromObj,
   isResolved,
   printValue,
   process,
@@ -70,15 +69,18 @@ function maraca(...args) {
     );
     const modulesToBlock = ({ __MODULES, ...moduleLayer }) => ({
       type: 'block',
-      value: fromPairs(
+      value: fromObj(
         Object.keys(moduleLayer)
           .filter((x) => x !== '')
-          .map((k) => ({
-            key: fromJs(k),
-            value: moduleLayer[k].__MODULES
-              ? moduleLayer[k][''] || modulesToBlock(moduleLayer[k])
-              : moduleLayer[k],
-          })),
+          .reduce(
+            (res, k) => ({
+              ...res,
+              [k]: moduleLayer[k].__MODULES
+                ? moduleLayer[k][''] || modulesToBlock(moduleLayer[k])
+                : moduleLayer[k],
+            }),
+            {},
+          ),
       ),
     });
     return create(

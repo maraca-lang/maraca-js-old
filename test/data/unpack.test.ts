@@ -1,143 +1,77 @@
 import maraca from '../../src/index';
-import { fromPairs } from '../../src/utils/block';
+import { fromObj } from '../../src/utils/block';
 
 test('basic', () => {
   expect(maraca('[[a, b, x: c]: [1, 2, x: 3]]')).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: 'a' },
-        value: { type: 'value', value: '1' },
-      },
-      {
-        key: { type: 'value', value: 'b' },
-        value: { type: 'value', value: '2' },
-      },
-      {
-        key: { type: 'value', value: 'c' },
-        value: { type: 'value', value: '3' },
-      },
-    ] as any),
+    value: fromObj({
+      a: { type: 'value', value: '1' },
+      b: { type: 'value', value: '2' },
+      c: { type: 'value', value: '3' },
+    }),
   });
   expect(maraca('[[_, _, a]: [1, 2, 3]]')).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: ' ' },
-        value: { type: 'value', value: '2' },
-      },
-      {
-        key: { type: 'value', value: 'a' },
-        value: { type: 'value', value: '3' },
-      },
-    ] as any),
+    value: fromObj({
+      ' ': { type: 'value', value: '2' },
+      a: { type: 'value', value: '3' },
+    }),
   });
 });
 
 test('partial', () => {
   expect(maraca('[[x, y]: [1, 2, 3]]')).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: '1' },
-      },
-      {
-        key: { type: 'value', value: 'y' },
-        value: { type: 'value', value: '2' },
-      },
-    ] as any),
+    value: fromObj({
+      x: { type: 'value', value: '1' },
+      y: { type: 'value', value: '2' },
+    }),
   });
   expect(maraca('[[a, => b]: [1, 2, 3]]')).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: 'a' },
-        value: { type: 'value', value: '1' },
+    value: fromObj({
+      a: { type: 'value', value: '1' },
+      b: {
+        type: 'block',
+        value: fromObj({
+          1: { type: 'value', value: '2' },
+          2: { type: 'value', value: '3' },
+        }),
       },
-      {
-        key: { type: 'value', value: 'b' },
-        value: {
-          type: 'block',
-          value: fromPairs([
-            {
-              key: { type: 'value', value: '1' },
-              value: { type: 'value', value: '2' },
-            },
-            {
-              key: { type: 'value', value: '2' },
-              value: { type: 'value', value: '3' },
-            },
-          ] as any),
-        },
-      },
-    ] as any),
+    }),
   });
   expect(maraca('[[a:=, b:=]: [a: 1, b: 2, c: 3, d: 4]]')).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: 'a' },
-        value: { type: 'value', value: '1' },
-      },
-      {
-        key: { type: 'value', value: 'b' },
-        value: { type: 'value', value: '2' },
-      },
-    ] as any),
+    value: fromObj({
+      a: { type: 'value', value: '1' },
+      b: { type: 'value', value: '2' },
+    }),
   });
 });
 
 test('unpack', () => {
   expect(maraca('[:[a], a]')).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: '1' },
-        value: { type: 'value', value: 'a' },
-      },
-      {
-        key: { type: 'value', value: '2' },
-        value: { type: 'value', value: 'a' },
-      },
-    ] as any),
+    value: fromObj({
+      1: { type: 'value', value: 'a' },
+      2: { type: 'value', value: 'a' },
+    }),
   });
   expect(maraca('[x: 1, : [y: 2, z: 3]]')).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: 'x' },
-        value: { type: 'value', value: '1' },
-      },
-      {
-        key: { type: 'value', value: 'y' },
-        value: { type: 'value', value: '2' },
-      },
-      {
-        key: { type: 'value', value: 'z' },
-        value: { type: 'value', value: '3' },
-      },
-    ] as any),
+    value: fromObj({
+      x: { type: 'value', value: '1' },
+      y: { type: 'value', value: '2' },
+      z: { type: 'value', value: '3' },
+    }),
   });
   expect(maraca('[1, 2, : [3, 4]]')).toEqual({
     type: 'block',
-    value: fromPairs([
-      {
-        key: { type: 'value', value: '1' },
-        value: { type: 'value', value: '1' },
-      },
-      {
-        key: { type: 'value', value: '2' },
-        value: { type: 'value', value: '2' },
-      },
-      {
-        key: { type: 'value', value: '3' },
-        value: { type: 'value', value: '3' },
-      },
-      {
-        key: { type: 'value', value: '4' },
-        value: { type: 'value', value: '4' },
-      },
-    ] as any),
+    value: fromObj({
+      1: { type: 'value', value: '1' },
+      2: { type: 'value', value: '2' },
+      3: { type: 'value', value: '3' },
+      4: { type: 'value', value: '4' },
+    }),
   });
 });

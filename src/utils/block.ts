@@ -1,6 +1,6 @@
 import { print } from '../index';
 
-import { toIndex } from './data';
+import { fromJs, toIndex } from './data';
 import { isResolved } from './misc';
 
 export const createBlock = () => {
@@ -15,11 +15,11 @@ export const cloneBlock = (block) => ({
   ...(block.unresolved ? { unresolved: true } : {}),
 });
 
-export const fromPairs = (pairs: { key; value }[]) => {
+export const fromPairs = (pairs: { key; value }[], get) => {
   const result = createBlock();
   const indices = [] as any[];
   pairs.forEach((pair) => {
-    const k = print(pair.key, (x) => x);
+    const k = print(pair.key, get);
     const i = toIndex(k);
     if (i) {
       indices.push({ key: i, value: pair.value });
@@ -31,3 +31,9 @@ export const fromPairs = (pairs: { key; value }[]) => {
   result.indices = indices.sort((a, b) => a.key - b.key).map((x) => x.value);
   return result;
 };
+
+export const fromObj = (obj) =>
+  fromPairs(
+    Object.keys(obj).map((k) => ({ key: fromJs(k), value: obj[k] })),
+    (x) => x,
+  );

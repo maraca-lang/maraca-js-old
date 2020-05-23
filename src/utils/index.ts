@@ -1,4 +1,4 @@
-export { cloneBlock, createBlock, fromPairs } from './block';
+export { cloneBlock, createBlock, fromObj, fromPairs } from './block';
 export { compare, fromJs, printValue, toIndex, toJs, toNumber } from './data';
 export {
   isResolved,

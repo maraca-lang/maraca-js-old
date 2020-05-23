@@ -1,5 +1,5 @@
 import maraca from '../../src/index';
-import { fromPairs } from '../../src/utils/block';
+import { fromObj } from '../../src/utils/block';
 import { fromJs } from '../../src/utils/data';
 
 const testStream = (code, actions, values, done) => {
@@ -21,25 +21,15 @@ test('basic', (done) => {
     [
       {
         type: 'block',
-        value: fromPairs([
-          {
-            key: { type: 'value', value: 'x' },
-            value: { type: 'value', value: '1', push: expect.any(Function) },
-          },
-        ] as any),
+        value: fromObj({
+          x: { type: 'value', value: '1', push: expect.any(Function) },
+        }),
       },
       {
         type: 'block',
-        value: fromPairs([
-          {
-            key: { type: 'value', value: 'x' },
-            value: {
-              type: 'value',
-              value: '2',
-              push: expect.any(Function),
-            },
-          },
-        ] as any),
+        value: fromObj({
+          x: { type: 'value', value: '2', push: expect.any(Function) },
+        }),
       },
     ],
     done,

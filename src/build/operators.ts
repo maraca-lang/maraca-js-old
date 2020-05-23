@@ -12,14 +12,12 @@ const numericMap = (map) =>
   });
 
 export default {
-  '=': dataMap(
-    ([a, b]) => {
-      if (a.type !== b.type) return false;
-      if (a.type == 'value') return a.value === b.value;
-      return print(a, (x) => x) === print(b, (x) => x);
-    },
-    [true, true],
-  ),
+  '=': ([s1, s2], get) => {
+    const [t1, t2] = [resolve(s1, get, false), resolve(s2, get, false)];
+    if (t1.type !== t2.type) return fromJs(false);
+    if (t1.type === 'value') return fromJs(t1.value === t2.value);
+    return fromJs(print(t1, get) === print(t2, get));
+  },
   '!': dataMap(([a, b]) => {
     if (!b) return !a.value;
     return a.type !== b.type || a.value !== b.value;

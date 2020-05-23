@@ -1,6 +1,4 @@
-import { toPairs } from '../block/set';
-
-import { createBlock, fromPairs } from './block';
+import { createBlock, fromObj, fromPairs } from './block';
 import { sortMultiple } from './misc';
 
 export const toNumber = (v: string) => {
@@ -106,23 +104,22 @@ export const fromJs = (value, arrayPairs = false) => {
   if (Object.prototype.toString.call(value) === '[object Object]') {
     return {
       type: 'block',
-      value: fromPairs(
-        Object.keys(value)
-          .map((k) => ({ key: fromJs(k), value: fromJs(value[k]) }))
-          .filter((x) => x.value.value),
+      value: fromObj(
+        Object.keys(value).reduce(
+          (res, k) => ({ ...res, [k]: fromJs(value[k]) }),
+          {},
+        ),
       ),
     };
   }
   if (Array.isArray(value)) {
     return {
       type: 'block',
-      value: fromPairs(
-        value
-          .map((x, i) => {
-            if (!arrayPairs) return { key: fromJs(i + 1), value: fromJs(x) };
-            return { key: fromJs(x.key), value: fromJs(x.value) };
-          })
-          .filter((x) => x.value.value),
+      value: fromObj(
+        value.reduce((res, x, i) => {
+          if (!arrayPairs) return { ...res, [i + 1]: fromJs(x) };
+          return { ...res, [x.key]: fromJs(x.value) };
+        }, {}),
       ),
     };
   }
