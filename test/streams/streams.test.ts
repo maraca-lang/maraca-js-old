@@ -1,6 +1,6 @@
 import maraca from '../../src/index';
 import { fromPairs, toPairs } from '../../src/utils/block';
-import resolve from '../../src/resolve';
+import resolve from '../../src/block/resolve';
 import { fromJs } from '../../src/utils/data';
 import { streamMap } from '../../src/utils/misc';
 

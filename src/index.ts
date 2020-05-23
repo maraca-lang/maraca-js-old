@@ -1,17 +1,12 @@
+import resolve from './block/resolve';
 import build from './build';
 import parse from './parse';
-import resolve from './resolve';
-import { fromPairs } from './utils/block';
-import { fromJs } from './utils/data';
-import { streamMap } from './utils/misc';
-import process from './utils/streams';
-import { Data, Source } from './utils/typings';
+import { Data, Source } from './typings';
+import { fromJs, fromPairs, process, streamMap } from './utils';
 
 export { default as parse } from './parse';
-export { fromJs, print, toJs } from './utils/data';
-export { streamMap } from './utils/misc';
-export { default as process } from './utils/streams';
-export { Data, Source } from './utils/typings';
+export { Data, Source } from './typings';
+export { fromJs, print, process, streamMap, toJs } from './utils';
 
 const buildModuleLayer = (create, modules, getScope, path) =>
   Object.keys(modules).reduce(

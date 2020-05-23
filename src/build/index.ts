@@ -1,8 +1,8 @@
-import { combineConfig, combineRun } from '../combine';
-import { createBlock } from '../utils/block';
-import { streamMap } from '../utils/misc';
+import { combineConfig, combineRun } from '../block/combine';
+import buildFunc from '../block/func';
+import { blockAppend, blockSet } from '../block/resolve';
+import { createBlock, pushable, streamMap } from '../utils';
 
-import buildBlock from './block';
 import buildValue from './values';
 
 const build = (
@@ -46,7 +46,22 @@ const build = (
       return newScope;
     };
     const result = nodes.reduce(
-      (res, n) => buildBlock(create, getNewScope, res, n),
+      (block, { type, info = {} as any, nodes = [] as any[] }) => {
+        const args = nodes.map((n) => n && build(create, getNewScope, n));
+        if (type === 'set') {
+          if (info.pushable) {
+            args[0] = { type: 'stream', value: create(pushable(args[0])) };
+          }
+          return (blockSet as any)(block, ...args);
+        }
+        if (type === 'func') {
+          return { ...block, func: buildFunc(create, getNewScope, info, args) };
+        }
+        return blockAppend(
+          block,
+          build(create, getNewScope, { type, info, nodes }),
+        );
+      },
       createBlock(),
     );
     return { type: 'block', value: result };

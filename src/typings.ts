@@ -1,4 +1,4 @@
-import { Stream } from './streams';
+import { Stream } from './utils';
 
 export interface Obj<T = any> {
   [key: string]: T;

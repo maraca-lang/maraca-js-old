@@ -1,7 +1,7 @@
-import build from './build';
-import { blockSet, isResolved } from './resolve';
-import { fromPairs } from './utils/block';
-import { fromJs } from './utils/data';
+import build from '../build';
+import { fromJs, fromPairs, isResolved } from '../utils';
+
+import { blockSet } from './resolve';
 
 const getStatic = (keys, arg) =>
   keys
@@ -39,7 +39,7 @@ const getCompiled = (create, keys, map, bodyKey, bodyValue) => {
   }
 };
 
-export default (create, getScope, info, args) => {
+const createFunc = (create, getScope, info, args) => {
   const compiled = getCompiled(create, args, info.map, info.key, info.value);
   if (compiled) {
     if (info.map) {
@@ -85,4 +85,13 @@ export default (create, getScope, info, args) => {
     ];
   };
   return [info.map ? funcMap : funcMap(), info.map];
+};
+
+export default (create, getScope, info, args) => {
+  if (args.every((a) => !a) && !info.map) {
+    return build(create, getScope, info.value);
+  } else {
+    const [value, isMap, isPure] = createFunc(create, getScope, info, args);
+    return Object.assign(value, { isMap, isPure });
+  }
 };

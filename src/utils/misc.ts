@@ -1,6 +1,18 @@
-import resolve from '../resolve';
-
 import { fromPairs, toPairs } from './block';
+
+export const isResolved = (data) => {
+  if (data.type === 'map' || data.type === 'stream') return false;
+  if (data.type === 'value') return true;
+  return !data.value.unresolved;
+};
+
+const nilValue = { type: 'value', value: '' };
+export const resolveType = (data, get) => {
+  const d = data || nilValue;
+  if (d.type === 'map') return resolveType(d.map(d.arg, get), get);
+  if (d.type === 'stream') return resolveType(get(d.value), get);
+  return d;
+};
 
 export const sortMultiple = <T = any>(
   items1: T[],
@@ -29,7 +41,7 @@ export const streamMap = (map) => (set, get, create) => {
 
 export const pushable = (arg) => (set, get) => {
   const push = (v) => set({ ...v, push });
-  return () => set({ push, ...resolve(arg, get, false) });
+  return () => set({ push, ...resolveType(arg, get) });
 };
 
 export const snapshot = (create, { push, ...value }) => {

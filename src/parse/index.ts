@@ -1,4 +1,4 @@
-import { AST } from '../utils/typings';
+import { AST } from '../typings';
 
 import loadInner, { dedent } from './inner';
 import loadOuter from './outer';

@@ -1,5 +1,5 @@
-import resolve from '../resolve';
-import { compare, fromJs, print, toNumber } from '../utils/data';
+import resolve from '../block/resolve';
+import { compare, fromJs, print, toNumber } from '../utils';
 
 const dataMap = (map, deep?) => (args, get) =>
   fromJs(map(args.map((a, i) => resolve(a, get, deep && deep[i]))));

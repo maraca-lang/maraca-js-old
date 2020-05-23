@@ -1,37 +1,37 @@
-import { cloneBlock, createBlock, toPairs } from './utils/block';
-import { print, toIndex } from './utils/data';
+import {
+  cloneBlock,
+  createBlock,
+  isResolved,
+  print,
+  resolveType,
+  toIndex,
+  toPairs,
+} from '../utils';
 
-// export const blockSet = (block, value, key) => {
-//   const result = cloneBlock(block);
-//   if (!key) {
-//     if (isResolved(value)) {
-//       if (value.type === 'value') {
-//         result.values = {
-//           ...result.values,
-//           ['']: { key: { type: 'value', value: '' }, value },
-//         };
-//       } else {
-//         result.values = { ...result.values, ...value.value.values };
-//         result.indices = [...result.indices, ...value.value.indices];
-//       }
-//     } else {
-//       result.streams = [...result.streams, { value }];
-//       result.indices = [...result.indices, { type: 'unpack', value }];
-//     }
-//     if (!isResolved(value)) result.unresolved = true;
-//   } else if (key.type === 'value') {
-//     result.values = { ...result.values, [print(key)]: { key, value } };
-//     if (!isResolved(value)) result.unresolved = true;
-//   } else {
-//     result.streams = [...result.streams, { key, value }];
-//     result.unresolved = true;
-//   }
-//   return result;
-// };
+export const blockAppend = (block, value) => {
+  if (!value.value) return block;
+  return {
+    ...block,
+    indices: [...block.indices, value],
+    ...(block.unresolved || !isResolved(value) ? { unresolved: true } : {}),
+  };
+};
 
 export const blockSet = (block, value, key) => {
   const result = cloneBlock(block);
   if (!key) {
+    if (isResolved(value)) {
+      if (value.type === 'value') {
+        result.values = {
+          ...result.values,
+          ['']: { key: { type: 'value', value: '' }, value },
+        };
+        return result;
+      }
+      result.values = { ...result.values, ...value.value.values };
+      result.indices = [...result.indices, ...value.value.indices];
+      return result;
+    }
     result.streams = [...block.streams, { value }];
     result.indices = [...block.indices, { type: 'unpack', value }];
     result.unresolved = true;
@@ -45,20 +45,6 @@ export const blockSet = (block, value, key) => {
   result.streams = [...block.streams, { key, value }];
   result.unresolved = true;
   return result;
-};
-
-export const isResolved = (data) => {
-  if (data.type === 'map' || data.type === 'stream') return false;
-  if (data.type === 'value') return true;
-  return !data.value.unresolved;
-};
-
-const nilValue = { type: 'value', value: '' };
-const resolveType = (data, get) => {
-  const d = data || nilValue;
-  if (d.type === 'map') return resolveType(d.map(d.arg, get), get);
-  if (d.type === 'stream') return resolveType(get(d.value), get);
-  return d;
 };
 
 const blockExtract = (block, keys, get) => {

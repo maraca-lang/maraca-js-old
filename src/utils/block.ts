@@ -1,7 +1,5 @@
-import { isResolved } from '../resolve';
-
 import { compare, fromJs, print, toIndex } from './data';
-import { Data, StreamData } from './typings';
+import { isResolved } from './misc';
 
 export const createBlock = () => {
   return { values: {}, streams: [], indices: [] } as any;
@@ -29,7 +27,7 @@ export const toPairs = (block) => {
   return [...indices, ...values];
 };
 
-export const fromPairs = (pairs: { key: Data; value: StreamData }[]) => {
+export const fromPairs = (pairs: { key; value }[]) => {
   const result = createBlock();
   const indices = [] as any[];
   pairs.forEach((pair) => {

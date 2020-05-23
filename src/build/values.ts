@@ -1,9 +1,15 @@
-import combine from '../combine2';
+import combine from '../block/combine2';
+import resolve from '../block/resolve';
 import parse from '../parse';
-import resolve from '../resolve';
-import { createBlock, toPairs } from '../utils/block';
-import { fromJs, toIndex } from '../utils/data';
-import { mergeStatic, streamMap } from '../utils/misc';
+import {
+  createBlock,
+  fromJs,
+  mergeStatic,
+  snapshot,
+  streamMap,
+  toIndex,
+  toPairs,
+} from '../utils';
 
 import build from './index';
 import operators from './operators';
@@ -97,6 +103,23 @@ export default (create, type, info, args) => {
             set({ ...resolve(args[1], (x) => get(x, true), true) });
           }
           trigger = newTrigger;
+        };
+      }),
+    };
+  }
+
+  if (type === 'push') {
+    return {
+      type: 'stream',
+      value: create((_, get, create) => {
+        let source;
+        return () => {
+          const dest = resolve(args[1], get, false);
+          const newSource = resolve(args[0], get, true);
+          if (source && dest.push && source !== newSource) {
+            dest.push(snapshot(create, newSource));
+          }
+          source = newSource;
         };
       }),
     };
