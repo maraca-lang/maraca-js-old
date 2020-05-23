@@ -28,6 +28,7 @@ export const toPairs = (block) => {
   }
   return [...indices, ...values];
 };
+
 export const fromPairs = (pairs: { key: Data; value: StreamData }[]) => {
   const result = createBlock();
   const indices = [] as any[];
@@ -42,51 +43,5 @@ export const fromPairs = (pairs: { key: Data; value: StreamData }[]) => {
     if (!isResolved(pair.value)) result.unresolved = true;
   });
   result.indices = indices.sort((a, b) => a.key - b.key).map((x) => x.value);
-  return result;
-};
-
-// export const blockSet = (block, value, key) => {
-//   const result = cloneBlock(block);
-//   if (!key) {
-//     if (isResolved(value)) {
-//       if (value.type === 'value') {
-//         result.values = {
-//           ...result.values,
-//           ['']: { key: { type: 'value', value: '' }, value },
-//         };
-//       } else {
-//         result.values = { ...result.values, ...value.value.values };
-//         result.indices = [...result.indices, ...value.value.indices];
-//       }
-//     } else {
-//       result.streams = [...result.streams, { value }];
-//       result.indices = [...result.indices, { type: 'unpack', value }];
-//     }
-//     if (!isResolved(value)) result.unresolved = true;
-//   } else if (key.type === 'value') {
-//     result.values = { ...result.values, [print(key)]: { key, value } };
-//     if (!isResolved(value)) result.unresolved = true;
-//   } else {
-//     result.streams = [...result.streams, { key, value }];
-//     result.unresolved = true;
-//   }
-//   return result;
-// };
-
-export const blockSet = (block, value, key) => {
-  const result = cloneBlock(block);
-  if (!key) {
-    result.streams = [...block.streams, { value }];
-    result.indices = [...block.indices, { type: 'unpack', value }];
-    result.unresolved = true;
-    return result;
-  }
-  if (key.type === 'value') {
-    result.values = { ...block.values, [print(key)]: { key, value } };
-    if (!isResolved(value)) result.unresolved = true;
-    return result;
-  }
-  result.streams = [...block.streams, { key, value }];
-  result.unresolved = true;
   return result;
 };

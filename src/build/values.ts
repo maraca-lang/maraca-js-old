@@ -1,13 +1,12 @@
-import { combineConfig, combineRun } from '../combine';
+import combine from '../combine2';
 import parse from '../parse';
 import resolve from '../resolve';
 import { createBlock, toPairs } from '../utils/block';
 import { fromJs, toIndex } from '../utils/data';
-import { streamMap } from '../utils/misc';
+import { mergeStatic, streamMap } from '../utils/misc';
 
 import build from './index';
 import operators from './operators';
-import mergeStatic from './static';
 
 export default (create, type, info, args) => {
   if (type === 'nil' || type === 'error') {
@@ -53,9 +52,7 @@ export default (create, type, info, args) => {
   }
 
   if (type === 'combine') {
-    return args.reduce((a1, a2) =>
-      mergeStatic(create, [a1, a2], combineConfig, combineRun),
-    );
+    return args.reduce((a1, a2) => combine(create, a1, a2));
   }
 
   if (type === 'map') {

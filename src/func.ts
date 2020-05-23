@@ -1,6 +1,7 @@
 import build from './build';
+import { blockSet } from './combine2';
 import { isResolved } from './resolve';
-import { blockSet, fromPairs } from './utils/block';
+import { fromPairs } from './utils/block';
 import { fromJs } from './utils/data';
 
 const getStatic = (keys, arg) =>

@@ -48,3 +48,34 @@ export const snapshot = (create, { push, ...value }) => {
   if (!push) return result;
   return { type: 'stream', value: create(pushable(result), true) };
 };
+
+export const mergeStatic = (create, args, map) => {
+  if (
+    args.every(
+      (a) =>
+        a.type === 'value' ||
+        (a.type === 'block' && !a.value.unresolved) ||
+        a.type === 'map',
+    )
+  ) {
+    const mapArgs = args.filter((a) => a.type === 'map').map((a) => a.arg);
+    if (mapArgs.length === 0) {
+      return map(args, (x) => x, create);
+    }
+    if (mapArgs.every((a) => a === mapArgs[0])) {
+      return {
+        type: 'map',
+        arg: mapArgs[0],
+        map: (x, get) =>
+          map(
+            args.map((a) => (a.type === 'map' ? a.map(x, get) : a)),
+            get,
+          ),
+      };
+    }
+  }
+  return {
+    type: 'stream',
+    value: create(streamMap((get, create) => map(args, get, create))),
+  };
+};

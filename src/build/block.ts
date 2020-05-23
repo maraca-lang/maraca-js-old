@@ -1,6 +1,6 @@
 import func from '../func';
 import resolve, { isResolved } from '../resolve';
-import { blockSet } from '../utils/block';
+import { blockSet } from '../combine2';
 import { pushable, snapshot } from '../utils/misc';
 
 import build from './index';
