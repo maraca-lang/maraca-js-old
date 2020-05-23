@@ -1,4 +1,4 @@
-import resolve, { resolveStreams } from './resolve';
+import resolve, { resolvePairs } from './resolve';
 import { fromPairs, toPairs } from './utils/block';
 import { print, toIndex } from './utils/data';
 import { streamMap } from './utils/misc';
@@ -29,7 +29,7 @@ const blockGet = (block, key, get) => {
     );
   }
   const k = print(key);
-  const values = resolveStreams(block, get).values;
+  const values = { ...block.values, ...resolvePairs(block.streams, get) };
   const v = values[k] && values[k].value;
   return v || block.func || { type: 'value', value: '' };
 };

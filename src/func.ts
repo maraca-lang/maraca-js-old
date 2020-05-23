@@ -1,6 +1,5 @@
 import build from './build';
-import { blockSet } from './combine2';
-import { isResolved } from './resolve';
+import { blockSet, isResolved } from './resolve';
 import { fromPairs } from './utils/block';
 import { fromJs } from './utils/data';
 
