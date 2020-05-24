@@ -52,12 +52,6 @@ test('maps', () => {
       'Item b': { type: 'value', value: 'b' },
     }),
   });
-  // expect(maraca('[1, 2, 3].[sum: 0, v=>> sum: @sum + @v]')).toEqual({
-  //   type: 'block',
-  //   value: fromObj({
-  //     sum: { type: 'value', value: '6' },
-  //   }),
-  // });
   expect(maraca('1.[=>> ]')).toEqual({ type: 'value', value: '' });
   expect(maraca('1.[v=>> @v + 1]')).toEqual({ type: 'value', value: '' });
   expect(maraca('[a: 1, b: 2, c: 3].[v=>> : [@v]]')).toEqual({
