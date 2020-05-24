@@ -7,14 +7,6 @@ export const createBlock = () => {
   return { values: {}, streams: [], indices: [] } as any;
 };
 
-export const cloneBlock = (block) => ({
-  values: { ...block.values },
-  streams: [...block.streams],
-  indices: [...block.indices],
-  func: block.func,
-  ...(block.unresolved ? { unresolved: true } : {}),
-});
-
 export const fromPairs = (pairs: { key; value }[], get) => {
   const result = createBlock();
   const indices = [] as any[];

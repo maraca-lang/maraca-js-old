@@ -1,4 +1,4 @@
-export { cloneBlock, createBlock, fromObj, fromPairs } from './block';
+export { createBlock, fromObj, fromPairs } from './block';
 export {
   compare,
   fromJs,
@@ -10,6 +10,7 @@ export {
 } from './data';
 export {
   isResolved,
+  mergeMap,
   pushable,
   resolveType,
   streamMap,

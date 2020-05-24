@@ -1,4 +1,4 @@
-import { cloneBlock, fromPairs, resolveType } from '../utils';
+import { fromPairs, mergeMap, resolveType, wrapStream } from '../utils';
 
 import blockGet from './get';
 import { staticSet, toPairs } from './set';
@@ -21,7 +21,7 @@ const sortTypes = (s1, s2, get) => {
   return [t1, t2];
 };
 
-export const combineConfig = ([s1, s2]: any[], get) => {
+const combineConfig = ([s1, s2]: any[], get) => {
   const [big, small] = sortTypes(s1, s2, get);
   if (big.type === 'value') return ['nil'];
   if (big.type === 'map') {
@@ -42,7 +42,7 @@ export const combineConfig = ([s1, s2]: any[], get) => {
   return ['value', blockGet(big.value.value, small.value, get)];
 };
 
-export const combineRun = ([type, ...config]: any[], get, create) => {
+const combineRun = ([type, ...config]: any[], get, create) => {
   if (type === 'nil') return { type: 'value', value: '' };
   if (type === 'value') return config[0];
   if (type === 'func') {
@@ -52,7 +52,7 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
   const [big, small] = config;
   const func = big.value.func;
   if (func.isIndex) {
-    const result = cloneBlock(big.value);
+    const result = { ...big.value };
     delete result.func;
     return {
       type: 'block',
@@ -75,3 +75,26 @@ export const combineRun = ([type, ...config]: any[], get, create) => {
     ),
   };
 };
+
+export default (create, args) =>
+  mergeMap(
+    args,
+    (args, get) => combineRun(combineConfig(args, get), get, null),
+    () =>
+      create((set, get, create) => {
+        let result;
+        let prev = [] as any[];
+        return () => {
+          const next = combineConfig(args, get);
+          if (
+            prev.length !== next.length ||
+            prev.some((x, i) => x !== next[i])
+          ) {
+            if (result && result.type === 'stream') result.value.cancel();
+            result = wrapStream(create, combineRun(next, get, create));
+            set(result);
+            prev = next;
+          }
+        };
+      }),
+  );

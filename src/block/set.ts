@@ -1,6 +1,5 @@
 import { print, resolve } from '../index';
 import {
-  cloneBlock,
   compare,
   createBlock,
   fromJs,
@@ -21,7 +20,7 @@ export const staticAppend = (block, value) => {
 };
 
 export const staticSet = (block, value, key) => {
-  const result = cloneBlock(block);
+  const result = { ...block };
   if (!key) {
     if (isResolved(value)) {
       if (value.type === 'value') {
@@ -142,7 +141,6 @@ export const mapBlock = (block, map, get) => {
   result.indices = resolveIndices(block.indices, get)
     .map((x) => map(x))
     .filter((x) => x.value);
-  result.func = block.func;
   return result;
 };
 

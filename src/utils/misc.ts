@@ -44,3 +44,31 @@ export const pushable = (arg) => (set, get) => {
   const push = (v) => set({ ...v, push });
   return () => set({ push, ...resolveType(arg, get) });
 };
+
+export const mergeMap = (args, map, other) => {
+  if (
+    args.every(
+      (a) =>
+        a.type === 'value' ||
+        (a.type === 'block' && !a.value.unresolved) ||
+        a.type === 'map',
+    )
+  ) {
+    const mapArgs = args.filter((a) => a.type === 'map').map((a) => a.arg);
+    if (mapArgs.length === 0) {
+      return map(args, (x) => x);
+    }
+    if (mapArgs.every((a) => a === mapArgs[0])) {
+      return {
+        type: 'map',
+        arg: mapArgs[0],
+        map: (x, get) =>
+          map(
+            args.map((a) => (a.type === 'map' ? a.map(x, get) : a)),
+            get,
+          ),
+      };
+    }
+  }
+  return { type: 'stream', value: other() };
+};

@@ -3,7 +3,7 @@ import { fromObj, isResolved, keysToObject } from '../utils';
 
 import { staticSet } from './set';
 
-const getCompiled = (create, keys, map, bodyKey, bodyValue) => {
+const getCompiled = (keys, map, bodyKey, bodyValue) => {
   const trace = {};
   if (keys.filter((a) => a).every((a) => a.type === 'value')) {
     const scope = {
@@ -18,7 +18,13 @@ const getCompiled = (create, keys, map, bodyKey, bodyValue) => {
       ),
     };
     const compileBody = (body) => {
-      const result = build(create, () => scope, body);
+      const result = build(
+        () => {
+          throw new Error();
+        },
+        () => scope,
+        body,
+      );
       if (isResolved(result)) return () => result;
       if (result.type === 'map' && result.arg === trace) return result.map;
     };
@@ -38,38 +44,36 @@ const getCompiled = (create, keys, map, bodyKey, bodyValue) => {
   }
 };
 
-export default (create, getScope, info, args) => {
-  if (!info.map && args.every((a) => !a)) {
-    return build(create, getScope, info.value);
-  }
-
-  const compiled = getCompiled(create, args, info.map, info.key, info.value);
-  if (compiled) {
-    if (info.map) {
-      if (compiled.key && compiled.value) {
-        if (compiled.key === true) {
+const buildFunc = (getScope, info, args) => {
+  try {
+    const compiled = getCompiled(args, info.map, info.key, info.value);
+    if (compiled) {
+      if (info.map) {
+        if (compiled.key && compiled.value) {
+          if (compiled.key === true) {
+            return Object.assign(
+              (key) => (_, value) => compiled.value([key, value], (x) => x),
+              { isMap: true, isIndex: true, isPure: true },
+            );
+          }
           return Object.assign(
-            (key) => (_, value) => compiled.value([key, value], (x) => x),
-            { isMap: true, isIndex: true, isPure: true },
+            (key) => (_, value) => ({
+              key: compiled.key([key, value], (x) => x),
+              value: compiled.value([key, value], (x) => x),
+            }),
+            { isMap: true, isPure: true },
           );
         }
-        return Object.assign(
-          (key) => (_, value) => ({
-            key: compiled.key([key, value], (x) => x),
-            value: compiled.value([key, value], (x) => x),
-          }),
-          { isMap: true, isPure: true },
-        );
-      }
-    } else {
-      if (compiled.value) {
-        return Object.assign(
-          (_, value) => compiled.value([null, value], (x) => x),
-          { isMap: false, isPure: true },
-        );
+      } else {
+        if (compiled.value) {
+          return Object.assign(
+            (_, value) => compiled.value([null, value], (x) => x),
+            { isMap: false, isPure: true },
+          );
+        }
       }
     }
-  }
+  } catch {}
 
   const funcMap = (key = null) => (create, value) => {
     const argValues = [key, value];
@@ -91,4 +95,21 @@ export default (create, getScope, info, args) => {
     isMap: info.map,
     isIndex: !info.key,
   });
+};
+
+export default (block, create, getScope, info, args) => {
+  if (!info.map && args.every((a) => !a)) {
+    const value = build(create, getScope, info.value);
+    return {
+      ...block,
+      func: value,
+      ...(isResolved(value) ? {} : { unresolved: true }),
+    };
+  }
+  const func = buildFunc(getScope, info, args);
+  return {
+    ...block,
+    func,
+    ...(func.isPure ? {} : { unresolved: true }),
+  };
 };

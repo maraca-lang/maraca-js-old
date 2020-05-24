@@ -1,7 +1,6 @@
-import { combineConfig, combineRun } from '../block/combine';
-import buildFunc from '../block/func';
+import setFunc from '../block/func';
 import { staticAppend, staticSet } from '../block/set';
-import { createBlock, pushable, streamMap } from '../utils';
+import { createBlock, pushable } from '../utils';
 
 import buildValue from './values';
 
@@ -23,6 +22,13 @@ const build = (
         { type: 'value', info: { value: `${index}` } },
         { type: 'block', info: { bracket: '[' }, nodes },
       ],
+    });
+  }
+
+  if (type === 'get') {
+    return build(create, getScope, {
+      type: 'combine',
+      nodes: [{ type: 'scope' }, nodes[0]],
     });
   }
 
@@ -55,11 +61,7 @@ const build = (
           return (staticSet as any)(block, ...args);
         }
         if (type === 'func') {
-          return {
-            ...block,
-            func: buildFunc(create, getNewScope, info, args),
-            unresolved: true,
-          };
+          return setFunc(block, create, getNewScope, info, args);
         }
         return staticAppend(
           block,
@@ -71,16 +73,8 @@ const build = (
     return { type: 'block', value: result };
   }
 
-  if (type === 'get') {
-    const arg = build(create, getScope, nodes[0]);
-    return {
-      type: 'stream',
-      value: create(
-        streamMap((get, create) =>
-          combineRun(combineConfig([getScope(), arg], get), get, create),
-        ),
-      ),
-    };
+  if (type === 'scope') {
+    return { type: 'stream', value: create((set) => set(getScope())) };
   }
 
   const args = nodes.map((n) => n && build(create, getScope, n));
