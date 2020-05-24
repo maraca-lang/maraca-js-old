@@ -77,13 +77,11 @@ const buildFunc = (getScope, info, args) => {
 
   const funcMap = (key = null) => (create, value) => {
     const argValues = [key, value];
-    const getNewScope = () => ({
-      type: 'block',
-      value: args.reduce(
+    const getNewScope = () =>
+      args.reduce(
         (res, k, i) => (k ? staticSet(res, argValues[i], k) : res),
-        getScope().value,
-      ),
-    });
+        getScope(),
+      );
     const valueResult = build(create, getNewScope, info.value);
     if (!info.map || !info.key) return valueResult;
     return {

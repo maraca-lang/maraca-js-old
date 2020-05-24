@@ -38,15 +38,12 @@ const build = (
       if (!newScope) {
         const scope = getScope();
         newScope = {
-          type: 'block',
-          value: {
-            values: { ...scope.value.values, ...result.values },
-            streams: [...scope.value.streams, ...result.streams],
-            indices: [],
-            ...(scope.value.unresolved || result.unresolved
-              ? { unresolved: true }
-              : {}),
-          },
+          values: { ...scope.values, ...result.values },
+          streams: [...scope.streams, ...result.streams],
+          indices: [],
+          ...(scope.unresolved || result.unresolved
+            ? { unresolved: true }
+            : {}),
         };
       }
       return newScope;
@@ -74,7 +71,10 @@ const build = (
   }
 
   if (type === 'scope') {
-    return { type: 'stream', value: create((set) => set(getScope())) };
+    return {
+      type: 'stream',
+      value: create((set) => set({ type: 'block', value: getScope() })),
+    };
   }
 
   const args = nodes.map((n) => n && build(create, getScope, n));

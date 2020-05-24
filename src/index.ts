@@ -64,7 +64,7 @@ function maraca(...args) {
       (path) =>
         modulesToBlock(
           path.reduce((res, k) => ({ ...res, ...res[k] }), modules),
-        ),
+        ).value,
       [],
     );
     const modulesToBlock = ({ __MODULES, ...moduleLayer }) => ({

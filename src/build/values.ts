@@ -101,10 +101,7 @@ export default (create, type, info, args) => {
             const arg = resolveType(args[1], get);
             return build(
               create,
-              () =>
-                arg.type === 'block'
-                  ? arg
-                  : { type: 'block', value: createBlock() },
+              () => (arg.type === 'block' ? arg.value : createBlock()),
               parse(code.type === 'value' ? code.value : ''),
             );
           } catch (e) {
