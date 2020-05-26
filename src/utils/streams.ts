@@ -1,6 +1,24 @@
-import { sortMultiple } from './misc';
-
 const obj = {};
+
+const sortStreams = (streams) => {
+  const result = [] as any[];
+  const remaining = new Set([...streams]);
+  const visit = (item) => {
+    if (!remaining.has(item)) return;
+    if (item.mark === true) throw new Error();
+    item.mark = true;
+    for (const l of item.listeners) if (streams.has(l)) visit(l);
+    delete item.mark;
+    remaining.delete(item);
+    result.unshift(item);
+  };
+  while (remaining.size > 0) {
+    const next = remaining.values().next().value;
+    visit(next);
+    remaining.delete(next);
+  }
+  return result;
+};
 
 class Queue {
   private queue: Set<Stream> | null = null;
@@ -8,7 +26,7 @@ class Queue {
     const first = !this.queue;
     if (first) this.queue = new Set();
     for (const s of streams) {
-      if (s.index) this.queue!.add(s);
+      if (s !== obj) this.queue!.add(s);
     }
     if (first) setTimeout(() => this.next());
   }
@@ -17,9 +35,7 @@ class Queue {
   }
   next() {
     if (this.queue && this.queue.size > 0) {
-      const next = [...this.queue].sort((a, b) =>
-        sortMultiple(a.index, b.index, (x, y) => x - y, true),
-      )[0];
+      const next = sortStreams(this.queue)[0];
       this.queue.delete(next);
       next.update();
       this.next();
@@ -31,18 +47,15 @@ class Queue {
 
 export class Stream {
   listeners = new Set<any>();
-  index;
   value = null;
   start;
   update;
   stop;
   onChange;
 
-  constructor(queue: Queue, index, run) {
-    this.index = index;
+  constructor(queue, run) {
     this.start = () => {
       let active = new Set<any>();
-      const creator = new Creator(queue, index);
       let firstUpdate = true;
       const update = run(
         (v) => {
@@ -53,19 +66,16 @@ export class Stream {
           }
         },
         (s, snapshot) => {
-          active.add(s);
           s.observe(this);
-          if (snapshot) s.unobserve(this);
+          if (!snapshot) active.add(s);
           return s.value;
         },
-        (...args) => (creator.create as any)(...args),
       );
       if (update) update();
       firstUpdate = false;
       this.update = () => {
         const prevActive = active;
         active = new Set();
-        creator.reset();
         if (update) update();
         for (const s of prevActive) {
           if (!active.has(s)) s.unobserve(this);
@@ -100,23 +110,6 @@ export class Stream {
   }
 }
 
-class Creator {
-  queue;
-  base;
-  counter = 0;
-  constructor(queue, base) {
-    this.queue = queue;
-    this.base = base;
-  }
-  create(run, zeroIndex = false) {
-    const index = zeroIndex ? [0] : [...this.base, this.counter++];
-    return new Stream(this.queue, index, run) as any;
-  }
-  reset() {
-    this.counter = 0;
-  }
-}
-
 class StaticStream {
   run;
   value = null;
@@ -147,8 +140,7 @@ export default (build, output?) => {
     return build((run) => new StaticStream(run)).get();
   }
   const queue = new Queue();
-  const creator = new Creator(queue, []) as any;
-  const stream = build((...args) => creator.create(...args));
+  const stream = build((run) => new Stream(queue, run));
   stream.observe(output);
   const first = stream.value;
   if (!output) {

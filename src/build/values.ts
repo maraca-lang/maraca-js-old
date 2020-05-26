@@ -16,9 +16,7 @@ import build from './index';
 import operators from './operators';
 
 const mergeMapSimple = (create, args, map) =>
-  mergeMap(args, map, () =>
-    create(streamMap((get, create) => map(args, get, create))),
-  );
+  mergeMap(args, map, () => create(streamMap((get) => map(args, get, create))));
 
 const snapshot = (create, { push, ...value }) => {
   const result =
@@ -95,7 +93,7 @@ export default (create, type, info, args) => {
     return {
       type: 'stream',
       value: create(
-        streamMap((get, create) => {
+        streamMap((get) => {
           try {
             const code = resolveType(args[0], get);
             const arg = resolveType(args[1], get);
@@ -132,7 +130,7 @@ export default (create, type, info, args) => {
   if (type === 'push') {
     return {
       type: 'stream',
-      value: create((_, get, create) => {
+      value: create((_, get) => {
         let source;
         return () => {
           const dest = resolveType(args[1], get);

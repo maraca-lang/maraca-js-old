@@ -81,7 +81,7 @@ export default (create, args) =>
     args,
     (args, get) => combineRun(combineConfig(args, get), get, null),
     () =>
-      create((set, get, create) => {
+      create((set, get) => {
         let result;
         let prev = [] as any[];
         return () => {

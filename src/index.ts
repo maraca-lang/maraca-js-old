@@ -36,7 +36,7 @@ const buildModuleLayer = (create, modules, getScope, path) =>
         : typeof modules[k] === 'string' || modules[k].__AST
         ? {
             type: 'stream',
-            value: create((set, _, create) =>
+            value: create((set) =>
               set(
                 build(
                   create,
