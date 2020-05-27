@@ -13,6 +13,17 @@ export const resolveType = (data, get) => {
   return d;
 };
 
+export const wrapBuild = (build) => {
+  let result;
+  return {
+    type: 'build',
+    value: () => {
+      if (!result) result = build();
+      return result;
+    },
+  };
+};
+
 export const wrapStream = (create, x) =>
   x.type === 'stream' ? { type: 'stream', value: create((set) => set(x)) } : x;
 

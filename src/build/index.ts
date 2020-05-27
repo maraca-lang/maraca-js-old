@@ -1,11 +1,12 @@
 import setFunc from '../block/func';
 import { staticAppend, staticSet } from '../block/set';
-import { createBlock } from '../utils';
+import { createBlock, wrapBuild } from '../utils';
 
 import buildValue from './values';
 
 const build = (create, getScope, node) =>
-  buildBase(null, null, node) || (create && buildBase(create, getScope, node));
+  buildBase(null, null, node) ||
+  (create && wrapBuild(() => buildBase(create, getScope, node)));
 
 const buildBase = (
   create,

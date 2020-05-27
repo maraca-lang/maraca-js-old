@@ -10,6 +10,7 @@ import {
   process,
   resolveType,
   streamMap,
+  wrapBuild,
 } from './utils';
 
 export { default as parse } from './parse';
@@ -34,20 +35,13 @@ const buildModuleLayer = (create, modules, getScope, path) =>
       typeof modules[k] === 'function'
         ? { type: 'stream', value: create(modules[k]) }
         : typeof modules[k] === 'string' || modules[k].__AST
-        ? {
-            type: 'stream',
-            value: create((set) =>
-              set(
-                build(
-                  create,
-                  () => getScope(path),
-                  typeof modules[k] === 'string'
-                    ? parse(modules[k])
-                    : modules[k],
-                ),
-              ),
+        ? wrapBuild(() =>
+            build(
+              create,
+              () => getScope(path),
+              typeof modules[k] === 'string' ? parse(modules[k]) : modules[k],
             ),
-          }
+          )
         : buildModuleLayer(create, modules[k], getScope, [...path, k]),
     (k) => k,
     { __MODULES: true },
