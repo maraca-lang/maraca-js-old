@@ -1,10 +1,13 @@
 import setFunc from '../block/func';
 import { staticAppend, staticSet } from '../block/set';
-import { createBlock, pushable } from '../utils';
+import { createBlock } from '../utils';
 
 import buildValue from './values';
 
-const build = (
+const build = (create, getScope, node) =>
+  buildBase(null, null, node) || (create && buildBase(create, getScope, node));
+
+const buildBase = (
   create,
   getScope,
   { type, info = {} as any, nodes = [] as any[] },
@@ -34,50 +37,53 @@ const build = (
 
   if (type === 'block') {
     let newScope;
-    const getNewScope = () => {
-      if (!newScope) {
-        const scope = getScope();
-        newScope = {
-          values: { ...scope.values, ...result.values },
-          streams: [...scope.streams, ...result.streams],
-          indices: [],
-          ...(scope.unresolved || result.unresolved
-            ? { unresolved: true }
-            : {}),
-        };
-      }
-      return newScope;
-    };
+    const getNewScope =
+      getScope &&
+      (() => {
+        if (!newScope) {
+          const scope = getScope();
+          newScope = {
+            values: { ...scope.values, ...result.values },
+            streams: [...scope.streams, ...result.streams],
+            indices: [],
+            ...(scope.unresolved || result.unresolved
+              ? { unresolved: true }
+              : {}),
+          };
+        }
+        return newScope;
+      });
     const result = nodes.reduce(
       (block, { type, info = {} as any, nodes = [] as any[] }) => {
-        const args = nodes.map((n) => n && build(create, getNewScope, n));
-        if (type === 'set') {
-          if (info.pushable) {
-            args[0] = { type: 'stream', value: create(pushable(args[0])) };
+        if (!block) return null;
+        if (type === 'set' || type === 'func') {
+          const newNodes = [...nodes];
+          if (type === 'set' && info.pushable) {
+            newNodes[0] = { type: 'pushable', nodes: [nodes[0]] };
           }
-          return (staticSet as any)(block, ...args);
+          const args = newNodes.map((n) => n && build(create, getNewScope, n));
+          if (args.some((a, i) => nodes[i] && !a)) return null;
+          if (type === 'set') return (staticSet as any)(block, ...args);
+          else return setFunc(block, create, getNewScope, info, args);
         }
-        if (type === 'func') {
-          return setFunc(block, create, getNewScope, info, args);
-        }
-        return staticAppend(block, {
-          type: 'build',
-          value: () => build(create, getNewScope, { type, info, nodes }),
-        });
+        const value = build(create, getNewScope, { type, info, nodes });
+        return value && staticAppend(block, value);
       },
       createBlock(),
     );
-    return { type: 'block', value: result };
+    return result && { type: 'block', value: result };
   }
 
   if (type === 'scope') {
+    if (!create) return null;
     return {
       type: 'stream',
       value: create((set) => set({ type: 'block', value: getScope() })),
     };
   }
 
-  const args = nodes.map((n) => n && build(create, getScope, n));
+  const args = nodes.map((n) => build(create, getScope, n));
+  if (!args.every((x) => x)) return null;
   return buildValue(create, type, info, args);
 };
 

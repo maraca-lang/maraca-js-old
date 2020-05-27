@@ -80,21 +80,22 @@ export default (create, args) =>
   mergeMap(
     args,
     (args, get) => combineRun(combineConfig(args, get), get, null),
-    () =>
-      create((set, get) => {
-        let result;
-        let prev = [] as any[];
-        return () => {
-          const next = combineConfig(args, get);
-          if (
-            prev.length !== next.length ||
-            prev.some((x, i) => x !== next[i])
-          ) {
-            if (result && result.type === 'stream') result.value.cancel();
-            result = wrapStream(create, combineRun(next, get, create));
-            set(result);
-            prev = next;
-          }
-        };
-      }),
+    create &&
+      (() =>
+        create((set, get) => {
+          let result;
+          let prev = [] as any[];
+          return () => {
+            const next = combineConfig(args, get);
+            if (
+              prev.length !== next.length ||
+              prev.some((x, i) => x !== next[i])
+            ) {
+              if (result && result.type === 'stream') result.value.cancel();
+              result = wrapStream(create, combineRun(next, get, create));
+              set(result);
+              prev = next;
+            }
+          };
+        })),
   );

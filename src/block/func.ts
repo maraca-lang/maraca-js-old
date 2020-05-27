@@ -18,13 +18,7 @@ const getCompiled = (keys, map, bodyKey, bodyValue) => {
       ),
     };
     const compileBody = (body) => {
-      const result = build(
-        () => {
-          throw new Error();
-        },
-        () => scope,
-        body,
-      );
+      const result = build(null, () => scope, body);
       if (isResolved(result)) return () => result;
       if (result.type === 'map' && result.arg === trace) return result.map;
     };
@@ -97,16 +91,15 @@ const buildFunc = (getScope, info, args) => {
 
 export default (block, create, getScope, info, args) => {
   if (!info.map && args.every((a) => !a)) {
-    const value = {
-      type: 'build',
-      value: () => build(create, getScope, info.value),
-    };
+    const value = build(create, getScope, info.value);
+    if (!value) return null;
     return {
       ...block,
       func: value,
       ...(isResolved(value) ? {} : { unresolved: true }),
     };
   }
+  if (!create) return null;
   const func = buildFunc(getScope, info, args);
   return {
     ...block,

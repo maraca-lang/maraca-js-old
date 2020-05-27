@@ -18,11 +18,6 @@ export const wrapStream = (create, x) =>
 
 export const streamMap = (map) => (set, get) => () => set(map(get));
 
-export const pushable = (arg) => (set, get) => {
-  const push = (v) => set({ ...v, push });
-  return () => set({ push, ...resolveType(arg, get) });
-};
-
 export const mergeMap = (args, map, other) => {
   if (
     args.every(
@@ -48,5 +43,5 @@ export const mergeMap = (args, map, other) => {
       };
     }
   }
-  return { type: 'stream', value: other() };
+  return other && { type: 'stream', value: other() };
 };

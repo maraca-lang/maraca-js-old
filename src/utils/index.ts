@@ -11,7 +11,6 @@ export {
 export {
   isResolved,
   mergeMap,
-  pushable,
   resolveType,
   streamMap,
   wrapStream,

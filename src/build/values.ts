@@ -6,7 +6,6 @@ import {
   createBlock,
   fromJs,
   mergeMap,
-  pushable,
   streamMap,
   resolveType,
   toIndex,
@@ -16,7 +15,16 @@ import build from './index';
 import operators from './operators';
 
 const mergeMapSimple = (create, args, map) =>
-  mergeMap(args, map, () => create(streamMap((get) => map(args, get, create))));
+  mergeMap(
+    args,
+    map,
+    create && (() => create(streamMap((get) => map(args, get, create)))),
+  );
+
+const pushable = (arg) => (set, get) => {
+  const push = (v) => set({ ...v, push });
+  return () => set({ push, ...resolveType(arg, get) });
+};
 
 const snapshot = (create, { push, ...value }) => {
   const result =
@@ -80,13 +88,19 @@ export default (create, type, info, args) => {
   }
 
   if (type === 'combine') {
-    return args.reduce((a1, a2) => combine(create, [a1, a2]));
+    return args.reduce((a1, a2) => a1 && combine(create, [a1, a2]));
   }
 
   if (type === 'map') {
     return mergeMapSimple(create, args, (args, get) =>
       operators[info.func](args, get),
     );
+  }
+
+  if (!create) return null;
+
+  if (type === 'pushable') {
+    return { type: 'stream', value: create(pushable(args[0])) };
   }
 
   if (type === 'eval') {
