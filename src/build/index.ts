@@ -60,10 +60,10 @@ const build = (
         if (type === 'func') {
           return setFunc(block, create, getNewScope, info, args);
         }
-        return staticAppend(
-          block,
-          build(create, getNewScope, { type, info, nodes }),
-        );
+        return staticAppend(block, {
+          type: 'build',
+          value: () => build(create, getNewScope, { type, info, nodes }),
+        });
       },
       createBlock(),
     );

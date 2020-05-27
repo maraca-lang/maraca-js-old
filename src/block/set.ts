@@ -144,8 +144,13 @@ export const mapBlock = (block, map, get) => {
   return result;
 };
 
-export const resolveDeep = (block, get) =>
-  mapBlock(block, (x) => resolve(x, get), get);
+export const resolveDeep = (block, get) => {
+  const result = mapBlock(block, (x) => resolve(x, get), get);
+  if (typeof block.func === 'object') {
+    return { ...result, func: resolve(block.func, get) };
+  }
+  return result;
+};
 
 export const toPairs = (block, get) => {
   const values = { ...block.values, ...resolveSets(block.streams, get) };

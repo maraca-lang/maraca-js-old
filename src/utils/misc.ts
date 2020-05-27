@@ -1,7 +1,7 @@
 export const isResolved = (data) => {
-  if (data.type === 'map' || data.type === 'stream') return false;
   if (data.type === 'value') return true;
-  return !data.value.unresolved;
+  if (data.type === 'block') return !data.value.unresolved;
+  return false;
 };
 
 const nilValue = { type: 'value', value: '' };
@@ -9,6 +9,7 @@ export const resolveType = (data, get) => {
   const d = data || nilValue;
   if (d.type === 'map') return resolveType(d.map(d.arg, get), get);
   if (d.type === 'stream') return resolveType(get(d.value), get);
+  if (d.type === 'build') return resolveType(d.value(), get);
   return d;
 };
 

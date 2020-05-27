@@ -97,7 +97,10 @@ const buildFunc = (getScope, info, args) => {
 
 export default (block, create, getScope, info, args) => {
   if (!info.map && args.every((a) => !a)) {
-    const value = build(create, getScope, info.value);
+    const value = {
+      type: 'build',
+      value: () => build(create, getScope, info.value),
+    };
     return {
       ...block,
       func: value,
