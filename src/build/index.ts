@@ -4,11 +4,15 @@ import { createBlock, wrapBuild } from '../utils';
 
 import buildValue from './values';
 
-const build = (create, getScope, node) =>
-  buildBase(null, null, node) ||
-  (create && wrapBuild(() => buildBase(create, getScope, node)));
+const build = (create, getScope, node) => {
+  if (!create) return buildBase(create, getScope, node);
+  return (
+    buildBase(null, null, node) ||
+    wrapBuild(() => buildBase(create, getScope, node))
+  );
+};
 
-const buildBase = (
+export const buildBase = (
   create,
   getScope,
   { type, info = {} as any, nodes = [] as any[] },
@@ -39,7 +43,7 @@ const buildBase = (
   if (type === 'block') {
     let newScope;
     const getNewScope =
-      getScope &&
+      create &&
       (() => {
         if (!newScope) {
           const scope = getScope();
@@ -76,11 +80,7 @@ const buildBase = (
   }
 
   if (type === 'scope') {
-    if (!create) return null;
-    return {
-      type: 'stream',
-      value: create((set) => set({ type: 'block', value: getScope() })),
-    };
+    return getScope && { type: 'block', value: getScope() };
   }
 
   const args = nodes.map((n) => build(create, getScope, n));

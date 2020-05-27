@@ -1,4 +1,4 @@
-import build from '../build';
+import build, { buildBase } from '../build';
 import { fromObj, isResolved, keysToObject } from '../utils';
 
 import { staticSet } from './set';
@@ -6,19 +6,16 @@ import { staticSet } from './set';
 const getCompiled = (keys, map, bodyKey, bodyValue) => {
   const trace = {};
   if (keys.filter((a) => a).every((a) => a.type === 'value')) {
-    const scope = {
-      type: 'block',
-      value: fromObj(
-        keysToObject(
-          keys,
-          (k, i) =>
-            k ? { type: 'map', arg: trace, map: (x) => x[i] } : undefined,
-          (k) => k.value,
-        ),
+    const scope = fromObj(
+      keysToObject(
+        keys,
+        (k, i) =>
+          k ? { type: 'map', arg: trace, map: (x) => x[i] } : undefined,
+        (k) => k.value,
       ),
-    };
+    );
     const compileBody = (body) => {
-      const result = build(null, () => scope, body);
+      const result = buildBase(null, () => scope, body);
       if (isResolved(result)) return () => result;
       if (result.type === 'map' && result.arg === trace) return result.map;
     };

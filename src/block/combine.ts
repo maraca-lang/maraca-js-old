@@ -1,7 +1,13 @@
-import { fromPairs, mergeMap, resolveType, wrapStream } from '../utils';
+import {
+  fromPairs,
+  mergeMap,
+  printValue,
+  resolveType,
+  wrapStream,
+} from '../utils';
 
 import blockGet from './get';
-import { staticSet, toPairs } from './set';
+import { staticAppend, toPairs } from './set';
 
 const getValueType = (v) => {
   if (v.type === 'value') return 'value';
@@ -58,8 +64,7 @@ const combineRun = ([type, ...config]: any[], get, create) => {
       type: 'block',
       value: toPairs(small.value, get)
         .map(({ key, value }) => func(key)(create, value))
-        .filter((d) => d.value)
-        .reduce((res, v) => staticSet(res, v, null), result),
+        .reduce((res, v) => staticAppend(res, v), result),
     };
   }
   return {
@@ -76,8 +81,20 @@ const combineRun = ([type, ...config]: any[], get, create) => {
   };
 };
 
-export default (create, args) =>
-  mergeMap(
+export default (create, args) => {
+  if (args.every((a) => ['value', 'block'].includes(a.type))) {
+    const [big, small] = sortTypes(args[0], args[1], (x) => x);
+    if (big.type === 'value') return { type: 'value', value: '' };
+    if (big.type === 'block' && small.type === 'value') {
+      const block = big.value.value;
+      const key = small.value;
+      const k = printValue(key.value);
+      const v = block.values[k] && block.values[k].value;
+      if (v) return v;
+    }
+  }
+
+  return mergeMap(
     args,
     (args, get) => combineRun(combineConfig(args, get), get, null),
     create &&
@@ -99,3 +116,4 @@ export default (create, args) =>
           };
         })),
   );
+};
