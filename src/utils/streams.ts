@@ -7,7 +7,7 @@ const sortStreams = (streams) => {
     if (!remaining.has(item)) return;
     if (item.mark === true) throw new Error();
     item.mark = true;
-    for (const l of item.listeners) if (streams.has(l)) visit(l);
+    for (const l of item.listeners) visit(l);
     delete item.mark;
     remaining.delete(item);
     result.unshift(item);
@@ -17,25 +17,39 @@ const sortStreams = (streams) => {
     visit(next);
     remaining.delete(next);
   }
-  return result;
+  result.forEach((s, i) => {
+    s.index = i;
+  });
 };
 
 class Queue {
-  private queue: Set<Stream> | null = null;
-  add(streams: Set<Stream>) {
+  streams = new Set();
+  queue;
+  needsSort = false;
+  add(stream) {
+    this.streams.add(stream);
+    this.needsSort = true;
+  }
+  sort() {
+    this.needsSort = true;
+  }
+  remove(stream) {
+    if (this.queue && this.queue.has(stream)) this.queue.delete(stream);
+    this.streams.delete(stream);
+  }
+  update(streams) {
     const first = !this.queue;
     if (first) this.queue = new Set();
-    for (const s of streams) {
-      if (s !== obj) this.queue!.add(s);
-    }
+    for (const s of streams) if (s !== obj) this.queue!.add(s);
     if (first) setTimeout(() => this.next());
-  }
-  remove(stream: Stream) {
-    if (this.queue && this.queue.has(stream)) this.queue.delete(stream);
   }
   next() {
     if (this.queue && this.queue.size > 0) {
-      const next = sortStreams(this.queue)[0];
+      if (this.needsSort) {
+        this.needsSort = false;
+        sortStreams(this.streams);
+      }
+      const next = [...this.queue].sort((a, b) => a.index - b.index)[0];
       this.queue.delete(next);
       next.update();
       this.next();
@@ -55,6 +69,7 @@ export class Stream {
 
   constructor(queue, run) {
     this.start = () => {
+      queue.add(this);
       let active = new Set<any>();
       let firstUpdate = true;
       const update = run(
@@ -62,7 +77,7 @@ export class Stream {
           this.value = v;
           if (!firstUpdate) {
             if (this.onChange) this.onChange(v);
-            queue.add(this.listeners);
+            queue.update(this.listeners);
           }
         },
         (s, snapshot) => {
@@ -79,6 +94,9 @@ export class Stream {
         if (update) update();
         for (const s of prevActive) {
           if (!active.has(s)) s.unobserve(this);
+        }
+        for (const s of active) {
+          if (!prevActive.has(s)) queue.sort();
         }
       };
       this.stop = () => {
@@ -124,7 +142,6 @@ class StaticStream {
         this.value = v;
       },
       (s) => s.get(),
-      (run) => new StaticStream(run),
     );
     if (update) {
       update();
