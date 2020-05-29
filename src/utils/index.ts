@@ -10,10 +10,10 @@ export {
 } from './data';
 export {
   isResolved,
+  memo,
   mergeMap,
   resolveType,
   streamMap,
-  wrapBuild,
   wrapStream,
 } from './misc';
 export { default as process, Stream } from './streams';

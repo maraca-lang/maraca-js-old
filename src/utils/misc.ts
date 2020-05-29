@@ -13,14 +13,11 @@ export const resolveType = (data, get) => {
   return d;
 };
 
-export const wrapBuild = (build) => {
+export const memo = (run) => {
   let result;
-  return {
-    type: 'build',
-    value: () => {
-      if (!result) result = build();
-      return result;
-    },
+  return () => {
+    if (!result) result = run();
+    return result;
   };
 };
 

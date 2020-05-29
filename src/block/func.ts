@@ -1,4 +1,4 @@
-import build, { buildBase } from '../build';
+import build from '../build';
 import { fromObj, isResolved, keysToObject } from '../utils';
 
 import { staticSet } from './set';
@@ -15,7 +15,7 @@ const getCompiled = (keys, map, bodyKey, bodyValue) => {
       ),
     );
     const compileBody = (body) => {
-      const result = buildBase(null, () => scope, body);
+      const result = build(null, () => scope, body);
       if (isResolved(result)) return () => result;
       if (result.type === 'map' && result.arg === trace) return result.map;
     };

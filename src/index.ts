@@ -6,11 +6,11 @@ import {
   fromObj,
   isResolved,
   keysToObject,
+  memo,
   printValue,
   process,
   resolveType,
   streamMap,
-  wrapBuild,
 } from './utils';
 
 export { default as parse } from './parse';
@@ -28,24 +28,29 @@ export const print = ({ type, value }, get) => {
   return printBlock(value, get);
 };
 
-const buildModuleLayer = (create, modules, getScope, path) =>
-  keysToObject(
+const buildModuleLayer = (create, modules, getScope, path) => {
+  const getPathScope = memo(() => getScope(path));
+  return keysToObject(
     Object.keys(modules),
     (k) =>
       typeof modules[k] === 'function'
         ? { type: 'stream', value: create(modules[k]) }
         : typeof modules[k] === 'string' || modules[k].__AST
-        ? wrapBuild(() =>
-            build(
-              create,
-              () => getScope(path),
-              typeof modules[k] === 'string' ? parse(modules[k]) : modules[k],
+        ? {
+            type: 'build',
+            value: memo(() =>
+              build(
+                create,
+                getPathScope,
+                typeof modules[k] === 'string' ? parse(modules[k]) : modules[k],
+              ),
             ),
-          )
+          }
         : buildModuleLayer(create, modules[k], getScope, [...path, k]),
     (k) => k,
     { __MODULES: true },
   );
+};
 
 function maraca(source: Source): Data;
 function maraca(source: Source, onData: (data: Data) => void): () => void;

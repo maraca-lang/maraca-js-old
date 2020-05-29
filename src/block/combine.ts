@@ -87,8 +87,7 @@ export default (create, args) => {
     if (big.type === 'value') return { type: 'value', value: '' };
     if (big.type === 'block' && small.type === 'value') {
       const block = big.value.value;
-      const key = small.value;
-      const k = printValue(key.value);
+      const k = printValue(small.value.value);
       const v = block.values[k] && block.values[k].value;
       if (v) return v;
     }

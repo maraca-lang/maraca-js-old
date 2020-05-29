@@ -1,18 +1,20 @@
 import setFunc from '../block/func';
 import { staticAppend, staticSet } from '../block/set';
-import { createBlock, wrapBuild } from '../utils';
+import { createBlock, memo, printValue } from '../utils';
 
 import buildValue from './values';
 
 const build = (create, getScope, node) => {
   if (!create) return buildBase(create, getScope, node);
   return (
-    buildBase(null, null, node) ||
-    wrapBuild(() => buildBase(create, getScope, node))
+    buildBase(null, null, node) || {
+      type: 'build',
+      value: memo(() => buildBase(create, getScope, node)),
+    }
   );
 };
 
-export const buildBase = (
+const buildBase = (
   create,
   getScope,
   { type, info = {} as any, nodes = [] as any[] },
@@ -34,6 +36,15 @@ export const buildBase = (
   }
 
   if (type === 'get') {
+    if (!create && getScope) {
+      const small = build(null, null, nodes[0]);
+      if (small && small.type === 'value') {
+        const block = getScope();
+        const k = printValue(small.value);
+        const v = block.values[k] && block.values[k].value;
+        return v || null;
+      }
+    }
     return build(create, getScope, {
       type: 'combine',
       nodes: [{ type: 'scope' }, nodes[0]],
@@ -41,22 +52,18 @@ export const buildBase = (
   }
 
   if (type === 'block') {
-    let newScope;
     const getNewScope =
       create &&
-      (() => {
-        if (!newScope) {
-          const scope = getScope();
-          newScope = {
-            values: { ...scope.values, ...result.values },
-            streams: [...scope.streams, ...result.streams],
-            indices: [],
-            ...(scope.unresolved || result.unresolved
-              ? { unresolved: true }
-              : {}),
-          };
-        }
-        return newScope;
+      memo(() => {
+        const scope = getScope();
+        return {
+          values: { ...scope.values, ...result.values },
+          streams: [...scope.streams, ...result.streams],
+          indices: [],
+          ...(scope.unresolved || result.unresolved
+            ? { unresolved: true }
+            : {}),
+        };
       });
     const result = nodes.reduce(
       (block, { type, info = {} as any, nodes = [] as any[] }) => {
