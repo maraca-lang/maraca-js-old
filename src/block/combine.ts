@@ -3,6 +3,7 @@ import {
   mergeMap,
   printValue,
   resolveType,
+  toIndex,
   wrapStream,
 } from '../utils';
 
@@ -87,11 +88,13 @@ export default (create, args) => {
     if (big.type === 'value') return { type: 'value', value: '' };
     if (big.type === 'block' && small.type === 'value') {
       const block = big.value.value;
-      const k = printValue(small.value.value);
-      const v1 = block.values[k] && block.values[k].value;
-      if (v1) return v1;
-      if (k === '1') {
-        const v2 = block.indices[0];
+      const i = toIndex(small.value.value);
+      if (i) {
+        const v1 = i === 1 && block.indices[0];
+        if (v1) return v1;
+      } else {
+        const k = printValue(small.value.value);
+        const v2 = block.values[k] && block.values[k].value;
         if (v2) return v2;
       }
     }

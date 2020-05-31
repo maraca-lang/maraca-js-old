@@ -67,7 +67,7 @@ test('maps', () => {
 test('recursive', () => {
   expect(
     maraca(`{
-      fact: [1: 1, x=> @x * @fact.(@x - 1)],
+      fact: [x=> (@x = 1, 1, => @x * @fact.(@x - 1))],
       @fact.5,
     }`),
   ).toEqual({ type: 'value', value: '120' });

@@ -17,20 +17,20 @@ const getIndexValue = (index, indices, get) => {
 
 export default (block, key, get) => {
   if (key.type === 'value') {
-    const k = printValue(key.value);
-
-    const v1 = block.values[k] && block.values[k].value;
-    if (v1) return v1;
-
     const i = toIndex(key.value);
     if (i) {
-      const v2 = getIndexValue(i, block.indices, get);
+      const v1 = getIndexValue(i, block.indices, get);
+      if (v1) return v1;
+    } else {
+      const k = printValue(key.value);
+      const v2 = block.values[k] && block.values[k].value;
       if (v2) return v2;
+      for (const pair of block.streams) {
+        const streamValues = resolveSets([pair], get);
+        const v3 = streamValues[k] && streamValues[k].value;
+        if (v3) return v3;
+      }
     }
-
-    const streamValues = resolveSets(block.streams, get);
-    const v3 = streamValues[k] && streamValues[k].value;
-    if (v3) return v3;
   }
   return block.func || { type: 'value', value: '' };
 };
