@@ -64,6 +64,15 @@ test('maps', () => {
   });
 });
 
+test('recursive', () => {
+  expect(
+    maraca(`{
+      fact: [1: 1, x=> @x * @fact.(@x - 1)],
+      @fact.5,
+    }`),
+  ).toEqual({ type: 'value', value: '120' });
+});
+
 test('eval', () => {
   expect(maraca(">>'1 + 1'")).toEqual({ type: 'value', value: '2' });
   expect(maraca("[x: 10]>>'@x + 1'")).toEqual({ type: 'value', value: '11' });

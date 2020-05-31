@@ -3,9 +3,8 @@ import build from './build';
 import parse from './parse';
 import { Data, Source } from './typings';
 import {
-  fromObj,
+  createBlock,
   isResolved,
-  keysToObject,
   memo,
   printValue,
   process,
@@ -28,59 +27,49 @@ export const print = ({ type, value }, get) => {
   return printBlock(value, get);
 };
 
-const buildModuleLayer = (create, modules, getScope, path) => {
-  const getPathScope = memo(() => getScope(path));
-  return keysToObject(
-    Object.keys(modules),
-    (k) =>
-      typeof modules[k] === 'function'
-        ? { type: 'stream', value: create(modules[k]) }
-        : typeof modules[k] === 'string' || modules[k].__AST
-        ? {
-            type: 'build',
-            value: memo(() =>
-              build(
-                create,
-                getPathScope,
-                typeof modules[k] === 'string' ? parse(modules[k]) : modules[k],
-              ),
-            ),
-          }
-        : buildModuleLayer(create, modules[k], getScope, [...path, k]),
-    (k) => k,
-    { __MODULES: true },
-  );
-};
-
 function maraca(source: Source): Data;
 function maraca(source: Source, onData: (data: Data) => void): () => void;
 function maraca(...args) {
   const [source, onData] = args;
   return process((create) => {
-    const modules = buildModuleLayer(
+    const valueToBuild = (value) => {
+      if (typeof value === 'function') {
+        return {
+          type: 'built',
+          info: { value: { type: 'stream', value: create(value) } },
+        };
+      }
+      if (typeof value === 'string' || value.__AST) {
+        return typeof value === 'string' ? parse(value) : value;
+      }
+      return objToBuild(value);
+    };
+    const objToBuild = (source) => {
+      const block = {
+        type: 'block',
+        info: { bracket: '[' },
+        nodes: Object.keys(source).map((k) => ({
+          type: 'set',
+          nodes: [
+            valueToBuild(source[k]),
+            { type: 'value', info: { value: k } },
+          ],
+        })),
+      };
+      if (source[''] === undefined) return block;
+      return {
+        type: 'combine',
+        nodes: [{ type: 'value', info: { value: '' } }, block],
+      };
+    };
+    const result = build(
       create,
-      typeof source === 'string' || source.__AST ? { '': source } : source,
-      (path) =>
-        modulesToBlock(
-          path.reduce((res, k) => ({ ...res, ...res[k] }), modules),
-        ).value,
-      [],
-    );
-    const modulesToBlock = ({ __MODULES, ...moduleLayer }) => ({
-      type: 'block',
-      value: fromObj(
-        keysToObject(
-          Object.keys(moduleLayer).filter((x) => x !== ''),
-          (k) =>
-            moduleLayer[k].__MODULES
-              ? moduleLayer[k][''] || modulesToBlock(moduleLayer[k])
-              : moduleLayer[k],
-        ),
+      memo(() => createBlock()),
+      objToBuild(
+        typeof source === 'string' || source.__AST ? { '': source } : source,
       ),
-    });
-    return create(
-      streamMap((get) => resolve(modules[''] || modulesToBlock(modules), get)),
     );
+    return create(streamMap((get) => resolve(result, get)));
   }, onData);
 }
 

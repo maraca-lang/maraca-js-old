@@ -19,6 +19,8 @@ const buildBase = (
   getScope,
   { type, info = {} as any, nodes = [] as any[] },
 ) => {
+  if (type === 'built') return info.value;
+
   if (type === 'block' && !['[', '<'].includes(info.bracket)) {
     const index =
       info.bracket === '{'
