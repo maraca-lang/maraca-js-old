@@ -54,19 +54,19 @@ const buildBase = (
   }
 
   if (type === 'block') {
-    const getNewScope =
-      create &&
-      memo(() => {
-        const scope = getScope();
-        return {
-          values: { ...scope.values, ...result.values },
-          streams: [...scope.streams, ...result.streams],
-          indices: [],
-          ...(scope.unresolved || result.unresolved
-            ? { unresolved: true }
-            : {}),
-        };
-      });
+    const getNewScope = create
+      ? memo(() => {
+          const scope = getScope();
+          return {
+            values: { ...scope.values, ...result.values },
+            streams: [...scope.streams, ...result.streams],
+            indices: [],
+            ...(scope.unresolved || result.unresolved
+              ? { unresolved: true }
+              : {}),
+          };
+        })
+      : getScope;
     const result = nodes.reduce(
       (block, { type, info = {} as any, nodes = [] as any[] }) => {
         if (!block) return null;

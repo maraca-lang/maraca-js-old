@@ -7,7 +7,7 @@ export const isResolved = (data) => {
 const nilValue = { type: 'value', value: '' };
 export const resolveType = (data, get) => {
   const d = data || nilValue;
-  if (d.type === 'map') return resolveType(d.map(d.arg, get), get);
+  if (d.type === 'map') return resolveType(d.value(d.arg, get), get);
   if (d.type === 'stream') return resolveType(get(d.value), get);
   if (d.type === 'build') return resolveType(d.value(), get);
   return d;
@@ -43,9 +43,9 @@ export const mergeMap = (args, map, other) => {
       return {
         type: 'map',
         arg: mapArgs[0],
-        map: (x, get) =>
+        value: (x, get) =>
           map(
-            args.map((a) => (a.type === 'map' ? a.map(x, get) : a)),
+            args.map((a) => (a.type === 'map' ? a.value(x, get) : a)),
             get,
           ),
       };

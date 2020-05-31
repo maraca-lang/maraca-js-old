@@ -7,7 +7,7 @@ import {
 } from '../utils';
 
 import blockGet from './get';
-import { staticAppend, toPairs } from './set';
+import { staticSet, toPairs } from './set';
 
 const getValueType = (v) => {
   if (v.type === 'value') return 'value';
@@ -57,14 +57,14 @@ const combineRun = ([type, ...config]: any[], get, create) => {
   }
   const [big, small] = config;
   const func = big.value.func;
-  if (func.isIndex) {
+  if (func.isUnpack) {
     const result = { ...big.value };
     delete result.func;
     return {
       type: 'block',
       value: toPairs(small.value, get)
         .map(({ key, value }) => func(key)(create, value))
-        .reduce((res, v) => staticAppend(res, v), result),
+        .reduce((res, v) => staticSet(res, v, null), result),
     };
   }
   return {
@@ -88,8 +88,12 @@ export default (create, args) => {
     if (big.type === 'block' && small.type === 'value') {
       const block = big.value.value;
       const k = printValue(small.value.value);
-      const v = block.values[k] && block.values[k].value;
-      if (v) return v;
+      const v1 = block.values[k] && block.values[k].value;
+      if (v1) return v1;
+      if (k === '1') {
+        const v2 = block.indices[0];
+        if (v2) return v2;
+      }
     }
   }
 

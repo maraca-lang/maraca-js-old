@@ -3,68 +3,51 @@ import { fromObj, isResolved, keysToObject } from '../utils';
 
 import { staticSet } from './set';
 
-const getCompiled = (keys, map, bodyKey, bodyValue) => {
-  const trace = {};
-  if (keys.filter((a) => a).every((a) => a.type === 'value')) {
+const buildFunc = (getScope, info, args) => {
+  if (args.filter((a) => a).every((a) => a.type === 'value')) {
+    const trace = {};
     const scope = fromObj(
       keysToObject(
-        keys,
+        args,
         (k, i) =>
-          k ? { type: 'map', arg: trace, map: (x) => x[i] } : undefined,
+          k ? { type: 'map', arg: trace, value: (x) => x[i] } : undefined,
         (k) => k.value,
       ),
     );
-    const compileBody = (body) => {
-      const result = build(null, () => scope, body);
-      if (isResolved(result)) return () => result;
-      if (result.type === 'map' && result.arg === trace) return result.map;
+    const compile = (node) => {
+      const result = build(null, () => scope, node);
+      if (result) {
+        if (isResolved(result)) return () => result;
+        if (result.type === 'map' && result.arg === trace) return result.value;
+      }
     };
-    if (
-      map &&
-      !bodyKey &&
-      bodyValue.type === 'block' &&
-      bodyValue.info.bracket === '[' &&
-      bodyValue.nodes.length === 1
-    ) {
-      return { key: true, value: compileBody(bodyValue.nodes[0]) };
-    }
-    return {
-      key: bodyKey === true ? (x) => x[0] : bodyKey && compileBody(bodyKey),
-      value: compileBody(bodyValue),
-    };
-  }
-};
-
-const buildFunc = (getScope, info, args) => {
-  try {
-    const compiled = getCompiled(args, info.map, info.key, info.value);
-    if (compiled) {
+    const valueMap = compile(info.value);
+    if (valueMap) {
       if (info.map) {
-        if (compiled.key && compiled.value) {
-          if (compiled.key === true) {
-            return Object.assign(
-              (key) => (_, value) => compiled.value([key, value], (x) => x),
-              { isMap: true, isIndex: true, isPure: true },
-            );
-          }
+        if (!info.key) {
+          return Object.assign(
+            (key) => (_, value) => valueMap([key, value], (x) => x),
+            { isMap: true, isUnpack: true, isPure: true },
+          );
+        }
+        const keyMap = info.key === true ? (x) => x[0] : compile(info.key);
+        if (keyMap) {
           return Object.assign(
             (key) => (_, value) => ({
-              key: compiled.key([key, value], (x) => x),
-              value: compiled.value([key, value], (x) => x),
+              key: keyMap([key, value], (x) => x),
+              value: valueMap([key, value], (x) => x),
             }),
             { isMap: true, isPure: true },
           );
         }
       } else {
-        if (compiled.value) {
-          return Object.assign(
-            (_, value) => compiled.value([null, value], (x) => x),
-            { isMap: false, isPure: true },
-          );
-        }
+        return Object.assign((_, value) => valueMap([null, value], (x) => x), {
+          isMap: false,
+          isPure: true,
+        });
       }
     }
-  } catch {}
+  }
 
   const funcMap = (key = null) => (create, value) => {
     const argValues = [key, value];
@@ -82,7 +65,7 @@ const buildFunc = (getScope, info, args) => {
   };
   return Object.assign(info.map ? funcMap : funcMap(), {
     isMap: info.map,
-    isIndex: !info.key,
+    isUnpack: !info.key,
   });
 };
 

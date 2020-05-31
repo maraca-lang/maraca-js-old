@@ -22,15 +22,15 @@ export default (block, key, get) => {
     const v1 = block.values[k] && block.values[k].value;
     if (v1) return v1;
 
-    const streamValues = resolveSets(block.streams, get);
-    const v2 = streamValues[k] && streamValues[k].value;
-    if (v2) return v2;
-
     const i = toIndex(key.value);
     if (i) {
-      const v3 = getIndexValue(i, block.indices, get);
-      if (v3) return v3;
+      const v2 = getIndexValue(i, block.indices, get);
+      if (v2) return v2;
     }
+
+    const streamValues = resolveSets(block.streams, get);
+    const v3 = streamValues[k] && streamValues[k].value;
+    if (v3) return v3;
   }
   return block.func || { type: 'value', value: '' };
 };
