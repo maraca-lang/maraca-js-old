@@ -14,7 +14,7 @@ import {
 
 export { default as parse } from './parse';
 export { Data, Source } from './typings';
-export { fromJs, process, streamMap, toJs } from './utils';
+export { fromJs, streamMap, toJs } from './utils';
 
 export const resolve = (data, get) => {
   const v = resolveType(data, get);
