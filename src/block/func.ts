@@ -1,5 +1,5 @@
 import build from '../build';
-import { fromObj, isResolved, keysToObject } from '../utils';
+import { fromObj, isResolved, keysToObject, memo } from '../utils';
 
 import { staticSet } from './set';
 
@@ -51,11 +51,12 @@ const buildFunc = (getScope, info, args) => {
 
   const funcMap = (key = null) => (create, value) => {
     const argValues = [key, value];
-    const getNewScope = () =>
+    const getNewScope = memo(() =>
       args.reduce(
         (res, k, i) => (k ? staticSet(res, argValues[i], k) : res),
         getScope(),
-      );
+      ),
+    );
     const valueResult = build(create, getNewScope, info.value);
     if (!info.map || !info.key) return valueResult;
     return {
