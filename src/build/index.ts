@@ -74,6 +74,15 @@ const buildBase = (
     const result = nodes.reduce(
       (block, { type, info = {} as any, nodes = [] as any[] }) => {
         if (!block) return null;
+        if (type === 'copy') {
+          const key = build(create, getScope, nodes[0]);
+          const value = build(create, getScope, {
+            type: 'get',
+            nodes: [nodes[0]],
+          });
+          if (!key || !value) return null;
+          return (staticSet as any)(block, value, key);
+        }
         if (type === 'set' || type === 'func') {
           const newNodes = [...nodes];
           if (type === 'set' && info.pushable) {

@@ -93,3 +93,18 @@ test('set shorthand', () => {
     }),
   });
 });
+
+test('copy', () => {
+  expect(maraca('[x: 10, [x:@]]')).toEqual({
+    type: 'block',
+    value: fromObj({
+      x: { type: 'value', value: '10' },
+      1: {
+        type: 'block',
+        value: fromObj({
+          x: { type: 'value', value: '10' },
+        }),
+      },
+    }),
+  });
+});

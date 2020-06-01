@@ -27,6 +27,7 @@ const grammar = `Maraca {
 
   Set
     = Exp ":=" -- value
+    | Exp ":@" -- copy
     | Exp? ":~" Exp? -- push
     | Exp? ":" Exp? -- set
 
@@ -171,6 +172,12 @@ export default () => {
     Set_value: (a, _) => setAst(a.ast, a.ast, a, _),
     Set_push: (a, _, b) => setAst(b.ast[0], a.ast[0], a, b, true),
     Set_set: (a, _, b) => setAst(b.ast[0], a.ast[0], a, b),
+    Set_copy: (a, _) => ({
+      type: 'copy',
+      nodes: [a.ast],
+      start: getIndex(a.source.startIdx),
+      end: getIndex(_.source.endIdx),
+    }),
 
     Push_push: (a, _, b) => ({
       type: 'push',
