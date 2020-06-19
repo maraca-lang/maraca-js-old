@@ -1,6 +1,6 @@
 {
   "name": "maraca",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "license": "MIT",
   "main": "lib/index.js",
   "types": "./lib/index.d.ts",
@@ -22,12 +22,12 @@
     "@babel/core": "^7.10.2",
     "@babel/preset-env": "^7.10.2",
     "@babel/preset-typescript": "^7.10.1",
-    "@types/jest": "^25.2.3",
+    "@types/jest": "^26.0.0",
     "babel-jest": "^26.0.1",
     "babel-plugin-transform-class-properties": "^6.24.1",
     "jest": "^26.0.1",
     "prettier": "^2.0.5",
     "rimraf": "^3.0.2",
-    "typescript": "^3.9.3"
+    "typescript": "^3.9.5"
   }
 }

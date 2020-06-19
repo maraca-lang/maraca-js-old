@@ -60,6 +60,10 @@ test('comparison', () => {
     type: 'value',
     value: '',
   });
+  expect(maraca('0 < 1')).toEqual({
+    type: 'value',
+    value: 'true',
+  });
   expect(maraca('5 <= 5')).toEqual({
     type: 'value',
     value: 'true',

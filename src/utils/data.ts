@@ -42,7 +42,7 @@ const tryNumber = (s) => {
   return !isNaN(s) && !isNaN(n) ? n : s;
 };
 const getMinus = (v) => {
-  if (!v) return { minus: false, v };
+  if (!v) return { minus: false, value: v };
   const minus = typeof v === 'number' ? v < 0 : v[0] === '-';
   if (!minus) return { minus, value: v };
   return { minus, value: typeof v === 'number' ? -v : v.slice(1) };
