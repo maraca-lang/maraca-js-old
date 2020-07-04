@@ -141,6 +141,14 @@ export const mapBlock = (block, map, get) => {
   result.indices = resolveIndices(block.indices, get)
     .map((x) => map(x))
     .filter((x) => x.value);
+  if (
+    Object.keys(result.values).some(
+      (k) => !isResolved(result.values[k].value),
+    ) ||
+    result.indices.some((d) => !isResolved(d))
+  ) {
+    result.unresolved = true;
+  }
   return result;
 };
 

@@ -82,7 +82,8 @@ export class Stream {
         },
         (s, snapshot) => {
           s.observe(this);
-          if (!snapshot) active.add(s);
+          if (snapshot) s.unobserve(this);
+          else active.add(s);
           return s.value;
         },
       );

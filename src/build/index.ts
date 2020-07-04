@@ -57,15 +57,16 @@ const buildBase = (
     const getNewScope = create
       ? memo(() => {
           const scope = getScope();
+          const streams = [
+            ...result.streams.filter((x) => x.key),
+            ...Object.keys(scope.values).map((k) => scope.values[k]),
+            ...scope.streams.filter((x) => x.key),
+          ];
           return {
             values: result.values,
-            streams: [
-              ...result.streams.filter((x) => x.key),
-              ...Object.keys(scope.values).map((k) => scope.values[k]),
-              ...scope.streams.filter((x) => x.key),
-            ],
+            streams,
             indices: [],
-            ...(scope.unresolved || result.unresolved
+            ...(scope.unresolved || result.unresolved || streams.length > 0
               ? { unresolved: true }
               : {}),
           };

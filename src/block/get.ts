@@ -11,7 +11,7 @@ const getIndexValue = (index, indices, get) => {
     if (result.value) countTrue++;
     else countFalse++;
     if (countTrue === index) return result;
-    if (countFalse > allIndices.length - i) return null;
+    if (countFalse + index > allIndices.length) return null;
   }
 };
 

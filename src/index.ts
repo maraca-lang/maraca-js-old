@@ -39,9 +39,8 @@ function maraca(...args) {
           info: { value: { type: 'stream', value: create(value) } },
         };
       }
-      if (typeof value === 'string' || value.__AST) {
-        return typeof value === 'string' ? parse(value) : value;
-      }
+      if (typeof value === 'string') return parse(value);
+      if (value.__AST) return value;
       return objToBuild(value);
     };
     const objToBuild = (source) => {
